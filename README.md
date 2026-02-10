@@ -1,7 +1,7 @@
 <h1 align="center">QuartzNotch</h1>
 
 <p align="center">
-  <img src="boringNotch/Assets.xcassets/AppIcon.appiconset/QuartzNotch_512512_1.png" alt="QuartzNotch App Icon" width="160" />
+  <img src="docs/quartznotch-icon.png" alt="QuartzNotch App Icon" width="160" />
 </p>
 
 QuartzNotch is a fork of BoringNotch focused on smoother interactions, richer live activities, and a more compact, adaptive notch experience.
@@ -50,4 +50,3 @@ Build and run from Xcode (`Cmd + R`).
 ## License
 
 See `LICENSE`.
-
