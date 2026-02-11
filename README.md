@@ -40,7 +40,7 @@ System requirements:
 ## Build From Source
 
 ```bash
-git clone <your-repo-url>
+git clone [<your-repo-url>](https://github.com/Clayton630/QuartzNotch)
 cd codex
 open boringNotch.xcodeproj
 ```
