@@ -6,7 +6,7 @@
 
 QuartzNotch is a fork of BoringNotch focused on smoother interactions, richer live activities, and a more compact, adaptive notch experience.
 
-## Changelog
+## Features
 
 - Made the notch more compact, with dynamic width that adapts to displayed content.
 - Introduced a new page navigation system that is smoother and more intuitive.
@@ -40,7 +40,7 @@ System requirements:
 ## Build From Source
 
 ```bash
-git clone [<your-repo-url>](https://github.com/Clayton630/QuartzNotch)
+git clone https://github.com/Clayton630/QuartzNotch
 cd codex
 open boringNotch.xcodeproj
 ```
