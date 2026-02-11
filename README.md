@@ -41,7 +41,7 @@ System requirements:
 
 ```bash
 git clone https://github.com/Clayton630/QuartzNotch
-cd codex
+cd QuartzNotch
 open boringNotch.xcodeproj
 ```
 
