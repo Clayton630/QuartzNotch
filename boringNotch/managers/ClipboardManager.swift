@@ -8,6 +8,7 @@
 import AppKit
 import Combine
 import SwiftUI
+import Carbon.HIToolbox
 
 class ClipboardManager: ObservableObject {
     static let shared = ClipboardManager()
@@ -17,10 +18,13 @@ class ClipboardManager: ObservableObject {
     private var timer: Timer?
     
     private let maxItems = 10
+    private var activeAppObserver: Any?
+    private weak var lastExternalActiveApp: NSRunningApplication?
     
     private init() {
     // Initialize changeCount so we don't treat the current pasteboard as a "change" on first tick.
         changeCount = NSPasteboard.general.changeCount
+        startTrackingLastExternalActiveApp()
         loadInitialClipboard()
         startMonitoring()
     }
@@ -101,6 +105,44 @@ class ClipboardManager: ObservableObject {
     }
     
     func copyItem(_ item: ClipboardItem) {
+        writeItemToPasteboard(item)
+
+        // Legacy behavior: single click on text tries immediate in-place insertion if a text field is focused.
+        if item.type == .text, let string = item.content as? String {
+            pasteIntoActiveTextField(string)
+        }
+    }
+
+    /// Double-click behavior for Clipboard UI:
+    /// put item on pasteboard, then paste into the previously active text zone.
+    func pasteItemIntoLastTextZone(_ item: ClipboardItem) {
+        Task { @MainActor in
+            // Trigger macOS accessibility prompt automatically if needed.
+            let allowed = await XPCHelperClient.shared.ensureAccessibilityAuthorization(promptIfNeeded: true)
+            guard allowed else { return }
+
+            writeItemToPasteboard(item)
+
+            // Maccy-like flow:
+            // 1) release focus from this app
+            // 2) reactivate the last external app that had focus
+            // 3) wait a frame for focus + pasteboard sync
+            // 4) send Cmd+V to session
+            NSApp.deactivate()
+            _ = lastExternalActiveApp?.activate(options: [])
+            try? await Task.sleep(for: .milliseconds(55))
+
+            if !sendCommandVPasteShortcut(),
+               item.type == .text,
+               let string = item.content as? String
+            {
+                // Fallback to local insertion when event posting is unavailable.
+                pasteIntoActiveTextField(string)
+            }
+        }
+    }
+
+    private func writeItemToPasteboard(_ item: ClipboardItem) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         
@@ -108,8 +150,6 @@ class ClipboardManager: ObservableObject {
         case .text:
             if let string = item.content as? String {
                 pasteboard.setString(string, forType: .string)
-        // Try to paste directly into the active text field if possible
-                pasteIntoActiveTextField(string)
             }
         case .image:
             if let image = item.content as? NSImage {
@@ -126,6 +166,46 @@ class ClipboardManager: ObservableObject {
         }
         
         changeCount = pasteboard.changeCount
+    }
+
+    private func sendCommandVPasteShortcut() -> Bool {
+        guard AXIsProcessTrusted() else { return false }
+
+        let keyCodeForV: CGKeyCode = CGKeyCode(kVK_ANSI_V)
+        guard
+            let source = CGEventSource(stateID: .combinedSessionState),
+            let keyDown = CGEvent(keyboardEventSource: source, virtualKey: keyCodeForV, keyDown: true),
+            let keyUp = CGEvent(keyboardEventSource: source, virtualKey: keyCodeForV, keyDown: false)
+        else { return false }
+
+        source.setLocalEventsFilterDuringSuppressionState(
+            [.permitLocalMouseEvents, .permitSystemDefinedEvents],
+            state: .eventSuppressionStateSuppressionInterval
+        )
+
+        keyDown.flags = .maskCommand
+        keyUp.flags = .maskCommand
+        keyDown.post(tap: .cgSessionEventTap)
+        keyUp.post(tap: .cgSessionEventTap)
+        return true
+    }
+
+    private func startTrackingLastExternalActiveApp() {
+        activeAppObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard
+                let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                let self = self
+            else { return }
+
+            let ownBundleID = Bundle.main.bundleIdentifier
+            if app.bundleIdentifier != ownBundleID {
+                self.lastExternalActiveApp = app
+            }
+        }
     }
     
   /// Attempts to paste text directly into the currently focused text field
@@ -159,6 +239,9 @@ class ClipboardManager: ObservableObject {
     
     deinit {
         timer?.invalidate()
+        if let activeAppObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(activeAppObserver)
+        }
     }
 }
 

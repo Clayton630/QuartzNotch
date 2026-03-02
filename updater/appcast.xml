@@ -2,13 +2,23 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <item>
-            <title>2.7.3</title>
-            <pubDate>Mon, 24 Nov 2025 08:07:37 +0000</pubDate>
-            <link>https://github.com/TheBoredTeam/boring.notch/releases</link>
-            <sparkle:version>271</sparkle:version>
-            <sparkle:shortVersionString>2.7.3</sparkle:shortVersionString>
+            <title>0.1.10</title>
+            <pubDate>Mon, 02 Mar 2026 11:04:18 +0100</pubDate>
+            <link>https://github.com/Clayton630/QuartzNotch/releases</link>
+            <sparkle:version>1010</sparkle:version>
+            <sparkle:shortVersionString>0.1.10</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>🚀 v2.7.3— Flying Rabbit 🐇🪽</h2>
+            <description><![CDATA[<h2>QuartzNotch 0.1.10</h2><p>Bug fixes and improvements.</p>]]></description>
+            <enclosure url="https://github.com/Clayton630/QuartzNotch/releases/download/v0.1.10/QuartzNotch-0.1.10(1010).dmg" length="14222708" type="application/octet-stream" sparkle:edSignature="Ti5yLyfiW9Rpf27fe8SVhkRhJ2FCMi3AslfRTgeK4u3U8DgveNNy+HUKTYMeWe30dRxKKvsKAUw6OrMPdyt+BQ=="/>
+        </item>
+        <item>
+            <title>0.1.9</title>
+            <pubDate>Mon, 24 Nov 2025 08:07:37 +0000</pubDate>
+            <link>https://github.com/Clayton630/QuartzNotch/releases</link>
+            <sparkle:version>1009</sparkle:version>
+            <sparkle:shortVersionString>0.1.9</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>🚀 v0.1.9 — QuartzNotch Alpha</h2>
 <h3> Fixes: </h3>
 <ul>
     <li><strong>Fixed regression in album artwork view<strong></li>
@@ -97,13 +107,13 @@
     @EnesCinr · @lambegraham</p>
 <hr>
 <h3>📄 Full Changelog</h3>
-<p><a href="https://github.com/TheBoredTeam/boring.notch/compare/v2.7-rc.3...v2.7">Compare v2.7-rc.3 → v2.7</a></p>]]></description>
-            <enclosure url="https://github.com/TheBoredTeam/boring.notch/releases/download/v2.7.3/boringNotch.dmg" length="9727030" type="application/octet-stream" sparkle:edSignature="gl1LSheePaR/h57sppaFMnIPGyX2AC3jITvMZzmYc95wiuuDAKLdSSjKAiUqDSvHqW8hx/fgCbS7878yUH3JCQ=="/>
+<p><a href="https://github.com/Clayton630/QuartzNotch/compare/v2.7-rc.3...v2.7">Compare v2.7-rc.3 → v2.7</a></p>]]></description>
+            <enclosure url="https://github.com/Clayton630/QuartzNotch/releases/download/v0.1.9/QuartzNotch-0.1.9(109).dmg" length="14206865" type="application/octet-stream" sparkle:edSignature="yKbVTeHj3qM4tTmjKtVfkeY6qOlVVwRkg/FdFp2qy/i+lyXGmntVurs1CXDdWnSvXbvrefL1mkLrXbhRPXbzAg=="/>
         </item>
         <item>
             <title>2.7.2</title>
             <pubDate>Sat, 22 Nov 2025 22:40:29 +0000</pubDate>
-            <link>https://github.com/TheBoredTeam/boring.notch/releases</link>
+            <link>https://github.com/Clayton630/QuartzNotch/releases</link>
             <sparkle:version>262</sparkle:version>
             <sparkle:shortVersionString>2.7.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
@@ -119,7 +129,7 @@
     <li><strong>Improved animations</strong></li>
      <li><strong>Fixed shadow clipping</strong></li>
      <h3>📄 Full Changelog</h3>
-      <p><a href="https://github.com/TheBoredTeam/boring.notch/compare/v2.7...v2.7.1">Compare v2.7 → v2.7.1</a></p>
+      <p><a href="https://github.com/Clayton630/QuartzNotch/compare/v2.7...v2.7.1">Compare v2.7 → v2.7.1</a></p>
 </ul>
 
 <h2>🚀 v2.7 — Flying Rabbit 🐇🪽</h2>
@@ -198,13 +208,13 @@
     @EnesCinr · @lambegraham</p>
 <hr>
 <h3>📄 Full Changelog</h3>
-<p><a href="https://github.com/TheBoredTeam/boring.notch/compare/v2.7-rc.3...v2.7">Compare v2.7-rc.3 → v2.7</a></p>]]></description>
-            <enclosure url="https://github.com/TheBoredTeam/boring.notch/releases/download/v2.7.2/boringNotch.dmg" length="9684618" type="application/octet-stream" sparkle:edSignature="8fWrEF4oezQcnF/iM9X0B4bGIe4zPnJSzpEuwq3OfyZ5TphlXf85DmRL21PWDIYuUIGuX6DaUyzv7NOB9Fk9Cg=="/>
+<p><a href="https://github.com/Clayton630/QuartzNotch/compare/v2.7-rc.3...v2.7">Compare v2.7-rc.3 → v2.7</a></p>]]></description>
+            <enclosure url="https://github.com/Clayton630/QuartzNotch/releases/download/v2.7.2/boringNotch.dmg" length="9684618" type="application/octet-stream" sparkle:edSignature="8fWrEF4oezQcnF/iM9X0B4bGIe4zPnJSzpEuwq3OfyZ5TphlXf85DmRL21PWDIYuUIGuX6DaUyzv7NOB9Fk9Cg=="/>
         </item>
         <item>
             <title>2.7.1</title>
             <pubDate>Sat, 22 Nov 2025 22:14:41 +0000</pubDate>
-            <link>https://github.com/TheBoredTeam/boring.notch/releases</link>
+            <link>https://github.com/Clayton630/QuartzNotch/releases</link>
             <sparkle:version>260</sparkle:version>
             <sparkle:shortVersionString>2.7.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
@@ -215,7 +225,7 @@
     <li><strong>Improved animations</strong></li>
      <li><strong>Fixed shadow clipping</strong></li>
      <h3>📄 Full Changelog</h3>
-      <p><a href="https://github.com/TheBoredTeam/boring.notch/compare/v2.7...v2.7.1">Compare v2.7 → v2.7.1</a></p>
+      <p><a href="https://github.com/Clayton630/QuartzNotch/compare/v2.7...v2.7.1">Compare v2.7 → v2.7.1</a></p>
 </ul>
 
 <h2>🚀 v2.7 — Flying Rabbit 🐇🪽</h2>
@@ -294,8 +304,8 @@
     @EnesCinr · @lambegraham</p>
 <hr>
 <h3>📄 Full Changelog</h3>
-<p><a href="https://github.com/TheBoredTeam/boring.notch/compare/v2.7-rc.3...v2.7">Compare v2.7-rc.3 → v2.7</a></p>]]></description>
-            <enclosure url="https://github.com/TheBoredTeam/boring.notch/releases/download/v2.7.1/boringNotch.dmg" length="9684624" type="application/octet-stream" sparkle:edSignature="d+5NbhE7/CjLdcwOyPmxKSC7r3BAFG1Fe6t9voGwT/w6yUfaTMn6d30pUFhPqWihWFhT4cwtPOPztzEV35XBAQ=="/>
+<p><a href="https://github.com/Clayton630/QuartzNotch/compare/v2.7-rc.3...v2.7">Compare v2.7-rc.3 → v2.7</a></p>]]></description>
+            <enclosure url="https://github.com/Clayton630/QuartzNotch/releases/download/v2.7.1/boringNotch.dmg" length="9684624" type="application/octet-stream" sparkle:edSignature="d+5NbhE7/CjLdcwOyPmxKSC7r3BAFG1Fe6t9voGwT/w6yUfaTMn6d30pUFhPqWihWFhT4cwtPOPztzEV35XBAQ=="/>
         </item>
         <item>
             <title>2.7-rc.1 Flying Rabbit 🐇🪽</title>
@@ -327,7 +337,7 @@
                         <p>— The Boring Team</p>
                     </div>
                 ]]></description>
-            <enclosure url="https://github.com/TheBoredTeam/boring.notch/releases/download/v2.7-rc.1/Flying_Rabbit.dmg" length="9033202" type="application/octet-stream" sparkle:edSignature="z1SbQHDCg1D+6m811f4ubdinUiXvoYF4Ra2xlzS3NSAlUqmmIpdzCp1MHMv5J9ddlxTws3rG48OCJfZRAXHHAw=="/>
+            <enclosure url="https://github.com/Clayton630/QuartzNotch/releases/download/v2.7-rc.1/Flying_Rabbit.dmg" length="9033202" type="application/octet-stream" sparkle:edSignature="z1SbQHDCg1D+6m811f4ubdinUiXvoYF4Ra2xlzS3NSAlUqmmIpdzCp1MHMv5J9ddlxTws3rG48OCJfZRAXHHAw=="/>
         </item>
         <item>
             <title>2.7-rc.0 Flying Rabbit 🐇🪽</title>
@@ -347,52 +357,52 @@
                     <li>Interactive battery icon with detailed info and instant System Preferences access</li>
                     <li>Visual alignment and consistent styling (macOS-like bolt/plug icons, dark mode, etc.)</li>
                     <li>Optimized and documented code, robust error handling, and improved performance</li>
-                    <li><a href="https://github.com/TheBoredTeam/boring.notch/pull/437">Details \&amp; Demo</a></li>
+                    <li><a href="https://github.com/Clayton630/QuartzNotch/pull/437">Details \&amp; Demo</a></li>
                     </ul>
                     </li>
                     <li><strong>🖥️ Fullscreen Detection \&amp; Playback Management Fixes</strong>
                     @Alexander5015 improved reliability of media controls during fullscreen transitions<ul>
-                    <li><a href="https://github.com/TheBoredTeam/boring.notch/pull/449">PR #449</a></li>
+                    <li><a href="https://github.com/Clayton630/QuartzNotch/pull/449">PR #449</a></li>
                     </ul>
                     </li>
                     <li><strong>🦷 Allow 0 Height Notch</strong>
                     Now supports notches with zero height for enhanced layout flexibility<ul>
-                    <li>Thanks, @yaxarat! <a href="https://github.com/TheBoredTeam/boring.notch/pull/397">PR #397</a></li>
+                    <li>Thanks, @yaxarat! <a href="https://github.com/Clayton630/QuartzNotch/pull/397">PR #397</a></li>
                     </ul>
                     </li>
                     <li><strong>🎛️ Multiple Media Controllers</strong>
                     Control and display several media controllers at once<ul>
-                    <li><a href="https://github.com/TheBoredTeam/boring.notch/pull/460">PR #460</a></li>
+                    <li><a href="https://github.com/Clayton630/QuartzNotch/pull/460">PR #460</a></li>
                     </ul>
                     </li>
                     <li><strong>👀 Sneak Peek \&amp; Jiggle Fixes</strong>
                     Re-added sneak peek and improved animation stability<ul>
-                    <li><a href="https://github.com/TheBoredTeam/boring.notch/pull/409">PR #409</a></li>
+                    <li><a href="https://github.com/Clayton630/QuartzNotch/pull/409">PR #409</a></li>
                     </ul>
                     </li>
                     <li><strong>🗓️ New Calendar Service</strong>
                     Seamlessly integrates your calendar into Boring Notch<ul>
-                    <li><a href="https://github.com/TheBoredTeam/boring.notch/pull/589">PR #589</a></li>
+                    <li><a href="https://github.com/Clayton630/QuartzNotch/pull/589">PR #589</a></li>
                     </ul>
                     </li>
                     <li><strong>📄 Updated LICENSE</strong>
                     Keeping compliance and clarity up to date<ul>
-                    <li><a href="https://github.com/TheBoredTeam/boring.notch/pull/590">PR #590</a></li>
+                    <li><a href="https://github.com/Clayton630/QuartzNotch/pull/590">PR #590</a></li>
                     </ul>
                     </li>
                     <li><strong>🆕 Onboarding \&amp; Better Settings Window</strong>
                     Streamlined onboarding and redesigned settings for easy configuration<ul>
-                    <li><a href="https://github.com/TheBoredTeam/boring.notch/pull/600">PR #600</a></li>
+                    <li><a href="https://github.com/Clayton630/QuartzNotch/pull/600">PR #600</a></li>
                     </ul>
                     </li>
                     <li><strong>📸 Camera Toggle Feature</strong>
                     New camera quick toggle, privacy-first!<ul>
-                    <li>Added by @Steve-sy <a href="https://github.com/TheBoredTeam/boring.notch/pull/598">PR #598</a></li>
+                    <li>Added by @Steve-sy <a href="https://github.com/Clayton630/QuartzNotch/pull/598">PR #598</a></li>
                     </ul>
                     </li>
                     <li><strong>🎵 MediaRemote Adapter Support</strong>
                     Improved compatibility with MediaRemote devices<ul>
-                    <li><a href="https://github.com/TheBoredTeam/boring.notch/pull/631">PR #631</a></li>
+                    <li><a href="https://github.com/Clayton630/QuartzNotch/pull/631">PR #631</a></li>
                     </ul>
                     </li>
                     </ul>
@@ -407,47 +417,47 @@
                     <tbody>
                     <tr>
                     <td style="text-align:left">@sancho1952007</td>
-                    <td style="text-align:left">(<a href="https://github.com/TheBoredTeam/boring.notch/pull/431">https://github.com/TheBoredTeam/boring.notch/pull/431</a>)</td>
+                    <td style="text-align:left">(<a href="https://github.com/Clayton630/QuartzNotch/pull/431">https://github.com/Clayton630/QuartzNotch/pull/431</a>)</td>
                     </tr>
                     <tr>
                     <td style="text-align:left">@Ein-Tim</td>
-                    <td style="text-align:left">(<a href="https://github.com/TheBoredTeam/boring.notch/pull/405">https://github.com/TheBoredTeam/boring.notch/pull/405</a>)</td>
+                    <td style="text-align:left">(<a href="https://github.com/Clayton630/QuartzNotch/pull/405">https://github.com/Clayton630/QuartzNotch/pull/405</a>)</td>
                     </tr>
                     <tr>
                     <td style="text-align:left">@AlexLemus-Dev</td>
-                    <td style="text-align:left">(<a href="https://github.com/TheBoredTeam/boring.notch/pull/437">https://github.com/TheBoredTeam/boring.notch/pull/437</a>)</td>
+                    <td style="text-align:left">(<a href="https://github.com/Clayton630/QuartzNotch/pull/437">https://github.com/Clayton630/QuartzNotch/pull/437</a>)</td>
                     </tr>
                     <tr>
                     <td style="text-align:left">@yaxarat</td>
-                    <td style="text-align:left">(<a href="https://github.com/TheBoredTeam/boring.notch/pull/397">https://github.com/TheBoredTeam/boring.notch/pull/397</a>)</td>
+                    <td style="text-align:left">(<a href="https://github.com/Clayton630/QuartzNotch/pull/397">https://github.com/Clayton630/QuartzNotch/pull/397</a>)</td>
                     </tr>
                     <tr>
                     <td style="text-align:left">@ShirakawaMio</td>
-                    <td style="text-align:left">(<a href="https://github.com/TheBoredTeam/boring.notch/pull/399">https://github.com/TheBoredTeam/boring.notch/pull/399</a>)</td>
+                    <td style="text-align:left">(<a href="https://github.com/Clayton630/QuartzNotch/pull/399">https://github.com/Clayton630/QuartzNotch/pull/399</a>)</td>
                     </tr>
                     <tr>
                     <td style="text-align:left">@divyanshu0469</td>
-                    <td style="text-align:left">(<a href="https://github.com/TheBoredTeam/boring.notch/pull/454">https://github.com/TheBoredTeam/boring.notch/pull/454</a>)</td>
+                    <td style="text-align:left">(<a href="https://github.com/Clayton630/QuartzNotch/pull/454">https://github.com/Clayton630/QuartzNotch/pull/454</a>)</td>
                     </tr>
                     <tr>
                     <td style="text-align:left">@oorischubert</td>
-                    <td style="text-align:left">(<a href="https://github.com/TheBoredTeam/boring.notch/pull/409">https://github.com/TheBoredTeam/boring.notch/pull/409</a>)</td>
+                    <td style="text-align:left">(<a href="https://github.com/Clayton630/QuartzNotch/pull/409">https://github.com/Clayton630/QuartzNotch/pull/409</a>)</td>
                     </tr>
                     <tr>
                     <td style="text-align:left">@Al3Gr</td>
-                    <td style="text-align:left">(<a href="https://github.com/TheBoredTeam/boring.notch/pull/493">https://github.com/TheBoredTeam/boring.notch/pull/493</a>)</td>
+                    <td style="text-align:left">(<a href="https://github.com/Clayton630/QuartzNotch/pull/493">https://github.com/Clayton630/QuartzNotch/pull/493</a>)</td>
                     </tr>
                     <tr>
                     <td style="text-align:left">@ChemicalChaos-Fabian42</td>
-                    <td style="text-align:left">(<a href="https://github.com/TheBoredTeam/boring.notch/pull/509">https://github.com/TheBoredTeam/boring.notch/pull/509</a>)</td>
+                    <td style="text-align:left">(<a href="https://github.com/Clayton630/QuartzNotch/pull/509">https://github.com/Clayton630/QuartzNotch/pull/509</a>)</td>
                     </tr>
                     <tr>
                     <td style="text-align:left">@Davetheword</td>
-                    <td style="text-align:left">(<a href="https://github.com/TheBoredTeam/boring.notch/pull/501">https://github.com/TheBoredTeam/boring.notch/pull/501</a>)</td>
+                    <td style="text-align:left">(<a href="https://github.com/Clayton630/QuartzNotch/pull/501">https://github.com/Clayton630/QuartzNotch/pull/501</a>)</td>
                     </tr>
                     <tr>
                     <td style="text-align:left">@Steve-sy</td>
-                    <td style="text-align:left">(<a href="https://github.com/TheBoredTeam/boring.notch/pull/598">https://github.com/TheBoredTeam/boring.notch/pull/598</a>)</td>
+                    <td style="text-align:left">(<a href="https://github.com/Clayton630/QuartzNotch/pull/598">https://github.com/Clayton630/QuartzNotch/pull/598</a>)</td>
                     </tr>
                     </tbody>
                     </table>
@@ -461,7 +471,7 @@
                     <p><strong>Try Boring Notch v2.7 — Flying Rabbit RC 0 and let us know what you think!</strong></p>
                     <p><em>— The Boring Notch Team</em></p>
                 ]]></description>
-            <enclosure url="https://github.com/TheBoredTeam/boring.notch/releases/download/v2.7-rc.0/Flying_Rabbit.dmg" length="9000118" type="application/octet-stream" sparkle:edSignature="G5D2zsLFBR0Ua9b1EkLD8jjdkpMA10P1C9KmEL2Drg1WNwCnNAY+lGmljx1UQ+qDyqpjjMrOoGClevHd/276BQ=="/>
+            <enclosure url="https://github.com/Clayton630/QuartzNotch/releases/download/v2.7-rc.0/Flying_Rabbit.dmg" length="9000118" type="application/octet-stream" sparkle:edSignature="G5D2zsLFBR0Ua9b1EkLD8jjdkpMA10P1C9KmEL2Drg1WNwCnNAY+lGmljx1UQ+qDyqpjjMrOoGClevHd/276BQ=="/>
         </item>
         <item>
             <title>2.6 🎉 Wolf Painting 🐺</title>
@@ -472,7 +482,7 @@
             <description><![CDATA[
                 <h1>🎉 v2.6 🚀 Wolf Painting 🐺</h1>
                 <p>We're thrilled to announce the release of Wolf Painting version 2.6! 🎊 This major update brings numerous improvements and new features that will make your experience even more enjoyable.</p><br />
-                <a href="https://github.com/TheBoredTeam/boring.notch/releases/download/wolf.painting/WolfPainting.dmg"><h1>Download from here</h1></a>
+                <a href="https://github.com/Clayton630/QuartzNotch/releases/download/wolf.painting/WolfPainting.dmg"><h1>Download from here</h1></a>
                 <h2>🤔 What's Changed? 🤓</h2>
                 <ul>
                 <li>🧠 Improved memory management and thread safety across the app</li>
@@ -489,7 +499,7 @@
                 <li>For more details, check out <a href="https://theboring.name">our website</a></li>
                 </ul>
             ]]></description>
-            <enclosure url="https://github.com/TheBoredTeam/boring.notch/releases/download/wolf.painting/WolfPainting.dmg" length="8722621" type="application/octet-stream" sparkle:edSignature="j2Wp9e23UvN7yx2NztYfGbUiKfCU4qc2xpsPwBPx/ERUz01pJTfJlf8oN0Wri8gcho42/xfcfnWNwChfMPzrCQ=="/>
+            <enclosure url="https://github.com/Clayton630/QuartzNotch/releases/download/wolf.painting/WolfPainting.dmg" length="8722621" type="application/octet-stream" sparkle:edSignature="j2Wp9e23UvN7yx2NztYfGbUiKfCU4qc2xpsPwBPx/ERUz01pJTfJlf8oN0Wri8gcho42/xfcfnWNwChfMPzrCQ=="/>
         </item>
     </channel>
 </rss>

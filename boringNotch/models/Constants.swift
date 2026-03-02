@@ -36,6 +36,14 @@ enum HideNotchOption: String, Defaults.Serializable {
     case never
 }
 
+enum ScreenRecordingVisibilityMode: String, CaseIterable, Identifiable, Defaults.Serializable {
+    case fullyHidden = "Fully hidden"
+    case onlyWhenClosed = "Only when closed"
+    case onlyWhenNotInUse = "Only when not in use"
+
+    var id: String { rawValue }
+}
+
 // Define notification names at file scope
 extension Notification.Name {
     static let mediaControllerChanged = Notification.Name("mediaControllerChanged")
@@ -65,14 +73,6 @@ enum MediaControllerType: String, CaseIterable, Identifiable, Defaults.Serializa
     var id: String { self.rawValue }
 }
 
-// Sneak peek styles for selection in settings
-enum SneakPeekStyle: String, CaseIterable, Identifiable, Defaults.Serializable {
-    case standard = "Default"
-    case inline = "Inline"
-    
-    var id: String { self.rawValue }
-}
-
 // Action to perform when Option (⌥) is held while pressing media keys
 enum OptionKeyAction: String, CaseIterable, Identifiable, Defaults.Serializable {
     case openSettings = "Open System Settings"
@@ -92,7 +92,7 @@ extension Defaults.Keys {
   // MARK: Behavior
     static let minimumHoverDuration = Key<TimeInterval>("minimumHoverDuration", default: 0.3)
     static let enableHaptics = Key<Bool>("enableHaptics", default: true)
-    static let openNotchOnHover = Key<Bool>("openNotchOnHover", default: true)
+    static let openNotchOnHover = Key<Bool>("openNotchOnHover", default: false)
     static let extendHoverArea = Key<Bool>("extendHoverArea", default: false)
     static let notchHeightMode = Key<WindowHeightMode>(
         "notchHeightMode",
@@ -106,7 +106,11 @@ extension Defaults.Keys {
     static let notchHeight = Key<CGFloat>("notchHeight", default: 32)
   //static let openLastTabByDefault = Key<Bool>("openLastTabByDefault", default: false)
     static let showOnLockScreen = Key<Bool>("showOnLockScreen", default: true)
-    static let hideFromScreenRecording = Key<Bool>("hideFromScreenRecording", default: false)
+    static let hideFromScreenRecordingLegacy = Key<Bool>("hideFromScreenRecording", default: false)
+    static let hideFromScreenRecordingMode = Key<ScreenRecordingVisibilityMode>(
+        "hideFromScreenRecordingMode",
+        default: .onlyWhenNotInUse
+    )
     
   // MARK: Appearance
     static let showEmojis = Key<Bool>("showEmojis", default: false)
@@ -123,7 +127,7 @@ extension Defaults.Keys {
         "sliderUseAlbumArtColor",
         default: SliderColorEnum.white
     )
-    static let playerColorTinting = Key<Bool>("playerColorTinting", default: true)
+    static let playerColorTinting = Key<Bool>("playerColorTinting", default: false)
     static let useMusicVisualizer = Key<Bool>("useMusicVisualizer", default: true)
     static let customVisualizers = Key<[CustomVisualizer]>("customVisualizers", default: [])
     static let selectedVisualizer = Key<CustomVisualizer?>("selectedVisualizer", default: nil)
@@ -136,7 +140,6 @@ extension Defaults.Keys {
   // MARK: Media playback
     static let coloredSpectrogram = Key<Bool>("coloredSpectrogram", default: true)
     static let enableSneakPeek = Key<Bool>("enableSneakPeek", default: false)
-    static let sneakPeekStyles = Key<SneakPeekStyle>("sneakPeekStyles", default: .standard)
     static let waitInterval = Key<Double>("waitInterval", default: 3)
     static let showShuffleAndRepeat = Key<Bool>("showShuffleAndRepeat", default: false)
     static let enableLyrics = Key<Bool>("enableLyrics", default: false)
@@ -162,8 +165,13 @@ extension Defaults.Keys {
     static let liveActivityShelfContent = Key<Bool>("liveActivityShelfContent", default: true)
     static let liveActivityLockScreen = Key<Bool>("liveActivityLockScreen", default: true)
     static let bluetoothLiveActivityEnabled = Key<Bool>("bluetoothLiveActivityEnabled", default: true)
+    static let focusLiveActivityEnabled = Key<Bool>("focusLiveActivityEnabled", default: true)
   /// Closed-notch timer indicator (Quick Timers page)
     static let liveActivityTimerEnabled = Key<Bool>("liveActivityTimerEnabled", default: true)
+  /// Quick timer alert tone selection.
+    static let quickTimerAlertToneID = Key<String>("quickTimerAlertToneID", default: "systemDefault")
+  /// Mirrors Clock.app system timer into the timer live activity.
+    static let mirrorSystemClockTimer = Key<Bool>("mirrorSystemClockTimer", default: true)
   // NOTE: "Charging state" and "Now playing" are wired to existing settings:
   // - Battery -> showPowerStatusNotifications
   // - Media  -> @AppStorage("musicLiveActivityEnabled")
@@ -174,6 +182,7 @@ extension Defaults.Keys {
     static let pageHomeEnabled = Key<Bool>("pageHomeEnabled", default: true)
     static let pageShelfEnabled = Key<Bool>("pageShelfEnabled", default: true)
 static let pageThirdEnabled = Key<Bool>("pageThirdEnabled", default: true)
+    static let pageUseLiquidGlassBackground = Key<Bool>("pageUseLiquidGlassBackground", default: false)
 
   // MARK: Downloads
     static let enableDownloadListener = Key<Bool>("enableDownloadListener", default: true)
@@ -222,10 +231,9 @@ static let pageThirdEnabled = Key<Bool>("pageThirdEnabled", default: true)
   // MARK: Advanced Settings
     static let useCustomAccentColor = Key<Bool>("useCustomAccentColor", default: false)
     static let customAccentColorData = Key<Data?>("customAccentColorData", default: nil)
-  // Show or hide the title bar
+  // Internal compatibility key used by layout/chin geometry.
     static let hideTitleBar = Key<Bool>("hideTitleBar", default: true)
     
     static let didClearLegacyURLCacheV1 = Key<Bool>("didClearLegacyURLCache_v1", default: false)
     static let didMigratePlaybackScopeV1 = Key<Bool>("didMigratePlaybackScope_v1", default: false)
 }
-

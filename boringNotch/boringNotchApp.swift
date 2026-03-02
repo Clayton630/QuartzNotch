@@ -29,6 +29,11 @@ struct DynamicNotchApp: App {
         if UserDefaults.standard.object(forKey: "menubarIcon") == nil {
             Defaults[.menubarIcon] = false
         }
+        if UserDefaults.standard.object(forKey: "hideFromScreenRecordingMode") == nil {
+            Defaults[.hideFromScreenRecordingMode] = Defaults[.hideFromScreenRecordingLegacy]
+                ? .fullyHidden
+                : .onlyWhenNotInUse
+        }
 
         updaterController = SPUStandardUpdaterController(
             startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
@@ -406,16 +411,11 @@ private func cleanupWindows(shouldInvert: Bool = false) {
 
         KeyboardShortcuts.onKeyDown(for: .toggleSneakPeek) { [weak self] in
             guard let self = self else { return }
-            if Defaults[.sneakPeekStyles] == .inline {
-                let newStatus = !self.coordinator.expandingView.show
-                self.coordinator.toggleExpandingView(status: newStatus, type: .music)
-            } else {
-                self.coordinator.toggleSneakPeek(
-                    status: !self.coordinator.sneakPeek.show,
-                    type: .music,
-                    duration: 3.0
-                )
-            }
+            self.coordinator.toggleSneakPeek(
+                status: !self.coordinator.sneakPeek.show,
+                type: .music,
+                duration: 3.0
+            )
         }
 
         KeyboardShortcuts.onKeyDown(for: .toggleNotchOpen) { [weak self] in

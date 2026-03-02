@@ -34,6 +34,8 @@ extension SkyLightOperator {
 class BoringNotchSkyLightWindow: NSPanel {
     private var isSkyLightEnabled: Bool = false
     private var allowsInlineTextInput: Bool = false
+    private var recordingContextIsClosed: Bool = true
+    private var recordingContextIsInUse: Bool = false
     
     override init(
         contentRect: NSRect,
@@ -78,8 +80,8 @@ class BoringNotchSkyLightWindow: NSPanel {
     }
     
     private func setupObservers() {
-    // Listen for changes to the hideFromScreenRecording setting
-        Defaults.publisher(.hideFromScreenRecording)
+    // Listen for changes to the screen-recording visibility mode
+        Defaults.publisher(.hideFromScreenRecordingMode)
             .sink { [weak self] _ in
                 self?.updateSharingType()
             }
@@ -116,11 +118,28 @@ class BoringNotchSkyLightWindow: NSPanel {
     }
     
     private func updateSharingType() {
-        if Defaults[.hideFromScreenRecording] {
+        let mode = Defaults[.hideFromScreenRecordingMode]
+        let shouldHide: Bool
+        switch mode {
+        case .fullyHidden:
+            shouldHide = true
+        case .onlyWhenClosed:
+            shouldHide = recordingContextIsClosed
+        case .onlyWhenNotInUse:
+            shouldHide = recordingContextIsClosed && !recordingContextIsInUse
+        }
+
+        if shouldHide {
             sharingType = .none
         } else {
             sharingType = .readWrite
         }
+    }
+
+    func updateScreenRecordingContext(isClosed: Bool, isInUse: Bool) {
+        recordingContextIsClosed = isClosed
+        recordingContextIsInUse = isInUse
+        updateSharingType()
     }
     
     func enableSkyLight() {

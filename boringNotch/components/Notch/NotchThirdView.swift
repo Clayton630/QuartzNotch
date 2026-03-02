@@ -82,7 +82,7 @@ struct NotchThirdView: View {
                     .frame(width: cameraReservedWidth, height: 0)
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 17)
         .padding(.top, 4)
         .padding(.bottom, 10)
     }
@@ -542,6 +542,9 @@ private struct ClipboardCard: View {
 struct ClipboardSection: View {
     @StateObject private var clipboardManager = ClipboardManager.shared
     @Binding var isPagerScrollEnabled: Bool
+    @State private var isHoveringList = false
+    @State private var wheelMonitor: Any?
+    @State private var pagerReenableTask: Task<Void, Never>?
 
     init(isPagerScrollEnabled: Binding<Bool>) {
         self._isPagerScrollEnabled = isPagerScrollEnabled
@@ -597,12 +600,10 @@ struct ClipboardSection: View {
                     }
                     .padding(4)
                 }
-        // When the pointer is over the clipboard list, allow two-finger scrolling
-        // to scroll the list instead of triggering the notch pager.
                 .onHover { hovering in
-                    if hovering && !clipboardManager.items.isEmpty {
-                        isPagerScrollEnabled = false
-                    } else {
+                    isHoveringList = hovering
+                    if !hovering {
+                        pagerReenableTask?.cancel()
                         isPagerScrollEnabled = true
                     }
                 }
@@ -611,8 +612,41 @@ struct ClipboardSection: View {
     // Fill the height imposed by the parent. The card background is applied by the parent
     // *after* the explicit height, so it truly matches the timers column.
         .frame(maxHeight: .infinity, alignment: .top)
-        .onAppear { isPagerScrollEnabled = true }
-        .onDisappear { isPagerScrollEnabled = true }
+        .onAppear {
+            isPagerScrollEnabled = true
+            wheelMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+                guard isHoveringList, !clipboardManager.items.isEmpty else { return event }
+
+                let dx = abs(event.scrollingDeltaX)
+                let dy = abs(event.scrollingDeltaY)
+                let threshold: CGFloat = 0.8
+
+                if dy > (dx + threshold) {
+                    // Vertical interaction inside clipboard: temporarily block pager
+                    // so the notch open/close gestures do not steal the scroll.
+                    isPagerScrollEnabled = false
+                    pagerReenableTask?.cancel()
+                    pagerReenableTask = Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(140))
+                        guard !Task.isCancelled else { return }
+                        if isHoveringList { isPagerScrollEnabled = true }
+                    }
+                } else if dx > (dy + threshold) {
+                    // Horizontal interaction should always route to page switching.
+                    isPagerScrollEnabled = true
+                }
+
+                return event
+            }
+        }
+        .onDisappear {
+            isPagerScrollEnabled = true
+            pagerReenableTask?.cancel()
+            if let wheelMonitor {
+                NSEvent.removeMonitor(wheelMonitor)
+                self.wheelMonitor = nil
+            }
+        }
         .onChange(of: clipboardManager.items.isEmpty) { isEmpty in
             if isEmpty { isPagerScrollEnabled = true }
         }
@@ -625,54 +659,53 @@ struct ClipboardItemRow: View {
     @State private var isHovering = false
     
     var body: some View {
-        Button {
-            clipboardManager.copyItem(item)
-        } label: {
-            HStack(spacing: 8) {
+        HStack(spacing: 8) {
         // Icon
-                Image(systemName: item.icon)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.6))
-                    .frame(width: 16)
+            Image(systemName: item.icon)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(0.6))
+                .frame(width: 16)
                 
         // Preview
-                if item.type == .image, let image = item.content as? NSImage {
-                    Image(nsImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 24, height: 24)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                } else {
-                    Text(item.preview)
-                        .foregroundStyle(.white.opacity(0.8))
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+            if item.type == .image, let image = item.content as? NSImage {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 24, height: 24)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            } else {
+                Text(item.preview)
+                    .foregroundStyle(.white.opacity(0.8))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
                 
-                Spacer(minLength: 0)
+            Spacer(minLength: 0)
                 
         // Delete button
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        clipboardManager.deleteItem(item)
-                    }
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.4))
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    clipboardManager.deleteItem(item)
                 }
-                .buttonStyle(PlainButtonStyle())
-                .opacity(isHovering ? 1 : 0)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white.opacity(0.4))
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isHovering ? Color.white.opacity(0.08) : Color.clear)
-            )
+            .buttonStyle(PlainButtonStyle())
+            .opacity(isHovering ? 1 : 0)
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isHovering ? Color.white.opacity(0.08) : Color.clear)
+        )
+        .onTapGesture {
+            clipboardManager.pasteItemIntoLastTextZone(item)
+        }
         .onHover { hovering in
             withAnimation(.smooth(duration: 0.2)) {
                 isHovering = hovering

@@ -16,8 +16,271 @@ import KeyboardShortcuts
 import SwiftUI
 import SwiftUIIntrospect
 
+private struct NotchLiquidGlassBackground<Content: View>: NSViewRepresentable {
+    let variant: Int
+    let cornerRadius: CGFloat
+    let trigger: Double
+    let content: Content
+
+    init(variant: Int = 11, cornerRadius: CGFloat, trigger: Double = 0, @ViewBuilder content: () -> Content) {
+        self.variant = variant
+        self.cornerRadius = cornerRadius
+        self.trigger = trigger
+        self.content = content()
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        if let glassType = NSClassFromString("NSGlassEffectView") as? NSView.Type {
+            let glass = glassType.init(frame: .zero)
+            glass.setValue(cornerRadius, forKey: "cornerRadius")
+            setVariant(on: glass, value: variant)
+
+            let host = NSHostingView(rootView: content)
+            host.translatesAutoresizingMaskIntoConstraints = false
+            glass.setValue(host, forKey: "contentView")
+            return glass
+        }
+
+        let fallback = NSVisualEffectView()
+        fallback.material = .underWindowBackground
+        fallback.blendingMode = .withinWindow
+        fallback.state = .active
+
+        let host = NSHostingView(rootView: content)
+        host.translatesAutoresizingMaskIntoConstraints = false
+        fallback.addSubview(host)
+        NSLayoutConstraint.activate([
+            host.leadingAnchor.constraint(equalTo: fallback.leadingAnchor),
+            host.trailingAnchor.constraint(equalTo: fallback.trailingAnchor),
+            host.topAnchor.constraint(equalTo: fallback.topAnchor),
+            host.bottomAnchor.constraint(equalTo: fallback.bottomAnchor),
+        ])
+        return fallback
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        if let host = nsView.value(forKey: "contentView") as? NSHostingView<Content> {
+            host.rootView = content
+        }
+        nsView.setValue(cornerRadius, forKey: "cornerRadius")
+        setVariant(on: nsView, value: variant)
+
+        // Atoll v11 behavior: force very subtle wallpaper re-sampling each frame.
+        let jitter = sin(trigger * 100) * 0.000001
+        nsView.alphaValue = 1.0 - CGFloat(abs(jitter))
+        nsView.needsDisplay = true
+    }
+
+    private typealias VariantSetterIMP = @convention(c) (AnyObject, Selector, Int) -> Void
+
+    private func setVariant(on object: AnyObject, value: Int) {
+        let selector = NSSelectorFromString("set_variant:")
+        guard
+            let method = class_getInstanceMethod(object_getClass(object), selector)
+        else { return }
+        let imp = method_getImplementation(method)
+        let function = unsafeBitCast(imp, to: VariantSetterIMP.self)
+        function(object, selector, value)
+    }
+}
+
+private struct FocusLiveActivity: View {
+    struct Layout {
+        let leftPadding: CGFloat
+        let rightPadding: CGFloat
+        let leftWidth: CGFloat
+        let rightWidth: CGFloat
+        let fontSize: CGFloat
+    }
+
+    let notchWidth: CGFloat
+    let baseHeight: CGFloat
+    let symbolName: String
+    let statusText: String
+    let tint: Color
+    let layout: Layout
+
+    @ViewBuilder
+    private func focusSymbolView(size: CGFloat) -> some View {
+        if NSImage(named: NSImage.Name(symbolName)) != nil {
+            let customSize = size * 1.08
+            Image(symbolName)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: customSize, height: customSize)
+        } else {
+            Image(systemName: symbolName)
+                .font(.system(size: size, weight: .semibold, design: .rounded))
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            focusSymbolView(size: layout.fontSize + 0.8)
+                .foregroundStyle(tint)
+                .symbolRenderingMode(.hierarchical)
+                .frame(width: layout.leftWidth, alignment: .leading)
+                .padding(.leading, layout.leftPadding)
+                .frame(height: baseHeight)
+
+            Spacer(minLength: notchWidth)
+
+            Text(statusText)
+                .font(.system(size: layout.fontSize, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .foregroundStyle(tint)
+                .frame(width: layout.rightWidth, alignment: .trailing)
+                .padding(.trailing, layout.rightPadding)
+                .frame(height: baseHeight)
+        }
+        .frame(height: baseHeight, alignment: .center)
+    }
+}
+
+private struct OpenShoulderShape: Shape {
+    enum Side { case left, right }
+    let side: Side
+
+    func path(in rect: CGRect) -> Path {
+        let r = min(rect.width, rect.height)
+        let h = max(rect.height, r)
+        let cornerRadius = max(1, min(r * 0.72, r - 0.5))
+        var p = Path()
+
+        switch side {
+        case .left:
+            p.move(to: CGPoint(x: r, y: 0))
+            p.addLine(to: CGPoint(x: 0, y: 0))
+            p.addLine(to: CGPoint(x: r - cornerRadius, y: 0))
+            p.addQuadCurve(
+                to: CGPoint(x: r, y: cornerRadius),
+                control: CGPoint(x: r, y: 0)
+            )
+            p.addLine(to: CGPoint(x: r, y: h))
+            p.addLine(to: CGPoint(x: r, y: 0))
+            p.closeSubpath()
+        case .right:
+            p.move(to: CGPoint(x: 0, y: 0))
+            p.addLine(to: CGPoint(x: r, y: 0))
+            p.addLine(to: CGPoint(x: cornerRadius, y: 0))
+            p.addQuadCurve(
+                to: CGPoint(x: 0, y: cornerRadius),
+                control: CGPoint(x: 0, y: 0)
+            )
+            p.addLine(to: CGPoint(x: 0, y: h))
+            p.addLine(to: CGPoint(x: 0, y: 0))
+            p.closeSubpath()
+        }
+
+        return p
+    }
+}
+
+private struct OpenShoulderOuterStroke: Shape {
+    enum Side { case left, right }
+    let side: Side
+
+    func path(in rect: CGRect) -> Path {
+        let r = min(rect.width, rect.height)
+        let cornerRadius = max(1, min(r * 0.72, r - 0.5))
+        var p = Path()
+
+        switch side {
+        case .left:
+            p.move(to: CGPoint(x: r - cornerRadius, y: 0))
+            p.addQuadCurve(
+                to: CGPoint(x: r, y: cornerRadius),
+                control: CGPoint(x: r, y: 0)
+            )
+        case .right:
+            p.move(to: CGPoint(x: cornerRadius, y: 0))
+            p.addQuadCurve(
+                to: CGPoint(x: 0, y: cornerRadius),
+                control: CGPoint(x: 0, y: 0)
+            )
+        }
+
+        return p
+    }
+}
+
+private struct DetachedTimerNeedlePivotModifier: ViewModifier {
+    let length: CGFloat
+    let pivotFraction: CGFloat
+    let angle: Double
+
+    func body(content: Content) -> some View {
+        let pivot = max(2, min(length - 2, length * pivotFraction))
+        let anchor = UnitPoint(x: pivot / max(1, length), y: 0.5)
+        return content
+            .offset(x: length / 2 - pivot)
+            .rotationEffect(.degrees(angle), anchor: anchor)
+    }
+}
+
+private struct SecondaryDetachedSlideModifier: ViewModifier {
+    let x: CGFloat
+    let scale: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .offset(x: x)
+            .scaleEffect(x: scale, y: 1.0, anchor: .leading)
+    }
+}
+
+private struct DetachedSecondaryContentFade<Content: View>: View {
+    let baseOpacity: CGFloat
+    let trigger: Int
+    let appearDelayMs: UInt64
+    let appearDuration: Double
+    @ViewBuilder let content: () -> Content
+
+    @State private var progress: CGFloat = 0
+    @State private var task: Task<Void, Never>?
+
+    var body: some View {
+        content()
+            .opacity(baseOpacity * progress)
+            .onAppear {
+                task?.cancel()
+                progress = 0
+                task = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(appearDelayMs))
+                    guard !Task.isCancelled else { return }
+                    withAnimation(.easeOut(duration: appearDuration)) {
+                        progress = 1
+                    }
+                }
+            }
+            .onDisappear {
+                task?.cancel()
+                task = nil
+                progress = 0
+            }
+            .onChange(of: trigger) { _, _ in
+                task?.cancel()
+                progress = 0
+                task = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(appearDelayMs))
+                    guard !Task.isCancelled else { return }
+                    withAnimation(.easeOut(duration: appearDuration)) {
+                        progress = 1
+                    }
+                }
+            }
+    }
+}
+
 @MainActor
 struct ContentView: View {
+    private enum OverlaySwitchDirection {
+        case none
+        case toCalendar
+        case toCamera
+    }
     private enum ClosedLiveActivityMode {
         case standard
         case compactMode
@@ -25,6 +288,7 @@ struct ContentView: View {
 
     private enum ClosedActivityKind {
         case bluetooth
+        case focus
         case timer
         case fileTray
         case music
@@ -49,6 +313,7 @@ struct ContentView: View {
 
  // Live activity for Bluetooth device connection
     @ObservedObject var bluetoothModel = BluetoothStatusViewModel.shared
+    @StateObject private var focusModeManager = FocusModeLiveActivityManager.shared
 
  // Closed-notch timer live activity (Quick Timers on page 3)
     @StateObject private var quickTimerManager = QuickTimerManager.shared
@@ -58,7 +323,12 @@ struct ContentView: View {
     @State private var lockSuppressionProgress: CGFloat = 0
 
     @State private var hoverTask: Task<Void, Never>?
+    @State private var liquidCloseTransitionTask: Task<Void, Never>?
+    @State private var liquidVisualBlend: CGFloat = 0
+    @State private var liquidStrokeReveal: CGFloat = 0
+    @State private var keepLiquidVisualDuringClose: Bool = false
     @State private var isHovering: Bool = false
+    @State private var detachedSecondaryAppearToken: Int = 0
 
  // Hover expansion for the Bluetooth closed live activity (kept separate from notch hover)
     @State private var isBluetoothPopupHovering: Bool = false
@@ -71,21 +341,39 @@ struct ContentView: View {
 
  // Hover expansion for the Timer closed live activity (sides only; center keeps classic notch hover)
     @State private var isTimerPopupHovering: Bool = false
+    @State private var isTimerExpandedHovering: Bool = false
+    @State private var isTimerPopupTransitioning: Bool = false
+    @State private var isTimerPopupHoverArmed: Bool = true
+    @State private var suppressTimerPopupAutoOpenUntil: Date = .distantPast
+    @State private var keepTimerPopupOpenForFinishedAlert: Bool = false
 
  // Raw hover state for timer side segments (left/right). Used to prevent notch auto-open race.
     @State private var isTimerSidesHovering: Bool = false
  // Debounce to avoid flicker when moving between left/right segments.
     @State private var timerSidesHoverTask: Task<Void, Never>?
+    @State private var timerTransitionTask: Task<Void, Never>?
+    @State private var timerPopupRearmTask: Task<Void, Never>?
 
  // Proximity hover for timer sides (keeps expansion when pointer slips to an external screen above).
     @State private var hostWindow: NSWindow?
     @State private var timerGlobalMouseMonitor: Any?
     @State private var isTimerProximityHovering: Bool = false
+    @State private var closedPopupFailsafeTask: Task<Void, Never>?
+    @State private var timerAlarmBackgroundImpulseX: CGFloat = 0
+    @State private var timerAlarmBackgroundDirection: CGFloat = -1
+    @State private var timerAlarmBackgroundSettleTask: Task<Void, Never>?
+    @State private var lastTimerAlertHapticAt: Date = .distantPast
 
     @State private var anyDropDebounceTask: Task<Void, Never>?
     @State private var gestureProgress: CGFloat = .zero
     @State private var haptics: Bool = false
     @State private var suppressAutoCloseUntil: Date = .distantPast
+    @State private var frozenHoverExitTask: Task<Void, Never>?
+    @State private var frozenHoverZoneWidth: CGFloat = 0
+    @State private var frozenHoverZoneActive: Bool = false
+    @State private var frozenHoverStartPointer: CGPoint = .zero
+    @State private var frozenHoverPointerMoved: Bool = false
+    @State private var frozenHoverOutsideTicks: Int = 0
 
  // prevents hover exit flicker during open animation/layout churn
     @State private var ignoreHoverExitUntil: Date = .distantPast
@@ -95,6 +383,7 @@ struct ContentView: View {
     @State private var overlayWidthHold: CGFloat = 0
     @State private var overlayHeightHold: CGFloat = 0
     @State private var calendarRestoreAfterCamera: Bool = false
+    @State private var overlaySwitchDirection: OverlaySwitchDirection = .none
 
  // Controls whether the pager captures horizontal scroll events.
  // When the pointer is over the file tray, we disable this so the tray can scroll.
@@ -125,6 +414,40 @@ struct ContentView: View {
         let q: CGFloat = (mode == .appear) ? pow(p, gammaAppear) : pow(p, gammaDisappear)
 
         return (mode == .appear) ? q : (1 - q)
+    }
+
+    private var calendarOverlayTransition: AnyTransition {
+        switch overlaySwitchDirection {
+        case .toCalendar:
+            return .asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            )
+        case .toCamera:
+            return .asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            )
+        case .none:
+            return .opacity.combined(with: .scale(scale: 0.98))
+        }
+    }
+
+    private var cameraOverlayTransition: AnyTransition {
+        switch overlaySwitchDirection {
+        case .toCamera:
+            return .asymmetric(
+                insertion: .move(edge: .leading).combined(with: .opacity),
+                removal: .move(edge: .trailing).combined(with: .opacity)
+            )
+        case .toCalendar:
+            return .asymmetric(
+                insertion: .move(edge: .leading).combined(with: .opacity),
+                removal: .move(edge: .trailing).combined(with: .opacity)
+            )
+        case .none:
+            return .opacity.combined(with: .scale(scale: 0.98))
+        }
     }
 
     private struct OrganicBatteryEasing {
@@ -216,11 +539,13 @@ struct ContentView: View {
     @Default(.showNotHumanFace) var showNotHumanFace
     @Default(.showCalendar) var showCalendar
     @Default(.showMirror) var showMirror
+    @Default(.hideFromScreenRecordingMode) private var hideFromScreenRecordingMode
 
     @Default(.pageHomeEnabled) private var pageHomeEnabled
     @Default(.pageShelfEnabled) private var pageShelfEnabled
 
     @Default(.pageThirdEnabled) private var pageThirdEnabled
+    @Default(.pageUseLiquidGlassBackground) private var pageUseLiquidGlassBackground
     private let animationSpring = NotchMotion.notchOpen
 
  // Alternate variants (prepared for later use).
@@ -259,34 +584,192 @@ struct ContentView: View {
         && vm.effectiveClosedNotchHeight > 0
     }
 
+    private struct FocusVisualStyle {
+        let symbol: String
+        let color: Color
+        let fallbackName: String
+    }
+
+    private var focusActivityStyle: FocusVisualStyle {
+        let mode = FocusModeType.resolve(
+            identifier: focusModeManager.currentFocusModeIdentifier,
+            name: focusModeManager.currentFocusModeName
+        )
+        let symbolFallback = (mode == .custom) ? mode.getCustomIconFromFile() : mode.sfSymbol
+        let symbol = validFocusSymbolName(resolvedFocusSymbolName ?? symbolFallback, mode: mode)
+        let color = resolvedFocusTintColor ?? (mode == .custom ? .indigo : mode.accentColor)
+        let fallback = mode.displayName.isEmpty ? "Focus" : mode.displayName
+        return .init(symbol: symbol, color: color, fallbackName: fallback)
+    }
+
+    private func validFocusSymbolName(_ symbol: String, mode: FocusModeType) -> String {
+        let candidate = symbol.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !candidate.isEmpty,
+           (NSImage(systemSymbolName: candidate, accessibilityDescription: nil) != nil
+            || NSImage(named: NSImage.Name(candidate)) != nil) {
+            return candidate
+        }
+        if NSImage(systemSymbolName: mode.sfSymbol, accessibilityDescription: nil) != nil {
+            return mode.sfSymbol
+        }
+        return "moon.fill"
+    }
+
+    private var resolvedFocusSymbolName: String? {
+        let raw = focusModeManager.currentFocusSymbolName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { return nil }
+        let genericRaw = raw.lowercased()
+        if genericRaw == "app.badge" || genericRaw == "app.badge.fill" || genericRaw == "focus" || genericRaw == "none" {
+            return nil
+        }
+        let normalized = raw
+            .replacingOccurrences(of: " ", with: ".")
+            .replacingOccurrences(of: "_", with: ".")
+            .lowercased()
+        let candidate = normalized.contains(".") ? normalized : (normalized + ".fill")
+        if NSImage(systemSymbolName: candidate, accessibilityDescription: nil) != nil {
+            return candidate
+        }
+        if NSImage(named: NSImage.Name(candidate)) != nil {
+            return candidate
+        }
+        return nil
+    }
+
+    private var resolvedFocusTintColor: Color? {
+        let source = focusModeManager.currentFocusTintName
+        if let dynamic = dynamicSystemColor(named: source) {
+            return dynamic
+        }
+
+        let raw = source
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .replacingOccurrences(of: "-", with: " ")
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: ".", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard !raw.isEmpty else { return nil }
+        if raw.contains("red") { return .red }
+        if raw.contains("orange") { return .orange }
+        if raw.contains("yellow") { return .yellow }
+        if raw.contains("green") { return .green }
+        if raw.contains("mint") { return .mint }
+        if raw.contains("teal") { return .teal }
+        if raw.contains("cyan") { return .cyan }
+        if raw.contains("blue") { return .blue }
+        if raw.contains("indigo") { return .indigo }
+        if raw.contains("purple") { return .purple }
+        if raw.contains("pink") { return .pink }
+        if raw.contains("gray") || raw.contains("grey") { return .gray }
+        return nil
+    }
+
+    private func dynamicSystemColor(named raw: String) -> Color? {
+        let candidate = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !candidate.isEmpty else { return nil }
+        let selector = NSSelectorFromString(candidate)
+        guard NSColor.responds(to: selector),
+              let unmanaged = NSColor.perform(selector),
+              let nsColor = unmanaged.takeUnretainedValue() as? NSColor else {
+            return nil
+        }
+        return Color(nsColor)
+    }
+
+    @ViewBuilder
+    private func focusSymbolGlyph(_ name: String, size: CGFloat, tint: Color) -> some View {
+        if NSImage(named: NSImage.Name(name)) != nil {
+            let customSize = size * 1.08
+            Image(name)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(tint)
+                .frame(width: customSize, height: customSize)
+        } else {
+            Image(systemName: name)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(tint)
+                .frame(width: size, height: size)
+        }
+    }
+
+    private var focusActivityStatusText: String {
+        focusModeManager.latestTransitionIsActive ? "On" : "Off"
+    }
+
+    private var focusActivitySymbolName: String { focusActivityStyle.symbol }
+    private var focusActivityTint: Color {
+        focusModeManager.latestTransitionIsActive ? focusActivityStyle.color : Color.gray.opacity(0.58)
+    }
+
+    private var focusActivityLayout: FocusLiveActivity.Layout {
+        let fontSize: CGFloat = 12.2
+        let leftPadding: CGFloat = 4
+        let rightPadding: CGFloat = 4
+        let symbolSize = fontSize + 0.8
+        let leftWidth: CGFloat = max(16, ceil(symbolSize) + 3)
+        let measured = Self.measureSystemWidth(focusActivityStatusText, fontSize: fontSize, weight: .semibold)
+        let rightWidth = max(28, ceil(measured) + 10)
+        return .init(
+            leftPadding: leftPadding,
+            rightPadding: rightPadding,
+            leftWidth: leftWidth,
+            rightWidth: rightWidth,
+            fontSize: fontSize
+        )
+    }
+
  // MARK: - Timer closed live activity (Quick Timers page)
 
-    private var runningQuickTimers: [QuickTimer] {
-        quickTimerManager.timers
-            .filter { $0.isRunning && $0.remainingSeconds > 0 }
-            .sorted { $0.remainingSeconds < $1.remainingSeconds }
+    private var activeQuickTimers: [QuickTimer] {
+        var timers = quickTimerManager.timers
+            .filter { $0.remainingSeconds > 0 || $0.didFinish }
+
+        if let mirrored = quickTimerManager.mirroredSystemQuickTimer {
+            timers.append(mirrored)
+        }
+
+        return timers.sorted { lhs, rhs in
+            if lhs.isRunning != rhs.isRunning {
+                return lhs.isRunning && !rhs.isRunning
+            }
+            if lhs.didFinish != rhs.didFinish {
+                return lhs.didFinish && !rhs.didFinish
+            }
+            return lhs.remainingSeconds < rhs.remainingSeconds
+        }
     }
 
     private var shouldShowTimerActivityClosed: Bool {
         guard vm.notchState == .closed else { return false }
         guard closedActivityVisibility > 0.001 else { return false }
-        guard Defaults[.liveActivityTimerEnabled] else { return false }
+        // Keep classic timer toggle for internal quick timers, but still allow mirrored Clock timer
+        // when mirror mode is enabled.
+        if quickTimerManager.mirroredSystemQuickTimer == nil {
+            guard Defaults[.liveActivityTimerEnabled] else { return false }
+        }
         guard vm.effectiveClosedNotchHeight > 0 else { return false }
-        return !runningQuickTimers.isEmpty
+        return !activeQuickTimers.isEmpty
+    }
+
+    private var hasFinishedQuickTimers: Bool {
+        quickTimerManager.timers.contains { $0.didFinish }
     }
 
     private var timerActivityText: String {
-        runningQuickTimers.first?.displayTime ?? "0:00"
+        activeQuickTimers.first?.displayTime ?? "0:00"
     }
 
     private var timerActivityExtraCount: Int {
-        max(0, runningQuickTimers.count - 1)
+        max(0, activeQuickTimers.count - 1)
     }
 
     private var timerActivityProgressRemaining: Double {
   // Use the soonest-ending timer as the representative progress.
   // QuickTimer.progress is elapsed [0..1], so we invert for a decreasing ring.
-        guard let t = runningQuickTimers.first else { return 0 }
+        guard let t = activeQuickTimers.first else { return 0 }
         return max(0, min(1, 1 - t.progress))
     }
 
@@ -294,6 +777,11 @@ struct ContentView: View {
   // The timer uses monospaced digits in SwiftUI. Using the monospaced-digit font here avoids
   // under-measuring and prevents the digits from sliding under the physical notch.
         let font = NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: weight)
+        return (text as NSString).size(withAttributes: [.font: font]).width
+    }
+
+    private static func measureSystemWidth(_ text: String, fontSize: CGFloat, weight: NSFont.Weight) -> CGFloat {
+        let font = NSFont.systemFont(ofSize: fontSize, weight: weight)
         return (text as NSString).size(withAttributes: [.font: font]).width
     }
 
@@ -323,6 +811,148 @@ struct ContentView: View {
         return .init(sidePadding: sidePadding, leftWidth: leftWidth, rightWidth: rightWidth, fontSize: fontSize)
     }
 
+    private var timerExpandedTargetWidth: CGFloat {
+        let controlsWidth: CGFloat = 84
+        let rowHorizontalPadding: CGFloat = 1 * 2
+        let centerGapWidth = timerExpandedCenterGapWidth
+        let timeWidth = timerExpandedTimeWidth
+        let breathingRoom: CGFloat = 0
+
+        return max(
+            vm.closedNotchSize.width,
+            ceil(rowHorizontalPadding + controlsWidth + centerGapWidth + timeWidth + breathingRoom)
+        )
+    }
+
+    private var timerExpandedCenterGapWidth: CGFloat {
+        max(0, vm.closedNotchSize.width - 175)
+    }
+
+    private var timerExpandedTimeWidth: CGFloat {
+        let longestTime = activeQuickTimers.map(\.displayTime).max(by: { $0.count < $1.count }) ?? "00:00"
+        let measuredTime = Self.measureMonospacedWidth(longestTime, fontSize: 42, weight: .regular)
+        return max(118, ceil(measuredTime) + 1)
+    }
+
+    private var timerExpandedFooterHeight: CGFloat {
+        let rowsCount = max(1, activeQuickTimers.count)
+        let expandedRowHeight: CGFloat = 40
+        let expandedRowsSpacing: CGFloat = 12
+        let expandedTopPadding: CGFloat = 0
+        let expandedBottomPadding: CGFloat = 16
+        return expandedTopPadding
+            + CGFloat(rowsCount) * expandedRowHeight
+            + CGFloat(max(0, rowsCount - 1)) * expandedRowsSpacing
+            + expandedBottomPadding
+    }
+
+    private var shouldVibrateExpandedTimerBackground: Bool {
+        vm.notchState == .closed
+            && shouldShowTimerActivityClosed
+            && isTimerPopupHovering
+            && hasFinishedQuickTimers
+    }
+
+    private var timerExpandedBackgroundOffset: CGSize {
+        guard shouldVibrateExpandedTimerBackground else { return .zero }
+        return CGSize(width: timerAlarmBackgroundImpulseX, height: 0)
+    }
+
+    private func performTimerAlertHapticPulse(strength: CGFloat) {
+        guard Defaults[.enableHaptics] else { return }
+
+        let now = Date()
+        guard now.timeIntervalSince(lastTimerAlertHapticAt) >= 0.045 else { return }
+        lastTimerAlertHapticAt = now
+
+        let performer = NSHapticFeedbackManager.defaultPerformer
+        let pattern: NSHapticFeedbackManager.FeedbackPattern = strength >= 0.95 ? .levelChange : .alignment
+        performer.perform(pattern, performanceTime: .now)
+
+        if strength >= 1.18 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) {
+                NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func timerExpandedButtonsOverlayView() -> some View {
+        if shouldShowTimerActivityClosed, isTimerPopupHovering, !activeQuickTimers.isEmpty {
+            VStack(spacing: 12) {
+                ForEach(activeQuickTimers) { timer in
+                    let isReadOnly = quickTimerManager.isMirroredSystemTimer(timer)
+                    HStack(spacing: 0) {
+                        HStack(spacing: 10) {
+                        if isReadOnly {
+                            Circle().fill(Color.clear)
+                                .frame(width: 40, height: 40)
+                                .contentShape(Circle())
+                                .allowsHitTesting(false)
+
+                            Circle().fill(Color.clear)
+                                .frame(width: 40, height: 40)
+                                .contentShape(Circle())
+                                .allowsHitTesting(false)
+                        } else {
+                            Button(action: {
+                                keepTimerPopupOpenForFinishedAlert = false
+                                withAnimation(NotchMotion.notchLayout) {
+                                    quickTimerManager.stopTimer(timer)
+                                }
+                            }) {
+                                Circle().fill(Color.clear)
+                                .frame(width: 40, height: 40)
+                                .contentShape(Circle())
+                            }
+                            .buttonStyle(.plain)
+
+                            Button(action: {
+                                keepTimerPopupOpenForFinishedAlert = false
+                                quickTimerManager.toggleTimer(timer)
+                            }) {
+                                Circle().fill(Color.clear)
+                                .frame(width: 40, height: 40)
+                                .contentShape(Circle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        }
+                        .frame(width: 84, alignment: .leading)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 1)
+                    .frame(height: 40)
+                }
+            }
+            .padding(.horizontal, 0)
+            .padding(.top, 0)
+            .padding(.bottom, 0)
+            .frame(width: timerExpandedTargetWidth, height: timerExpandedFooterHeight, alignment: .top)
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                isTimerExpandedHovering = hovering
+                if hovering {
+                    isTimerSidesHovering = true
+                } else {
+                    timerSidesHoverTask?.cancel()
+                    timerSidesHoverTask = Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(120))
+                        guard !Task.isCancelled else { return }
+                        if keepTimerPopupOpenForFinishedAlert { return }
+                        if !isTimerSidesHovering && !isTimerExpandedHovering {
+                            withAnimation(NotchMotion.popupHover) {
+                                isTimerPopupHovering = false
+                            }
+                        }
+                    }
+                }
+            }
+            .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+        }
+    }
+
+
  /// When the timer activity is shown, shift the whole closed notch slightly left so the extra width
  /// appears on the right (digits) instead of being symmetric.
     private var closedChinOffsetX: CGFloat {
@@ -347,7 +977,15 @@ struct ContentView: View {
             return -(ext / 2)
         }
 
+        if shouldShowFocusActivityClosed {
+            let leftExtra = focusActivityLayout.leftPadding + focusActivityLayout.leftWidth
+            let rightExtra = focusActivityLayout.rightPadding + focusActivityLayout.rightWidth
+            let delta = (rightExtra - leftExtra) / 2
+            return delta * closedActivityVisibility
+        }
+
         guard shouldShowTimerActivityClosed else { return 0 }
+        if isTimerPopupHovering { return 0 }
 
         let leftExtra = timerActivityLayout.sidePadding + timerActivityLayout.leftWidth
         let rightExtra = timerActivityLayout.sidePadding + timerActivityLayout.rightWidth
@@ -377,6 +1015,97 @@ struct ContentView: View {
         && vm.effectiveClosedNotchHeight > 0
     }
 
+    @ViewBuilder
+    private func closedTimerLiveActivityView() -> some View {
+        TimerLiveActivity(
+            text: timerActivityText,
+            extraCount: timerActivityExtraCount,
+            progressRemaining: timerActivityProgressRemaining,
+            timers: activeQuickTimers,
+            layout: timerActivityLayout,
+            notchWidth: vm.closedNotchSize.width,
+            baseHeight: vm.effectiveClosedNotchHeight,
+            isCompactMode: isTimerCompactMode,
+            expandedCenterGapWidth: timerExpandedCenterGapWidth,
+            expandedTimeWidth: timerExpandedTimeWidth,
+            expandedRowHeight: 40,
+            expandedRowsSpacing: 12,
+            isExpanded: isTimerPopupHovering,
+            onSidesHoverChanged: { hovering in
+                // Direct hover only (no proximity hover with external displays)
+                isTimerSidesHovering = hovering
+                timerSidesHoverTask?.cancel()
+                timerTransitionTask?.cancel()
+
+                if hovering {
+                    guard isTimerPopupHoverArmed else { return }
+                    guard Date() >= suppressTimerPopupAutoOpenUntil else { return }
+                    isTimerPopupTransitioning = true
+                    timerTransitionTask = Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(220))
+                        guard !Task.isCancelled else { return }
+                        isTimerPopupTransitioning = false
+                    }
+                    withAnimation(NotchMotion.popupHover) {
+                        isTimerPopupHovering = true
+                    }
+                } else {
+                    // Re-arm only after a real hover exit, so the next timer appearance
+                    // cannot auto-open from a stale/continuous pointer position.
+                    isTimerPopupHoverArmed = Date() >= suppressTimerPopupAutoOpenUntil
+                    // Leave hysteresis: avoid falling back to "center hover" when grazing the boundary.
+                    timerSidesHoverTask = Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(140))
+                        guard !Task.isCancelled else { return }
+                        if isTimerExpandedHovering { return }
+                        if isHovering { return }
+                        if !isTimerSidesHovering {
+                            isTimerPopupTransitioning = true
+                            timerTransitionTask?.cancel()
+                            timerTransitionTask = Task { @MainActor in
+                                try? await Task.sleep(for: .milliseconds(220))
+                                guard !Task.isCancelled else { return }
+                                isTimerPopupTransitioning = false
+                            }
+                            withAnimation(NotchMotion.popupHover) {
+                                isTimerPopupHovering = false
+                            }
+                        }
+                    }
+                }
+            },
+            isTimerReadOnly: { timer in
+                quickTimerManager.isMirroredSystemTimer(timer)
+            },
+            onToggleTimer: { timer in
+                if quickTimerManager.isMirroredSystemTimer(timer) { return }
+                keepTimerPopupOpenForFinishedAlert = false
+                quickTimerManager.toggleTimer(timer)
+            },
+            onStopTimer: { timer in
+                if quickTimerManager.isMirroredSystemTimer(timer) { return }
+                keepTimerPopupOpenForFinishedAlert = false
+                withAnimation(NotchMotion.notchLayout) {
+                    quickTimerManager.stopTimer(timer)
+                }
+            },
+            animatedValue: activeQuickTimers.first?.remainingSeconds ?? 0
+        )
+    }
+
+    private var shouldShowFocusActivityClosed: Bool {
+        vm.notchState == .closed
+        && Defaults[.focusLiveActivityEnabled]
+        && focusModeManager.isFocusToastVisible
+        && closedActivityVisibility > 0.001
+        && !vm.hideOnClosed
+        && vm.effectiveClosedNotchHeight > 0
+        && !isInlineHUDFloatingClosed
+        && !shouldShowLockActivityClosed
+        && !isBatteryClosedNotificationShowing
+        && !isBluetoothClosedNotificationShowing
+    }
+
     private var fileTrayCount: Int { tvm.items.count }
 
     private var shouldShowFileTrayActivityClosed: Bool {
@@ -399,6 +1128,7 @@ struct ContentView: View {
         && closedActivityVisibility > 0.001
         && !vm.hideOnClosed
         && !shouldShowLockActivityClosed
+        && !shouldShowFocusActivityClosed
         && !shouldShowFileTrayActivityClosed
     }
 
@@ -410,6 +1140,7 @@ struct ContentView: View {
         && closedActivityVisibility > 0.001
         && !vm.hideOnClosed
         && !shouldShowLockActivityClosed
+        && !shouldShowFocusActivityClosed
         && !shouldShowFileTrayActivityClosed
         && !shouldShowTimerActivityClosed
         && !shouldShowMusicActivityClosed
@@ -422,10 +1153,48 @@ struct ContentView: View {
         && (isBatteryClosedNotificationShowing
             || isBluetoothClosedNotificationShowing
             || shouldShowLockActivityClosed
+            || shouldShowFocusActivityClosed
             || isInlineHUDFloatingClosed
             || shouldShowFileTrayActivityClosed
             || shouldShowTimerActivityClosed
             || shouldShowMusicActivityClosed)
+    }
+
+    private var hasClosedLiveActivityForRecordingPolicy: Bool {
+        let batteryActive = coordinator.expandingView.type == .battery && coordinator.expandingView.show
+        let bluetoothActive = coordinator.expandingView.type == .bluetooth && coordinator.expandingView.show
+        let lockActive = lockScreenState.isLocked || shouldShowLockActivityClosed
+        let focusActive = Defaults[.focusLiveActivityEnabled] && focusModeManager.isFocusToastVisible
+        let fileTrayActive = Defaults[.boringShelf] && Defaults[.liveActivityShelfContent] && fileTrayCount > 0
+        let timerActive = Defaults[.liveActivityTimerEnabled] && !activeQuickTimers.isEmpty
+        let musicActive = coordinator.musicLiveActivityEnabled && (musicManager.isPlaying || !musicManager.isPlayerIdle)
+
+        return batteryActive || bluetoothActive || lockActive || focusActive || fileTrayActive || timerActive || musicActive
+    }
+
+    private func applyScreenRecordingVisibilityPolicy() {
+        guard let window = hostWindow else { return }
+        let isClosed = (vm.notchState == .closed)
+        let isInUse = hasClosedLiveActivityForRecordingPolicy
+
+        if let notchWindow = window as? BoringNotchSkyLightWindow {
+            notchWindow.updateScreenRecordingContext(isClosed: isClosed, isInUse: isInUse)
+            return
+        }
+
+        let shouldHide: Bool
+        switch hideFromScreenRecordingMode {
+        case .fullyHidden:
+            shouldHide = true
+        case .onlyWhenClosed:
+            shouldHide = isClosed
+        case .onlyWhenNotInUse:
+            shouldHide = isClosed && !isInUse
+        }
+        let targetSharingType: NSWindow.SharingType = shouldHide ? .none : .readWrite
+        if window.sharingType != targetSharingType {
+            window.sharingType = targetSharingType
+        }
     }
 
     private var shouldShowMusicActivityAsSecondaryClosed: Bool {
@@ -442,10 +1211,24 @@ struct ContentView: View {
 
     private var closedPrimaryActivityKind: ClosedActivityKind? {
         if isBluetoothClosedNotificationShowing { return .bluetooth }
+        if shouldShowFocusActivityClosed { return .focus }
         if shouldShowTimerActivityClosed { return .timer }
         if shouldShowFileTrayActivityClosed { return .fileTray }
         if shouldShowMusicActivityClosed { return .music }
         return nil
+    }
+
+    private var isClosedPrimaryActivityExpanded: Bool {
+        guard vm.notchState == .closed, let primary = closedPrimaryActivityKind else { return false }
+
+        switch primary {
+        case .timer:
+            return isTimerPopupHovering || isTimerPopupTransitioning || isTimerExpandedHovering
+        case .bluetooth:
+            return isBluetoothPopupHovering || isBluetoothPopupTransitioning
+        case .focus, .fileTray, .music:
+            return false
+        }
     }
 
     private var closedSecondaryCompactActivityKind: ClosedActivityKind? {
@@ -453,6 +1236,10 @@ struct ContentView: View {
 
         switch primary {
         case .bluetooth:
+            // Bluetooth takes exclusive priority in closed mode:
+            // do not render any detached secondary compact activity.
+            return nil
+        case .focus:
             if shouldShowTimerActivityClosed { return .timer }
             if shouldShowFileTrayActivityClosed { return .fileTray }
             if shouldShowMusicActivityAsSecondaryClosed { return .music }
@@ -470,8 +1257,8 @@ struct ContentView: View {
     }
 
     private var closedSecondaryCompactWidth: CGFloat {
-        guard closedSecondaryCompactActivityKind != nil else { return 0 }
   // Keep detached compact width stable (independent from hover-expanded closed activity styling).
+        guard closedSecondaryCompactActivityKind != nil else { return 0 }
         return max(0, vm.closedNotchSize.height - 12)
     }
 
@@ -499,13 +1286,41 @@ struct ContentView: View {
             + (closedDetachedCompactBubbleWidth / 2)
     }
 
+    private var closedPrimaryRightExtra: CGFloat? {
+        guard let primary = closedPrimaryActivityKind else { return nil }
+
+        let side = max(0, vm.effectiveClosedNotchHeight - 12)
+
+        switch primary {
+        case .bluetooth:
+            if isBluetoothCompactMode { return nil }
+            let hoverExtra: CGFloat = isBluetoothPopupHovering ? (110 / 2) : 0
+            return side + 10 + hoverExtra
+        case .focus:
+            return focusActivityLayout.rightPadding + focusActivityLayout.rightWidth
+        case .timer:
+            if isTimerCompactMode { return nil }
+            return timerActivityLayout.sidePadding + timerActivityLayout.rightWidth
+        case .fileTray:
+            if isFileTrayCompactMode { return nil }
+            // Match FileTrayLiveActivity geometry:
+            // total width = side + (notchWidth - topInset) + side
+            // => right extra from notch center = side - (topInset / 2)
+            return max(0, side - (cornerRadiusInsets.closed.top / 2))
+        case .music:
+            if isNowPlayingCompactMode { return nil }
+            return side + 10
+        }
+    }
+
     private var closedPrimaryRightEdgeX: CGFloat {
-  // Timer full mode is asymmetric: right edge depends on dynamic text width.
-        if closedPrimaryActivityKind == .timer && !isTimerCompactMode {
-            let rightExtra = timerActivityLayout.sidePadding + timerActivityLayout.rightWidth
+  // Explicit per-activity right edge (same strategy as timer) to keep detached compact bubble
+  // anchored correctly regardless of which closed activity is primary.
+        if let rightExtra = closedPrimaryRightExtra {
             return (vm.closedNotchSize.width / 2) + (rightExtra * closedActivityVisibility)
         }
 
+  // Fallback for compact / legacy modes.
         return closedChinOffsetX + (displayedChinWidthComputed / 2)
     }
 
@@ -538,6 +1353,20 @@ struct ContentView: View {
         -5
     }
 
+    private var secondaryDetachedSlideProgress: CGFloat {
+        isClosedPrimaryActivityExpanded ? 0 : 1
+    }
+
+    private var secondaryDetachedBubbleSlideX: CGFloat {
+        let hiddenDistance = closedDetachedCompactBubbleWidth + closedDetachedLeadGap + 12
+        return (1 - secondaryDetachedSlideProgress) * hiddenDistance
+    }
+
+    private var secondaryDetachedBridgeSlideX: CGFloat {
+        let hiddenDistance = max(12, closedDetachedCompactBubbleWidth * 0.44)
+        return (1 - secondaryDetachedSlideProgress) * hiddenDistance
+    }
+
     private var detachedCompactTopRadius: CGFloat {
         cornerRadiusInsets.closed.top
     }
@@ -546,9 +1375,27 @@ struct ContentView: View {
         cornerRadiusInsets.closed.bottom
     }
 
+    private var closedSecondaryDetachedTransition: AnyTransition {
+        .asymmetric(
+            insertion: .modifier(
+                active: SecondaryDetachedSlideModifier(x: -64, scale: 0.90),
+                identity: SecondaryDetachedSlideModifier(x: 0, scale: 1.0)
+            ),
+            removal: .modifier(
+                active: SecondaryDetachedSlideModifier(x: -82, scale: 0.86),
+                identity: SecondaryDetachedSlideModifier(x: 0, scale: 1.0)
+            )
+        )
+    }
+
+    private var secondaryDetachedContentOpacity: CGFloat {
+        let slideP = max(0, min(1, secondaryDetachedSlideProgress))
+        return pow(slideP, 1.35)
+    }
+
     private var topCornerRadius: CGFloat {
         if vm.notchState == .open {
-            return Defaults[.cornerRadiusScaling] ? cornerRadiusInsets.opened.top : cornerRadiusInsets.closed.top
+            return 0
         }
 
   // Expanded Bluetooth popup: round corners more (top).
@@ -586,7 +1433,8 @@ struct ContentView: View {
     private var currentNotchShape: NotchShape {
         NotchShape(
             topCornerRadius: topCornerRadius,
-            bottomCornerRadius: bottomCornerRadius
+            bottomCornerRadius: bottomCornerRadius,
+            useExactBounds: vm.notchState == .open
         )
     }
 
@@ -608,6 +1456,12 @@ struct ContentView: View {
             if isBluetoothPopupHovering {
                 chinWidth += 110
             }
+        } else if shouldShowFocusActivityClosed {
+            chinWidth = vm.closedNotchSize.width
+                + focusActivityLayout.leftPadding
+                + focusActivityLayout.rightPadding
+                + focusActivityLayout.leftWidth
+                + focusActivityLayout.rightWidth
         } else if shouldShowTimerActivityClosed {
    // Adaptive width: ensure the full time string fits outside the physical notch.
             if isTimerCompactMode {
@@ -621,6 +1475,10 @@ struct ContentView: View {
                     + timerActivityLayout.leftWidth
                     + timerActivityLayout.rightWidth
             }
+            if isTimerPopupHovering {
+                chinWidth = max(chinWidth, timerExpandedTargetWidth)
+            }
+
         } else if shouldShowFileTrayActivityClosed {
             if isFileTrayCompactMode {
                 chinWidth += (max(0, vm.effectiveClosedNotchHeight - 12) + 10)
@@ -651,7 +1509,10 @@ struct ContentView: View {
     }
 
     private var closedActivityVisibility: CGFloat {
-        1 - min(max(lockSuppressionProgress, 0), 1)
+        if !lockTransition.suppressClosedActivities {
+            return 1
+        }
+        return 1 - min(max(lockSuppressionProgress, 0), 1)
     }
 
  // MARK: - Compile-time simplification (fix “unable to type-check…”)
@@ -676,8 +1537,16 @@ struct ContentView: View {
 
         let extraCameraWidth: CGFloat = isCameraVisibleComputed ? 160 : 0
         let extraCalendarWidth: CGFloat = isCalendarVisibleComputed ? 230 : 0
+        let overlaySwitchWidthHold: CGFloat =
+            (isSwitchingOverlay && overlaySwitchDirection == .toCalendar) ? 230 : 0
+        // Keep the historical open width even if the visual top corners are forced to 0.
+        let legacyOpenTopRadius = Defaults[.cornerRadiusScaling] ? cornerRadiusInsets.opened.top : cornerRadiusInsets.closed.top
+        let exactBoundsWidthCompensation: CGFloat = 2 * legacyOpenTopRadius
 
-        return base + max(extraCameraWidth, extraCalendarWidth, overlayWidthHold)
+        return max(
+            vm.closedNotchSize.width,
+            base + max(extraCameraWidth, extraCalendarWidth, overlayWidthHold, overlaySwitchWidthHold) - exactBoundsWidthCompensation
+        )
     }
 
     private var openHeightValueComputed: CGFloat? {
@@ -700,6 +1569,245 @@ struct ContentView: View {
         return batteryChinFrom + (batteryChinTo - batteryChinFrom) * p
     }
 
+    @ViewBuilder
+    private func liquidV11Layer(cornerRadius: CGFloat, tintOpacity: Double) -> some View {
+        TimelineView(.periodic(from: .now, by: 1.0 / 30.0)) { context in
+            NotchLiquidGlassBackground(
+                variant: 11,
+                cornerRadius: cornerRadius,
+                trigger: context.date.timeIntervalSinceReferenceDate
+            ) {
+                Color.white.opacity(tintOpacity)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func liquidCornerShadowLayer() -> some View {
+        let topCornerSpan = max(30, topCornerRadius * 3.1)
+        let bottomCornerSpan = max(42, bottomCornerRadius * 2.45)
+        let edgeBand = max(12, topCornerRadius * 0.78)
+
+        ZStack {
+            // Single continuous inner shadow.
+            currentNotchShape
+                .strokeBorder(
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color.black.opacity(0.020), location: 0.00),
+                            .init(color: Color.black.opacity(0.042), location: 0.52),
+                            .init(color: Color.black.opacity(0.075), location: 1.00),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    style: StrokeStyle(
+                        lineWidth: 4.4,
+                        lineCap: .round,
+                        lineJoin: .round
+                    )
+                )
+                .blur(radius: 3.15)
+                .blendMode(.multiply)
+                .opacity(0.74)
+                .mask {
+                    liquidEdgeCornerMask(
+                        topCornerSpan: topCornerSpan,
+                        bottomCornerSpan: bottomCornerSpan,
+                        edgeBand: edgeBand
+                    )
+                }
+                .allowsHitTesting(false)
+        }
+        .compositingGroup()
+        .clipShape(currentNotchShape)
+        .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private func liquidEdgeCornerMask(topCornerSpan: CGFloat, bottomCornerSpan: CGFloat, edgeBand: CGFloat) -> some View {
+        ZStack {
+            // Edge bands so the corner shadow is extended and connected along the contour.
+            Rectangle()
+                .frame(height: edgeBand)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+            Rectangle()
+                .frame(height: edgeBand + 1.4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+
+            Rectangle()
+                .frame(width: edgeBand)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+
+            Rectangle()
+                .frame(width: edgeBand)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+
+            // Corner boosts to preserve rounded continuity through turns.
+            HStack(spacing: 0) {
+                Rectangle().frame(width: topCornerSpan, height: topCornerSpan)
+                Spacer(minLength: 0)
+                Rectangle().frame(width: topCornerSpan, height: topCornerSpan)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+            HStack(spacing: 0) {
+                Rectangle().frame(width: bottomCornerSpan, height: bottomCornerSpan)
+                Spacer(minLength: 0)
+                Rectangle().frame(width: bottomCornerSpan, height: bottomCornerSpan)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        }
+        .mask(currentNotchShape)
+    }
+
+    @ViewBuilder
+    private func liquidSpecularReflections() -> some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+            let longStroke = max(98, min(w, h) * 0.94)
+            let shortStroke = longStroke * 0.74
+            let thickness = max(2.2, topCornerRadius * 0.14)
+
+            ZStack {
+                Capsule(style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .clear, location: 0.00),
+                                .init(color: Color.white.opacity(0.92), location: 0.52),
+                                .init(color: .clear, location: 1.00),
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: longStroke, height: thickness)
+                    .rotationEffect(.degrees(45))
+                    .offset(x: -w * 0.26, y: -h * 0.28)
+
+                Capsule(style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .clear, location: 0.00),
+                                .init(color: Color.white.opacity(0.78), location: 0.50),
+                                .init(color: .clear, location: 1.00),
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: shortStroke, height: max(1.7, thickness * 0.82))
+                    .rotationEffect(.degrees(-45))
+                    .offset(x: w * 0.26, y: -h * 0.28)
+            }
+            .blur(radius: 0.82)
+            .blendMode(.screen)
+            .opacity(0.98)
+            .frame(width: w, height: h)
+            .mask(currentNotchShape)
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0.00),
+                        .init(color: .black, location: 0.34),
+                        .init(color: .clear, location: 0.86),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .allowsHitTesting(false)
+        }
+    }
+
+    @ViewBuilder
+    private func liquidStrokeMask() -> some View {
+        GeometryReader { geo in
+            let h = max(1, geo.size.height)
+            let topCut = min(0.72, max(0.16, (vm.effectiveClosedNotchHeight + 14) / h))
+            let fadeStart = max(0.0, topCut - 0.22)
+            let fadeMid1 = min(1.0, fadeStart + 0.08)
+            let fadeMid2 = min(1.0, fadeStart + 0.15)
+            let fadeMid3 = min(1.0, fadeStart + 0.22)
+            let fadeEnd = min(1.0, topCut + 0.14)
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0.0),
+                    .init(color: .clear, location: fadeStart),
+                    .init(color: .black.opacity(0.18), location: fadeMid1),
+                    .init(color: .black.opacity(0.40), location: fadeMid2),
+                    .init(color: .black.opacity(0.72), location: fadeMid3),
+                    .init(color: .black, location: fadeEnd),
+                    .init(color: .black, location: 1.0),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func openShoulderExtension(
+        side: OpenShoulderShape.Side,
+        progress: CGFloat,
+        freezeRevealForLiquidOpen: Bool
+    ) -> some View {
+        // Fixed "base notch" shoulder geometry: do not vary with expanded layouts/pages.
+        let arcRadius: CGFloat = 29
+        let shoulderHeight: CGFloat = 30
+        let shoulderWidthPx = arcRadius.rounded(.toNearestOrAwayFromZero)
+        let shoulderHeightPx = shoulderHeight.rounded(.toNearestOrAwayFromZero)
+        let leftJoinOverlap: CGFloat = 2.0
+        let rightJoinOverlap: CGFloat = 1.0
+        let leftXOffsetFineTune: CGFloat = -1.0
+        let leftInwardCompensation: CGFloat = 0.0
+        let rightInwardCompensation: CGFloat = 0.0
+        let shoulderOutwardOffset: CGFloat = -0.5
+        let shoulderTopAlignOffset: CGFloat = -0.5
+        let progressClamped = max(0.001, min(1, progress))
+        let revealScale = freezeRevealForLiquidOpen ? 1.0 : progressClamped
+        let innerJoinOverlapPx: CGFloat = 1.0
+        let fillScaleX = 1.0 + (innerJoinOverlapPx / max(1, shoulderWidthPx))
+
+        let leftOffsetX = leftJoinOverlap - shoulderWidthPx + leftXOffsetFineTune + leftInwardCompensation - shoulderOutwardOffset
+        let rightOffsetX = shoulderWidthPx - rightJoinOverlap - rightInwardCompensation + shoulderOutwardOffset
+        let offsetX = (side == .left) ? leftOffsetX : rightOffsetX
+
+        let strokeSide: OpenShoulderOuterStroke.Side = (side == .left) ? .left : .right
+        let shoulderLayer = ZStack {
+            OpenShoulderShape(side: side)
+                .fill(Color.black)
+                .scaleEffect(
+                    x: fillScaleX,
+                    y: 1,
+                    anchor: side == .left ? .leading : .trailing
+                )
+
+            OpenShoulderOuterStroke(side: strokeSide)
+                .stroke(
+                    Color.black,
+                    style: StrokeStyle(lineWidth: 2, lineCap: .square, lineJoin: .miter)
+                )
+        }
+        .frame(width: shoulderWidthPx, height: shoulderHeightPx)
+
+        shoulderLayer
+            .scaleEffect(
+                x: revealScale,
+                y: revealScale,
+                anchor: side == .left ? .topTrailing : .topLeading
+            )
+        .offset(
+            x: offsetX,
+            y: shoulderTopAlignOffset.rounded(.toNearestOrAwayFromZero)
+        )
+        .allowsHitTesting(false)
+    }
+
     var body: some View {
         let gestureScale: CGFloat = {
             guard gestureProgress != 0 else { return 1.0 }
@@ -707,31 +1815,191 @@ struct ContentView: View {
             return max(0.6, scaleFactor)
         }()
 
-        let notchStateAnimation: Animation = (vm.notchState == .open) ? NotchMotion.notchOpen : NotchMotion.notchClose
+        let notchStateAnimation: Animation = {
+            if vm.notchState == .open {
+                // In Liquid Glass mode, avoid spring rebound so shoulders and notch stay perfectly synced.
+                if pageUseLiquidGlassBackground {
+                    return .smooth(duration: 0.30)
+                }
+                return NotchMotion.notchOpen
+            }
+            return NotchMotion.notchClose
+        }()
         let notchLayoutAnimation: Animation = NotchMotion.notchLayout
+        let openShoulderProgress: CGFloat = (vm.notchState == .open) ? 1 : 0
+        let useLiquidPageBackground = pageUseLiquidGlassBackground && (vm.notchState == .open || keepLiquidVisualDuringClose)
+        let resolvedLiquidBlend = min(max(liquidVisualBlend, 0), 1)
+        let liquidGlassBlend: CGFloat = min(max((resolvedLiquidBlend - 0.08) / 0.92, 0), 1)
+        let liquidVeilBlendRaw: CGFloat = min(max((resolvedLiquidBlend - 0.26) / 0.74, 0), 1)
+        let liquidVeilBlend: CGFloat = liquidVeilBlendRaw * liquidVeilBlendRaw
+        // Keep the black blur veil present from the very first opening frame in Liquid mode.
+        let liquidVeilOpacity: CGFloat = (useLiquidPageBackground && vm.notchState == .open) ? 1 : liquidVeilBlend
+        let liquidBaseFadeBlend: CGFloat = min(max((resolvedLiquidBlend - 0.18) / 0.82, 0), 1)
+        let liquidStrokeOpacity: CGFloat = {
+            guard useLiquidPageBackground else { return 0 }
+            // Dedicated stroke fade: starts with notch opening instead of waiting for liquid layers.
+            let t = min(max(liquidStrokeReveal, 0), 1)
+            return t * t * (3 - 2 * t)
+        }()
+        let notchTopLineColor: Color = useLiquidPageBackground ? .clear : .black
+        // Keep NSGlassEffectView corners neutral; the notch shape clipping drives real geometry.
+        let liquidCornerRadius: CGFloat = 0
 
-        ZStack(alignment: .top) {
+        let baseView = ZStack(alignment: .top) {
             VStack(spacing: 0) {
+                let timerBackgroundShakeX = timerExpandedBackgroundOffset.width
+                let timerBackgroundShakeY = timerExpandedBackgroundOffset.height
+                let openInnerHorizontalPadding: CGFloat = vm.notchState == .open
+                    ? max(0, cornerRadiusInsets.opened.top - 15)
+                    : cornerRadiusInsets.closed.bottom
+                let openOuterHorizontalPadding: CGFloat = vm.notchState == .open ? 1 : 0
                 let mainLayout = NotchLayout()
+                    .offset(x: -timerBackgroundShakeX, y: -timerBackgroundShakeY)
                     .frame(alignment: .top)
                     .frame(maxWidth: vm.notchState == .open ? openWidthValueComputed : nil)
                     .padding(
                         .horizontal,
-                        vm.notchState == .open
-                        ? Defaults[.cornerRadiusScaling]
-                        ? (cornerRadiusInsets.opened.top) : (cornerRadiusInsets.opened.bottom)
-                        : cornerRadiusInsets.closed.bottom
+                        openInnerHorizontalPadding
                     )
-                    .padding([.horizontal, .bottom], vm.notchState == .open ? 12 : 0)
+                    .padding(.horizontal, openOuterHorizontalPadding)
+                    .padding(.bottom, vm.notchState == .open ? 12 : 0)
                     .padding(.top, vm.notchState == .open ? -10 : 0)
-                    .background(.black)
-                    .overlay(alignment: .top) {
-                        Rectangle()
-                            .fill(.black)
-                            .frame(height: 1)
-                            .padding(.horizontal, topCornerRadius + 3)
+                    .animation(notchStateAnimation, value: vm.notchState)
+                    .animation(notchLayoutAnimation, value: isLayoutExpandedComputed)
+                    .animation(notchLayoutAnimation, value: showCalendar)
+
+                mainLayout
+                    .background {
+                        ZStack(alignment: .top) {
+                            Rectangle()
+                                .fill(.black)
+                                .opacity(useLiquidPageBackground ? 1 - liquidBaseFadeBlend : 1)
+
+                            if useLiquidPageBackground {
+                                ZStack(alignment: .top) {
+                                    liquidV11Layer(cornerRadius: liquidCornerRadius, tintOpacity: 0.04)
+                                        .padding(0)
+                                        .scaleEffect(1.0)
+                                        .blur(radius: 1.15)
+                                        .clipShape(currentNotchShape)
+                                        .opacity(liquidGlassBlend)
+                                        .allowsHitTesting(false)
+
+                                    // True vertical veil: black at the top, fully transparent lower down.
+                                    GeometryReader { geo in
+                                        let h = max(1, geo.size.height)
+                                        let barHeight = max(2, topCornerRadius + 15)
+                                        let topOpaqueHeight = min(h, max(0, vm.effectiveClosedNotchHeight))
+                                        let topOpaqueRatio = min(0.94, max(0.0, topOpaqueHeight / h))
+                                        let seam = min(0.94, max(topOpaqueRatio - 0.01, (barHeight - 5) / h))
+                                        let fade1 = min(1.0, seam + 0.02)
+                                        let fade2 = min(1.0, seam + 0.07)
+                                        let fade3 = min(1.0, seam + 0.17)
+                                        let fade4 = min(1.0, seam + 0.36)
+                                        let fade5 = min(1.0, seam + 0.58)
+                                        let fade6 = min(1.0, seam + 0.78)
+                                        let fade7 = min(1.0, seam + 0.91)
+                                        let fade8 = min(1.0, seam + 0.985)
+                                        let tail = max(fade8, 0.9997)
+
+                                        ZStack(alignment: .top) {
+                                            LinearGradient(
+                                                stops: [
+                                                    .init(color: Color.black.opacity(1.00), location: 0.00),
+                                                    .init(color: Color.black.opacity(1.00), location: seam),
+                                                    .init(color: Color.black.opacity(0.98), location: fade1),
+                                                    .init(color: Color.black.opacity(0.94), location: fade2),
+                                                    .init(color: Color.black.opacity(0.86), location: fade3),
+                                                    .init(color: Color.black.opacity(0.72), location: fade4),
+                                                    .init(color: Color.black.opacity(0.54), location: fade5),
+                                                    .init(color: Color.black.opacity(0.36), location: fade6),
+                                                    .init(color: Color.black.opacity(0.22), location: fade7),
+                                                    .init(color: Color.black.opacity(0.11), location: fade8),
+                                                    .init(color: Color.black.opacity(0.05), location: tail),
+                                                    .init(color: .clear, location: 1.00),
+                                                ],
+                                                startPoint: .top,
+                                                endPoint: .bottom
+                                            )
+                                            .padding(.horizontal, -28)
+                                            .blur(radius: 8.2)
+
+                                            Rectangle()
+                                                .fill(Color.black)
+                                                .frame(height: topOpaqueHeight)
+                                                .mask(
+                                                    LinearGradient(
+                                                        stops: [
+                                                            .init(color: .black, location: 0.0),
+                                                            .init(color: .black, location: 0.86),
+                                                            .init(color: .clear, location: 1.0),
+                                                        ],
+                                                        startPoint: .top,
+                                                        endPoint: .bottom
+                                                    )
+                                                )
+                                        }
+                                    }
+                                    .clipShape(currentNotchShape)
+                                    .opacity(liquidVeilOpacity)
+                                    .allowsHitTesting(false)
+                                }
+                            }
+
+                            Rectangle()
+                                .fill(notchTopLineColor)
+                                .frame(height: 1)
+                                .padding(.horizontal, topCornerRadius + 3)
+
+                            if useLiquidPageBackground {
+                                liquidCornerShadowLayer()
+                                    .opacity(liquidGlassBlend)
+
+                                // White contour all around, only in Liquid Glass mode.
+                                currentNotchShape
+                                    .strokeBorder(
+                                        Color.white.opacity(0.24),
+                                        style: StrokeStyle(
+                                            lineWidth: 0.8,
+                                            lineCap: .round,
+                                            lineJoin: .round
+                                        )
+                                    )
+                                    .mask(liquidStrokeMask())
+                                    .opacity(liquidStrokeOpacity)
+                                    .allowsHitTesting(false)
+                            }
+
+                        }
                     }
                     .clipShape(currentNotchShape)
+                    .background(alignment: .topLeading) {
+                        openShoulderExtension(
+                            side: .left,
+                            progress: openShoulderProgress,
+                            freezeRevealForLiquidOpen: false
+                        )
+                        .animation(notchStateAnimation, value: vm.notchState)
+                    }
+                    .background(alignment: .topTrailing) {
+                        openShoulderExtension(
+                            side: .right,
+                            progress: openShoulderProgress,
+                            freezeRevealForLiquidOpen: false
+                        )
+                        .animation(notchStateAnimation, value: vm.notchState)
+                    }
+                    .overlay(alignment: .top) {
+                        if vm.notchState == .open {
+                            BoringHeader()
+                                .frame(height: max(24, vm.effectiveClosedNotchHeight))
+                                .padding(.top, 6)
+                                .offset(y: -12)
+                                .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
+                                .zIndex(3000)
+                                .allowsHitTesting(true)
+                        }
+                    }
      // Avoid the "late"/inconsistent-looking drop shadow under the expanded notch.
      // Keep shadow only for the *closed* notch hover affordance.
                     .shadow(
@@ -742,25 +2010,30 @@ struct ContentView: View {
      // Asymmetric closed timer activity: apply the offset only once on the outer container
      // (below). Applying it twice can compress the right side.
                     .padding(.bottom, (vm.notchState == .closed && vm.effectiveClosedNotchHeight == 0) ? 10 : 0)
-                    .animation(notchStateAnimation, value: vm.notchState)
-                    .animation(notchLayoutAnimation, value: isLayoutExpandedComputed)
-
-                mainLayout
                     .frame(
                         width: vm.notchState == .closed ? displayedChinWidthComputed : nil,
                         height: openHeightValueComputed
                     )
                     .frame(width: vm.notchState == .open ? openWidthValueComputed : nil)
      // Match the notch background offset so the content stays aligned.
-                    .offset(x: vm.notchState == .closed ? closedChinOffsetX : 0)
+                    .offset(
+                        x: (vm.notchState == .closed ? closedChinOffsetX : 0) + timerBackgroundShakeX,
+                        y: timerBackgroundShakeY
+                    )
                     .animation(notchStateAnimation, value: vm.notchState)
                     .animation(notchLayoutAnimation, value: isLayoutExpandedComputed)
+                    .animation(notchLayoutAnimation, value: showCalendar)
+                    .animation(notchLayoutAnimation, value: activeQuickTimers.count)
                     .animation(notchLayoutAnimation, value: gestureProgress)
                     .contentShape(Rectangle())
                     .onHover { hovering in
                         handleHover(hovering)
                     }
                     .onTapGesture {
+                        if vm.notchState == .closed {
+                            if shouldShowTimerActivityClosed && isTimerPopupHovering { return }
+                            if isBluetoothClosedNotificationShowing && isBluetoothPopupHovering { return }
+                        }
                         doOpen()
                     }
                     .conditionalModifier(Defaults[.enableGestures]) { view in
@@ -792,8 +2065,55 @@ struct ContentView: View {
                         }
                     }
                     .onChange(of: vm.notchState) { _, newState in
+                        liquidCloseTransitionTask?.cancel()
+                        liquidCloseTransitionTask = nil
+
+                        if pageUseLiquidGlassBackground {
+                            if newState == .open {
+                                keepLiquidVisualDuringClose = true
+                                withAnimation(.easeInOut(duration: 0.24)) {
+                                    liquidVisualBlend = 1
+                                }
+                                withAnimation(.easeOut(duration: 0.26)) {
+                                    liquidStrokeReveal = 1
+                                }
+                            } else {
+                                liquidVisualBlend = 1
+                                keepLiquidVisualDuringClose = true
+                                withAnimation(.easeOut(duration: 0.18)) {
+                                    liquidStrokeReveal = 0
+                                }
+                                liquidCloseTransitionTask = Task {
+                                    try? await Task.sleep(nanoseconds: UInt64(NotchMotion.notchCloseDuration * 1_000_000_000))
+                                    guard !Task.isCancelled else { return }
+                                    await MainActor.run {
+                                        keepLiquidVisualDuringClose = false
+                                        liquidVisualBlend = 0
+                                        liquidCloseTransitionTask = nil
+                                    }
+                                }
+                            }
+                        } else {
+                            keepLiquidVisualDuringClose = false
+                            liquidVisualBlend = 0
+                            liquidStrokeReveal = 0
+                        }
+
                         if newState == .open {
                             ignoreHoverExitUntil = Date().addingTimeInterval(0.25)
+                        } else if newState == .closed {
+                            // Never keep timer popup expanded when closing from open notch.
+                            suppressTimerPopupAutoOpenUntil = Date().addingTimeInterval(0.35)
+                            timerSidesHoverTask?.cancel()
+                            timerTransitionTask?.cancel()
+                            timerPopupRearmTask?.cancel()
+                            isTimerPopupHovering = false
+                            isTimerSidesHovering = false
+                            isTimerExpandedHovering = false
+                            isTimerProximityHovering = false
+                            isTimerPopupTransitioning = false
+                            isTimerPopupHoverArmed = false
+                            scheduleTimerPopupRearmAfterClose()
                         }
 
                         if newState == .closed && isHovering {
@@ -823,6 +2143,13 @@ struct ContentView: View {
                             }
                         }
                     }
+                    .onChange(of: pageUseLiquidGlassBackground) { _, enabled in
+                        liquidCloseTransitionTask?.cancel()
+                        liquidCloseTransitionTask = nil
+                        keepLiquidVisualDuringClose = enabled && vm.notchState == .open
+                        liquidVisualBlend = (enabled && vm.notchState == .open) ? 1 : 0
+                        liquidStrokeReveal = (enabled && vm.notchState == .open) ? 1 : 0
+                    }
                     .sensoryFeedback(.alignment, trigger: haptics)
                     .contextMenu {
                         Button("Settings") {
@@ -840,21 +2167,34 @@ struct ContentView: View {
             }
 
             if vm.notchState == .closed,
-               closedSecondaryCompactActivityKind != nil {
-                closedDetachedBridgeArcView()
-                    .opacity(closedActivityVisibility)
-                    .offset(x: closedDetachedBridgeCenterOffsetX, y: closedDetachedBridgeOffsetY)
-                    .allowsHitTesting(false)
-                    .zIndex(4)
+               shouldShowTimerActivityClosed,
+               isTimerPopupHovering {
+                timerExpandedButtonsOverlayView()
+                    .offset(x: closedChinOffsetX, y: vm.effectiveClosedNotchHeight - 2)
+                    .zIndex(7)
             }
 
             if vm.notchState == .closed,
                let secondaryCompact = closedSecondaryCompactActivityKind {
-                closedDetachedCompactActivity(kind: secondaryCompact)
-                    .opacity(closedActivityVisibility)
-                    .offset(x: closedDetachedCompactCenterOffsetX, y: 0)
+                closedDetachedBridgeArcView()
+                    .offset(
+                        x: closedDetachedBridgeCenterOffsetX - secondaryDetachedBridgeSlideX,
+                        y: closedDetachedBridgeOffsetY
+                    )
                     .allowsHitTesting(false)
-                    .zIndex(5)
+                    .transition(closedSecondaryDetachedTransition)
+                    .zIndex(-3)
+
+                closedDetachedCompactActivity(kind: secondaryCompact)
+                    .offset(x: closedDetachedCompactCenterOffsetX - secondaryDetachedBubbleSlideX, y: 0)
+                    .scaleEffect(
+                        x: 0.90 + 0.10 * secondaryDetachedSlideProgress,
+                        y: 1.0,
+                        anchor: .leading
+                    )
+                    .allowsHitTesting(false)
+                    .transition(closedSecondaryDetachedTransition)
+                    .zIndex(-2)
             }
         }
         .padding(.bottom, 8)
@@ -862,187 +2202,360 @@ struct ContentView: View {
         .compositingGroup()
         .scaleEffect(x: gestureScale, y: gestureScale, anchor: .top)
         .animation(NotchMotion.notchLayout, value: gestureProgress)
+        .animation(NotchMotion.liveActivityIn, value: closedSecondaryCompactActivityKind)
+        .animation(NotchMotion.liveActivityOut, value: isClosedPrimaryActivityExpanded)
         .background(WindowAccessor { hostWindow = $0 })
         .background(dragDetector)
         .preferredColorScheme(.dark)
         .environmentObject(vm)
-        .onAppear {
-            lockSuppressionProgress = lockTransition.suppressClosedActivities ? 1 : 0
 
-            let w = computedChinWidth
-            batteryChinFrom = w
-            batteryChinTo = w
-            batteryChinPhase = 1
-   // Global mouse monitor disabled because it caused issues with external displays
-   // Direct hover handling in TimerLiveActivity is sufficient for most cases
+        withLifecycleHandlers(baseView)
+    }
 
-        }
-        .onDisappear {
-            if let m = timerGlobalMouseMonitor {
-                NSEvent.removeMonitor(m)
-                timerGlobalMouseMonitor = nil
-            }
-        }
-        .onChange(of: lockTransition.suppressClosedActivities) { _, suppress in
-            let d = suppress ? 0.18 : 0.24
-            withAnimation(NotchMotion.visibility(duration: d)) {
-                lockSuppressionProgress = suppress ? 1 : 0
-            }
-        }
-        .onChange(of: isBatteryClosedNotificationShowing) { _, _ in
-            let newWidth = computedChinWidth
-            guard vm.notchState == .closed,
-                  !lockTransition.suppressClosedActivities,
-                  Defaults[.showPowerStatusNotifications],
-                  coordinator.expandingView.type == .battery
-            else {
-                batteryChinFrom = newWidth
-                batteryChinTo = newWidth
+    private func withLifecycleHandlers<Content: View>(_ content: Content) -> some View {
+        let s1 = withStartupHandlers(content)
+        let s2 = withSystemStateHandlers(s1)
+        let s3 = withOverlayStateHandlers(s2)
+        let s4 = withPopupStateHandlers(s3)
+        return withTimerPulseHandlers(s4)
+    }
+
+    private func withStartupHandlers<Content: View>(_ content: Content) -> some View {
+        content
+            .onAppear {
+                keepLiquidVisualDuringClose = pageUseLiquidGlassBackground && vm.notchState == .open
+                liquidVisualBlend = (pageUseLiquidGlassBackground && vm.notchState == .open) ? 1 : 0
+                liquidStrokeReveal = (pageUseLiquidGlassBackground && vm.notchState == .open) ? 1 : 0
+                lockSuppressionProgress = lockTransition.suppressClosedActivities ? 1 : 0
+                let w = computedChinWidth
+                batteryChinFrom = w
+                batteryChinTo = w
                 batteryChinPhase = 1
-                return
+                applyScreenRecordingVisibilityPolicy()
             }
-
-            let current = batteryChinFrom + (batteryChinTo - batteryChinFrom) * OrganicBatteryEasing.map(
-                batteryChinPhase,
-                mode: (batteryChinTo >= batteryChinFrom) ? .appear : .disappear
-            )
-            batteryChinFrom = current
-            batteryChinTo = newWidth
-            batteryChinPhase = 0
-            withAnimation(
-                NotchMotion.widthMorph(
-                    duration: ((batteryChinTo >= batteryChinFrom) ? batteryAppearDuration : batteryDisappearDuration)
-                )
-            ) {
-                batteryChinPhase = 1
-            }
-        }
-        .onChange(of: vm.anyDropZoneTargeting) { _, isTargeted in
-            anyDropDebounceTask?.cancel()
-
-            if isTargeted {
-    // If the Shelf page (Page 2) is disabled, do not auto-open the notch for file drags.
-                if !pageShelfEnabled { return }
-                if vm.notchState == .closed {
-                    coordinator.currentView = .shelf
-                    doOpen()
+            .onDisappear {
+                liquidCloseTransitionTask?.cancel()
+                liquidCloseTransitionTask = nil
+                timerPopupRearmTask?.cancel()
+                timerPopupRearmTask = nil
+                if let m = timerGlobalMouseMonitor {
+                    NSEvent.removeMonitor(m)
+                    timerGlobalMouseMonitor = nil
                 }
-                return
+                closedPopupFailsafeTask?.cancel()
+                closedPopupFailsafeTask = nil
             }
+    }
 
-            anyDropDebounceTask = Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(500))
-                guard !Task.isCancelled else { return }
-
-                if vm.dropEvent {
-                    vm.dropEvent = false
+    private func withSystemStateHandlers<Content: View>(_ content: Content) -> some View {
+        content
+            .onChange(of: lockTransition.suppressClosedActivities) { _, suppress in
+                let d = suppress ? 0.18 : 0.24
+                withAnimation(NotchMotion.visibility(duration: d)) {
+                    lockSuppressionProgress = suppress ? 1 : 0
+                }
+            }
+            .onChange(of: closedSecondaryCompactActivityKind) { oldKind, newKind in
+                if oldKind == nil, newKind != nil {
+                    detachedSecondaryAppearToken &+= 1
+                }
+            }
+            .onChange(of: isBatteryClosedNotificationShowing) { _, _ in
+                let newWidth = computedChinWidth
+                guard vm.notchState == .closed,
+                      !lockTransition.suppressClosedActivities,
+                      Defaults[.showPowerStatusNotifications],
+                      coordinator.expandingView.type == .battery
+                else {
+                    batteryChinFrom = newWidth
+                    batteryChinTo = newWidth
+                    batteryChinPhase = 1
                     return
                 }
 
-                vm.dropEvent = false
-                if !SharingStateManager.shared.preventNotchClose {
-                    vm.close()
+                let current = batteryChinFrom + (batteryChinTo - batteryChinFrom) * OrganicBatteryEasing.map(
+                    batteryChinPhase,
+                    mode: (batteryChinTo >= batteryChinFrom) ? .appear : .disappear
+                )
+                batteryChinFrom = current
+                batteryChinTo = newWidth
+                batteryChinPhase = 0
+                withAnimation(
+                    NotchMotion.widthMorph(
+                        duration: ((batteryChinTo >= batteryChinFrom) ? batteryAppearDuration : batteryDisappearDuration)
+                    )
+                ) {
+                    batteryChinPhase = 1
                 }
             }
-        }
-        .onChange(of: showCalendar) { _, calendarOn in
-            if calendarOn { calendarRestoreAfterCamera = false }
+            .onChange(of: pageUseLiquidGlassBackground) { _, enabled in
+                liquidCloseTransitionTask?.cancel()
+                liquidCloseTransitionTask = nil
+                keepLiquidVisualDuringClose = enabled && vm.notchState == .open
+                liquidVisualBlend = (enabled && vm.notchState == .open) ? 1 : 0
+                liquidStrokeReveal = (enabled && vm.notchState == .open) ? 1 : 0
+            }
+            .onChange(of: hostWindow?.windowNumber) { _, _ in
+                applyScreenRecordingVisibilityPolicy()
+            }
+            .onChange(of: hideFromScreenRecordingMode) { _, _ in
+                applyScreenRecordingVisibilityPolicy()
+            }
+            .onChange(of: vm.notchState) { _, _ in
+                applyScreenRecordingVisibilityPolicy()
+            }
+            .onChange(of: hasClosedLiveActivityForRecordingPolicy) { _, _ in
+                applyScreenRecordingVisibilityPolicy()
+            }
+    }
 
-            suppressAutoCloseUntil = Date().addingTimeInterval(0.45)
-            guard !isSwitchingOverlay else { return }
+    private func withOverlayStateHandlers<Content: View>(_ content: Content) -> some View {
+        content
+            .onChange(of: isLayoutExpandedComputed) { oldExpanded, newExpanded in
+                guard vm.notchState == .open else { return }
+                if oldExpanded && !newExpanded {
+                    activateFrozenHoverZone()
+                } else if newExpanded {
+                    deactivateFrozenHoverZone()
+                }
+            }
+            .onChange(of: showCalendar) { oldCalendarOn, calendarOn in
+                if calendarOn { calendarRestoreAfterCamera = false }
+                if oldCalendarOn && !calendarOn && !isCameraVisibleComputed {
+                    activateFrozenHoverZone(widthHint: 230)
+                }
 
-            if calendarOn, vm.isCameraExpanded {
-                isSwitchingOverlay = true
+                suppressAutoCloseUntil = Date().addingTimeInterval(0.45)
+                guard !isSwitchingOverlay else { return }
 
-                overlayHeightHold = vm.notchSize.height
-                let currentExtra: CGFloat = 160
-                overlayWidthHold = currentExtra
+                if calendarOn, vm.isCameraExpanded {
+                    isSwitchingOverlay = true
+                    overlaySwitchDirection = .toCalendar
 
-                withAnimation(animationSpring) { showCalendar = false }
-                withAnimation(animationSpring) { vm.toggleCameraPreview() }
+                    overlayHeightHold = vm.notchSize.height
+                    let currentExtra: CGFloat = 160
+                    overlayWidthHold = currentExtra
 
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: overlaySwitchDelayMs * 1_000_000)
+                    withAnimation(animationSpring) { showCalendar = false }
+                    withAnimation(animationSpring) { vm.toggleCameraPreview() }
+
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: overlaySwitchDelayMs * 1_000_000)
+                        withAnimation(animationSpring) { showCalendar = true }
+
+                        try? await Task.sleep(nanoseconds: 180 * 1_000_000)
+                        withAnimation(NotchMotion.notchLayout) {
+                            overlayWidthHold = 0
+                            overlayHeightHold = 0
+                        }
+
+                        isSwitchingOverlay = false
+                        overlaySwitchDirection = .none
+                    }
+                }
+            }
+            .onChange(of: showMirror) { _, _ in
+                suppressAutoCloseUntil = Date().addingTimeInterval(0.45)
+            }
+            .onChange(of: vm.isCameraExpanded) { oldCameraOn, cameraOn in
+                suppressAutoCloseUntil = Date().addingTimeInterval(0.45)
+                if oldCameraOn && !cameraOn && !showCalendar {
+                    activateFrozenHoverZone(widthHint: 160)
+                }
+                if cameraOn, showCalendar {
+                    calendarRestoreAfterCamera = true
+                    withAnimation(animationSpring) { showCalendar = false }
+                }
+
+                guard !isSwitchingOverlay else { return }
+
+                if cameraOn, showCalendar {
+                    isSwitchingOverlay = true
+                    overlaySwitchDirection = .toCamera
+
+                    let currentExtra: CGFloat = (isCalendarVisibleComputed ? 230 : 0)
+                    overlayWidthHold = max(160, currentExtra)
+
+                    // Step 1: hide calendar while keeping the wider notch width held.
+                    withAnimation(animationSpring) { showCalendar = false }
+                    // Step 2: then animate width down to camera width.
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 16_000_000) // ~1 frame
+                        withAnimation(animationSpring) {
+                            overlayWidthHold = 160
+                        }
+                    }
+
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: overlaySwitchDelayMs * 1_000_000)
+
+                        if !vm.isCameraExpanded {
+                            withAnimation(animationSpring) { vm.toggleCameraPreview() }
+                        }
+
+                        try? await Task.sleep(nanoseconds: 180 * 1_000_000)
+                        withAnimation(NotchMotion.notchLayout) {
+                            overlayWidthHold = 0
+                        }
+                        isSwitchingOverlay = false
+                        overlaySwitchDirection = .none
+                    }
+                }
+
+                if !cameraOn, calendarRestoreAfterCamera {
+                    calendarRestoreAfterCamera = false
+                    isSwitchingOverlay = true
+                    overlaySwitchDirection = .toCalendar
+
+                    overlayWidthHold = 230
                     withAnimation(animationSpring) { showCalendar = true }
 
-                    try? await Task.sleep(nanoseconds: 180 * 1_000_000)
-                    withAnimation(NotchMotion.notchLayout) {
-                        overlayWidthHold = 0
-                        overlayHeightHold = 0
-                    }
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 180 * 1_000_000)
+                        withAnimation(NotchMotion.notchLayout) {
+                            overlayWidthHold = 0
+                        }
 
-                    isSwitchingOverlay = false
+                        isSwitchingOverlay = false
+                        overlaySwitchDirection = .none
+                    }
+                    return
                 }
             }
-        }
-        .onChange(of: showMirror) { _, _ in
-            suppressAutoCloseUntil = Date().addingTimeInterval(0.45)
-        }
-        .onChange(of: vm.isCameraExpanded) { _, cameraOn in
-            suppressAutoCloseUntil = Date().addingTimeInterval(0.45)
-            if cameraOn, showCalendar {
-                calendarRestoreAfterCamera = true
-                withAnimation(animationSpring) { showCalendar = false }
+    }
+
+    private func withPopupStateHandlers<Content: View>(_ content: Content) -> some View {
+        content
+            .onChange(of: isBluetoothClosedNotificationShowing) { _, showing in
+                if showing { return }
+
+                bluetoothCenterHoverTask?.cancel()
+                bluetoothSidesHoverTask?.cancel()
+                bluetoothTransitionTask?.cancel()
+                isBluetoothPopupHovering = false
+                isBluetoothSidesHovering = false
+                isBluetoothCenterHovering = false
+                isBluetoothPopupTransitioning = false
+                coordinator.resumeExpandingViewAutoHide()
             }
-
-            guard !isSwitchingOverlay else { return }
-
-            if cameraOn, showCalendar {
-                isSwitchingOverlay = true
-
-                let currentExtra: CGFloat = (isCalendarVisibleComputed ? 230 : 0)
-                overlayWidthHold = max(160, currentExtra)
-
-                withAnimation(animationSpring) { showCalendar = false }
-
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: overlaySwitchDelayMs * 1_000_000)
-
-                    if !vm.isCameraExpanded {
-                        withAnimation(animationSpring) { vm.toggleCameraPreview() }
-                    }
-
-                    try? await Task.sleep(nanoseconds: 180 * 1_000_000)
-                    withAnimation(NotchMotion.notchLayout) {
-                        overlayWidthHold = 0
-                    }
-                    isSwitchingOverlay = false
+            .onChange(of: isBluetoothPopupHovering) { _, isOpen in
+                if isOpen {
+                    ensureClosedPopupFailsafeRunning()
+                } else if !isTimerPopupHovering {
+                    closedPopupFailsafeTask?.cancel()
+                    closedPopupFailsafeTask = nil
                 }
             }
-
-            if !cameraOn, calendarRestoreAfterCamera {
-                calendarRestoreAfterCamera = false
-                isSwitchingOverlay = true
-
-                let currentExtra: CGFloat = isCameraVisibleComputed ? 160 : 0
-                overlayWidthHold = max(230, currentExtra)
-
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: overlaySwitchDelayMs * 1_000_000)
-                    withAnimation(animationSpring) { showCalendar = true }
-
-                    try? await Task.sleep(nanoseconds: 180 * 1_000_000)
-                    withAnimation(NotchMotion.notchLayout) {
-                        overlayWidthHold = 0
-                    }
-
-                    isSwitchingOverlay = false
+            .onChange(of: shouldShowTimerActivityClosed) { _, showing in
+                if showing {
+                    isTimerPopupHoverArmed = Date() >= suppressTimerPopupAutoOpenUntil
+                    return
                 }
-                return
+                timerPopupRearmTask?.cancel()
+                timerPopupRearmTask = nil
+                timerSidesHoverTask?.cancel()
+                timerTransitionTask?.cancel()
+                isTimerPopupHovering = false
+                isTimerSidesHovering = false
+                isTimerExpandedHovering = false
+                isTimerPopupTransitioning = false
+                isTimerPopupHoverArmed = false
             }
-        }
-        .onChange(of: isBluetoothClosedNotificationShowing) { _, showing in
-            if showing { return }
+            .onChange(of: isTimerPopupHovering) { _, isOpen in
+                if isOpen {
+                    ensureClosedPopupFailsafeRunning()
+                } else if !isBluetoothPopupHovering {
+                    closedPopupFailsafeTask?.cancel()
+                    closedPopupFailsafeTask = nil
 
-            bluetoothCenterHoverTask?.cancel()
-            bluetoothSidesHoverTask?.cancel()
-            bluetoothTransitionTask?.cancel()
-            isBluetoothPopupHovering = false
-            isBluetoothSidesHovering = false
-            isBluetoothCenterHovering = false
-            isBluetoothPopupTransitioning = false
-            coordinator.resumeExpandingViewAutoHide()
-        }
+                    timerSidesHoverTask?.cancel()
+                    timerTransitionTask?.cancel()
+                    isTimerSidesHovering = false
+                    isTimerExpandedHovering = false
+                    isTimerProximityHovering = false
+                    isTimerPopupTransitioning = false
+                    isTimerPopupHoverArmed = Date() >= suppressTimerPopupAutoOpenUntil
+
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(10))
+                        handleHover(isHovering)
+                    }
+                }
+            }
+            .onChange(of: activeQuickTimers.count) { _, count in
+                guard count == 0 else { return }
+
+                timerPopupRearmTask?.cancel()
+                timerPopupRearmTask = nil
+                timerSidesHoverTask?.cancel()
+                timerTransitionTask?.cancel()
+                isTimerPopupHovering = false
+                isTimerSidesHovering = false
+                isTimerExpandedHovering = false
+                isTimerProximityHovering = false
+                isTimerPopupTransitioning = false
+                isTimerPopupHoverArmed = false
+                keepTimerPopupOpenForFinishedAlert = false
+
+                handleHover(isHovering)
+            }
+    }
+
+    private func withTimerPulseHandlers<Content: View>(_ content: Content) -> some View {
+        content
+            .onChange(of: quickTimerManager.finishEventTick) { _, _ in
+                guard vm.notchState == .closed else { return }
+                guard shouldShowTimerActivityClosed else { return }
+
+                keepTimerPopupOpenForFinishedAlert = true
+                isTimerPopupHoverArmed = false
+                isTimerPopupTransitioning = true
+                timerTransitionTask?.cancel()
+                timerTransitionTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(220))
+                    guard !Task.isCancelled else { return }
+                    isTimerPopupTransitioning = false
+                }
+                withAnimation(NotchMotion.popupHover) {
+                    isTimerPopupHovering = true
+                }
+            }
+            .onChange(of: hasFinishedQuickTimers) { _, hasFinished in
+                if !hasFinished {
+                    keepTimerPopupOpenForFinishedAlert = false
+                }
+            }
+            .onChange(of: quickTimerManager.alertPulseToken) { _, _ in
+                guard shouldVibrateExpandedTimerBackground else { return }
+
+                timerAlarmBackgroundSettleTask?.cancel()
+                timerAlarmBackgroundDirection *= -1
+
+                let pulse = max(0.65, min(1.35, quickTimerManager.alertPulseStrength))
+                let kick = timerAlarmBackgroundDirection * (1.34 * pulse)
+                performTimerAlertHapticPulse(strength: pulse)
+
+                withAnimation(.easeOut(duration: 0.042)) {
+                    timerAlarmBackgroundImpulseX = kick
+                }
+
+                timerAlarmBackgroundSettleTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(92))
+                    guard !Task.isCancelled else { return }
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        timerAlarmBackgroundImpulseX = 0
+                    }
+                }
+            }
+            .onChange(of: shouldVibrateExpandedTimerBackground) { _, shouldVibrate in
+                guard !shouldVibrate else { return }
+                timerAlarmBackgroundSettleTask?.cancel()
+                timerAlarmBackgroundSettleTask = nil
+                timerAlarmBackgroundDirection = -1
+                withAnimation(.easeOut(duration: 0.16)) {
+                    timerAlarmBackgroundImpulseX = 0
+                }
+            }
     }
 
  // MARK: - Layout
@@ -1246,47 +2759,25 @@ struct ContentView: View {
                                     }
                                 )
                             }
-       // Priority 5: timer
-                            else if shouldShowTimerActivityClosed {
-                                TimerLiveActivity(
-                                    text: timerActivityText,
-                                    extraCount: timerActivityExtraCount,
-                                    progressRemaining: timerActivityProgressRemaining,
-                                    layout: timerActivityLayout,
-                                    notchWidth: vm.closedNotchSize.width,
-                                    baseHeight: vm.effectiveClosedNotchHeight,
-                                    isCompactMode: isTimerCompactMode,
-                                    isExpanded: isTimerPopupHovering,
-                                    onSidesHoverChanged: { hovering in
-          // Direct hover only (no proximity hover with external displays)
-                                        isTimerSidesHovering = hovering
-
-                                        timerSidesHoverTask?.cancel()
-
-                                        if hovering {
-                                            withAnimation(NotchMotion.popupHover) {
-                                                isTimerPopupHovering = true
-                                            }
-                                        } else {
-           // Leave hysteresis: avoid falling back to "center hover" when grazing the boundary.
-                                            timerSidesHoverTask = Task { @MainActor in
-                                                try? await Task.sleep(for: .milliseconds(140))
-                                                guard !Task.isCancelled else { return }
-                                                if !isTimerSidesHovering {
-                                                    withAnimation(NotchMotion.popupHover) {
-                                                        isTimerPopupHovering = false
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                )
+       // Priority 5: focus mode
+                            else if shouldShowFocusActivityClosed {
+                                closedFocusLiveActivityView()
+                                    .transition(
+                                        .asymmetric(
+                                            insertion: .opacity.combined(with: .scale(scale: 0.95, anchor: .top)),
+                                            removal: .opacity.combined(with: .scale(scale: 0.98, anchor: .top))
+                                        )
+                                    )
                             }
-       // Priority 6: file tray
+       // Priority 6: timer
+                            else if shouldShowTimerActivityClosed {
+                                closedTimerLiveActivityView()
+                            }
+       // Priority 7: file tray
                             else if shouldShowFileTrayActivityClosed {
                                 FileTrayLiveActivity(count: fileTrayCount, isCompactMode: isFileTrayCompactMode)
                             }
-       // Priority 7: player
+       // Priority 8: player
                             else if shouldShowMusicActivityClosed {
                                 MusicLiveActivity(isCompactMode: isNowPlayingCompactMode)
                                     .frame(alignment: .center)
@@ -1302,10 +2793,10 @@ struct ContentView: View {
                                 BoringFaceAnimation()
                             }
                             else if vm.notchState == .open {
-                                BoringHeader()
+                                Rectangle()
+                                    .fill(.clear)
                                     .frame(height: max(24, vm.effectiveClosedNotchHeight))
                                     .padding(.top, 6)
-                                    .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
                             } else {
                                 Rectangle()
                                     .fill(.clear)
@@ -1349,7 +2840,6 @@ struct ContentView: View {
                         } else if coordinator.sneakPeek.type == .music {
                             if vm.notchState == .closed
                                 && !vm.hideOnClosed
-                                && Defaults[.sneakPeekStyles] == .standard
                             {
                                 HStack(alignment: .center) {
                                     Image(systemName: "music.note")
@@ -1375,11 +2865,10 @@ struct ContentView: View {
                 (coordinator.sneakPeek.show
                  && (coordinator.sneakPeek.type == .music)
                  && vm.notchState == .closed
-                 && !vm.hideOnClosed
-                 && Defaults[.sneakPeekStyles] == .standard)
+                 && !vm.hideOnClosed)
                 || (coordinator.sneakPeek.show
                     && (coordinator.sneakPeek.type != .music)
-                    && (vm.notchState == .closed))
+                    && vm.notchState == .closed)
             ) { view in
                 view.fixedSize()
             }
@@ -1394,7 +2883,12 @@ struct ContentView: View {
                         Defaults[.showMirror]
                         && webcamManager.cameraAvailable
                         && vm.isCameraExpanded
-                    let reservedTrailing: CGFloat = showCalendar ? calendarTotalWidth : 0
+                    let reservedTrailing: CGFloat = {
+                        if isSwitchingOverlay && overlaySwitchDirection == .toCalendar {
+                            return calendarTotalWidth
+                        }
+                        return showCalendar ? calendarTotalWidth : 0
+                    }()
 
                     GeometryReader { geo in
                         let contentWidth = max(0, geo.size.width - reservedTrailing)
@@ -1458,6 +2952,7 @@ struct ContentView: View {
                             }
                         }
                         .frame(width: contentWidth, height: geo.size.height, alignment: .topLeading)
+                        .offset(y: -8)
                         .clipped()
                         .compositingGroup() // Render the pager as an independent group before parent clipping.
                         .animation(NotchMotion.notchLayout, value: reservedTrailing)
@@ -1469,13 +2964,14 @@ struct ContentView: View {
                             .frame(width: calendarTotalWidth)
                             .padding(.top, 6)
                             .padding(.trailing, -10)
-                            .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                            .transition(calendarOverlayTransition)
                             .zIndex(998)
                     }
 
                     if isCameraOverlayVisible {
                         CameraPreviewView(webcamManager: webcamManager)
-                            .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                            .padding(.trailing, 7)
+                            .transition(cameraOverlayTransition)
                             .zIndex(999)
                     }
                 }
@@ -1737,7 +3233,19 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
         }
     }
 
- // MARK: - Closed activity: File Tray
+ // MARK: - Closed activity: Focus / File Tray
+
+    @ViewBuilder
+    private func closedFocusLiveActivityView() -> some View {
+        FocusLiveActivity(
+            notchWidth: vm.closedNotchSize.width,
+            baseHeight: vm.effectiveClosedNotchHeight,
+            symbolName: focusActivitySymbolName,
+            statusText: focusActivityStatusText,
+            tint: focusActivityTint,
+            layout: focusActivityLayout
+        )
+    }
 
     @ViewBuilder
     private func closedDetachedBridgeArcView() -> some View {
@@ -1800,7 +3308,14 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
             ZStack {
                 Rectangle()
                     .fill(.black)
-                closedSecondaryCompactActivity(kind: kind)
+                DetachedSecondaryContentFade(
+                    baseOpacity: secondaryDetachedContentOpacity,
+                    trigger: detachedSecondaryAppearToken,
+                    appearDelayMs: 90,
+                    appearDuration: 0.30
+                ) {
+                    closedSecondaryCompactActivity(kind: kind)
+                }
             }
             .frame(width: w, height: h)
             .clipShape(
@@ -1809,7 +3324,6 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                     bottomCornerRadius: detachedCompactBottomRadius
                 )
             )
-            .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .leading)))
         }
     }
 
@@ -1831,15 +3345,19 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                 )
                 .frame(width: side, height: side)
 
+            case .focus:
+                focusSymbolGlyph(focusActivitySymbolName, size: side, tint: focusActivityTint)
+
             case .fileTray:
+                let trayBlue = Color(nsColor: .systemBlue)
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.gray.opacity(0.45))
+                    .fill(trayBlue.opacity(0.30))
                     .frame(width: side, height: side)
                     .overlay {
                         Text("\(fileTrayCount)")
                             .font(.system(size: 12, weight: .semibold, design: .default))
                             .monospacedDigit()
-                            .foregroundStyle(.white.opacity(0.95))
+                            .foregroundStyle(trayBlue.opacity(0.98))
                             .minimumScaleFactor(0.7)
                             .lineLimit(1)
                     }
@@ -1866,6 +3384,7 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
 
     @ViewBuilder
     private func timerCompactRingView(size: CGFloat) -> some View {
+        let ringSize: CGFloat = timerActivityLayout.fontSize + 5
         let ringLineWidth: CGFloat = 2.2
         let needleThickness: CGFloat = 2.49
         let clamped = max(0, min(1, timerActivityProgressRemaining))
@@ -1893,25 +3412,26 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                 RoundedRectangle(cornerRadius: needleThickness / 2, style: .continuous)
                     .fill(Color(nsColor: .systemOrange))
                     .frame(width: needleLength, height: needleThickness)
-                    .offset(x: -needleLength * 0.32)
-                    .rotationEffect(.degrees(angle))
+                    .modifier(DetachedTimerNeedlePivotModifier(length: needleLength, pivotFraction: 0.18, angle: angle))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .animation(.linear(duration: 1), value: timerActivityProgressRemaining)
             }
         }
-        .frame(width: size, height: size)
+        .frame(width: ringSize, height: ringSize)
+        .frame(width: size, height: size, alignment: .center)
     }
 
     @ViewBuilder
     private func FileTrayLiveActivity(count: Int, isCompactMode: Bool) -> some View {
         let side = max(0, vm.effectiveClosedNotchHeight - 12)
+        let trayBlue = Color(nsColor: .systemBlue)
 
         HStack(spacing: 0) {
             if !isCompactMode {
                 ZStack {
                     Image(systemName: "tray.full.fill")
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.9))
+                        .foregroundStyle(trayBlue.opacity(0.95))
                 }
                 .frame(width: side, height: side)
             }
@@ -1925,13 +3445,13 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
             ZStack {
                 if isCompactMode {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color.gray.opacity(0.45))
+                        .fill(trayBlue.opacity(0.30))
                         .frame(width: side, height: side)
                         .overlay {
                             Text("\(count)")
                                 .font(.system(size: 12, weight: .semibold, design: .default))
                                 .monospacedDigit()
-                                .foregroundStyle(.white.opacity(0.95))
+                                .foregroundStyle(trayBlue.opacity(0.98))
                                 .minimumScaleFactor(0.7)
                                 .lineLimit(1)
                         }
@@ -1939,7 +3459,7 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                     Text("\(count)")
                         .font(.system(size: 12, weight: .semibold, design: .default))
                         .monospacedDigit()
-                        .foregroundStyle(.gray.opacity(0.95))
+                        .foregroundStyle(trayBlue.opacity(0.98))
                         .minimumScaleFactor(0.7)
                         .lineLimit(1)
                 }
@@ -2000,7 +3520,7 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                                 minDuration: 0.4,
                                 frameWidth: 100
                             )
-                            .opacity((coordinator.expandingView.show && Defaults[.sneakPeekStyles] == .inline) ? 1 : 0)
+                            .opacity(0)
 
                             Spacer(minLength: vm.closedNotchSize.width)
 
@@ -2012,11 +3532,7 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                                     ? Color(nsColor: musicManager.avgColor)
                                     : Color.gray
                                 )
-                                .opacity(
-                                    (coordinator.expandingView.show
-                                     && coordinator.expandingView.type == .music
-                                     && Defaults[.sneakPeekStyles] == .inline) ? 1 : 0
-                                )
+                                .opacity(0)
                         }
                     }
                 )
@@ -2129,14 +3645,102 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
         isTimerProximityHovering = isInLeftRect || isInRightRect
     }
 
+    private func scheduleTimerPopupRearmAfterClose() {
+        timerPopupRearmTask?.cancel()
+        let unlockAt = suppressTimerPopupAutoOpenUntil
+
+        timerPopupRearmTask = Task { @MainActor in
+            let delay = max(0, unlockAt.timeIntervalSinceNow)
+            if delay > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            }
+            guard !Task.isCancelled else { return }
+
+            isTimerPopupHoverArmed = true
+
+            guard vm.notchState == .closed,
+                  shouldShowTimerActivityClosed,
+                  isTimerSidesHovering,
+                  !isTimerPopupHovering,
+                  !isTimerExpandedHovering else { return }
+
+            isTimerPopupTransitioning = true
+            timerTransitionTask?.cancel()
+            timerTransitionTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(220))
+                guard !Task.isCancelled else { return }
+                isTimerPopupTransitioning = false
+            }
+            withAnimation(NotchMotion.popupHover) {
+                isTimerPopupHovering = true
+            }
+        }
+    }
+
     private func doOpen() {
   // Battery closed live activity remains horizontal-only.
         if isBatteryClosedNotificationShowing { return }
   // Do not open notch while Bluetooth popup is open or transitioning.
         if isBluetoothClosedNotificationShowing
             && (isBluetoothSidesHovering || isBluetoothPopupHovering || isBluetoothPopupTransitioning) { return }
+        if pageUseLiquidGlassBackground {
+            // Prime Liquid layers before notch state flips to .open so they are visible on frame 1.
+            keepLiquidVisualDuringClose = true
+            liquidVisualBlend = max(liquidVisualBlend, 0.35)
+            liquidStrokeReveal = max(liquidStrokeReveal, 0.05)
+            withAnimation(.easeOut(duration: 0.26)) {
+                liquidStrokeReveal = 1
+            }
+        }
         ignoreHoverExitUntil = Date().addingTimeInterval(0.25)
         vm.open()
+    }
+
+    private func closedPopupHoverBoundsContainsMouse() -> Bool {
+        guard let w = hostWindow else { return true }
+        let f = w.frame
+        let bounds = CGRect(
+            x: f.minX - 12,
+            y: f.minY - 8,
+            width: f.width + 24,
+            height: f.height + 22
+        )
+        return bounds.contains(NSEvent.mouseLocation)
+    }
+
+    private func ensureClosedPopupFailsafeRunning() {
+        guard closedPopupFailsafeTask == nil else { return }
+        closedPopupFailsafeTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(140))
+                guard !Task.isCancelled else { break }
+
+                if vm.notchState != .closed || (!isTimerPopupHovering && !isBluetoothPopupHovering) {
+                    break
+                }
+
+                if isTimerPopupHovering && keepTimerPopupOpenForFinishedAlert {
+                    continue
+                }
+
+                if closedPopupHoverBoundsContainsMouse() { continue }
+
+                timerSidesHoverTask?.cancel()
+                bluetoothSidesHoverTask?.cancel()
+                bluetoothCenterHoverTask?.cancel()
+                withAnimation(NotchMotion.popupHover) {
+                    isTimerPopupHovering = false
+                    isTimerSidesHovering = false
+                    isTimerExpandedHovering = false
+                    isTimerProximityHovering = false
+                    isBluetoothPopupHovering = false
+                    isBluetoothSidesHovering = false
+                    isBluetoothCenterHovering = false
+                }
+                break
+            }
+            closedPopupFailsafeTask = nil
+        }
     }
 
  // MARK: - Hover Management
@@ -2153,11 +3757,15 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
 
   // Avoid conflicts: hovering should expand the Timer popup (sides), not open the notch.
   // (Center hover remains the classic notch-open behavior.)
-        if shouldShowTimerActivityClosed && (isTimerSidesHovering || isTimerProximityHovering) { return }
+        if shouldShowTimerActivityClosed && (isTimerPopupHovering || isTimerSidesHovering || isTimerProximityHovering) { return }
+
+        let timerHoverBlocksOpen = shouldShowTimerActivityClosed
+            && (isTimerPopupHovering || isTimerSidesHovering || isTimerProximityHovering)
 
         hoverTask?.cancel()
 
         if hovering {
+            deactivateFrozenHoverZone()
             withAnimation(animationSpring) { isHovering = true }
 
             if vm.notchState == .closed && Defaults[.enableHaptics] {
@@ -2167,7 +3775,7 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
             guard vm.notchState == .closed,
                   !coordinator.sneakPeek.show,
                   !isBatteryClosedNotificationShowing,
-                  !(isTimerSidesHovering || isTimerProximityHovering),
+                  !timerHoverBlocksOpen,
                   Defaults[.openNotchOnHover] else { return }
 
             hoverTask = Task {
@@ -2175,17 +3783,20 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                 guard !Task.isCancelled else { return }
 
                 await MainActor.run {
+                    let timerStillBlocks = self.shouldShowTimerActivityClosed
+                        && (self.isTimerSidesHovering || self.isTimerProximityHovering)
                     guard self.vm.notchState == .closed,
                           self.isHovering,
                           !self.coordinator.sneakPeek.show,
                           !self.isBatteryClosedNotificationShowing,
-                          !self.isTimerSidesHovering else { return }
+                          !timerStillBlocks else { return }
                     self.doOpen()
                 }
             }
         } else {
             if Date() < ignoreHoverExitUntil { return }
             if Date() < suppressAutoCloseUntil { return }
+            if frozenHoverZoneActive { return }
 
             hoverTask = Task {
                 try? await Task.sleep(for: .milliseconds(100))
@@ -2203,6 +3814,97 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                 }
             }
         }
+    }
+
+    private func activateFrozenHoverZone(widthHint: CGFloat? = nil) {
+        guard vm.notchState == .open else { return }
+        // Cancel any already-scheduled hover close from the old (larger) zone.
+        hoverTask?.cancel()
+        hoverTask = nil
+        let hintedWidth: CGFloat = {
+            guard let extra = widthHint else { return openWidthValueComputed }
+            let base: CGFloat = 420
+            let legacyOpenTopRadius = Defaults[.cornerRadiusScaling] ? cornerRadiusInsets.opened.top : cornerRadiusInsets.closed.top
+            let compensation: CGFloat = 2 * legacyOpenTopRadius
+            return max(vm.closedNotchSize.width, base + extra - compensation)
+        }()
+        frozenHoverZoneWidth = max(hintedWidth, frozenHoverZoneWidth)
+        frozenHoverZoneActive = true
+        frozenHoverStartPointer = hostWindow?.mouseLocationOutsideOfEventStream ?? .zero
+        frozenHoverPointerMoved = false
+        frozenHoverOutsideTicks = 0
+        suppressAutoCloseUntil = Date().addingTimeInterval(0.45)
+        ignoreHoverExitUntil = Date().addingTimeInterval(0.45)
+        isHovering = true
+
+        frozenHoverExitTask?.cancel()
+        frozenHoverExitTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(70))
+                guard !Task.isCancelled else { return }
+                guard frozenHoverZoneActive else { return }
+                guard vm.notchState == .open else { return }
+                guard !vm.isBatteryPopoverActive else { continue }
+
+                if let pointer = hostWindow?.mouseLocationOutsideOfEventStream {
+                    if !frozenHoverPointerMoved {
+                        let dx = pointer.x - frozenHoverStartPointer.x
+                        let dy = pointer.y - frozenHoverStartPointer.y
+                        let dist2 = dx * dx + dy * dy
+                        if dist2 >= 1.0 {
+                            frozenHoverPointerMoved = true
+                        } else {
+                            continue
+                        }
+                    }
+                }
+
+                if frozenHoverPointerMoved {
+                    if !isPointerInsideFrozenHoverZone() {
+                        frozenHoverOutsideTicks += 1
+                        // Require pointer to stay out for a few polls to avoid instant close on tiny jitter.
+                        if frozenHoverOutsideTicks >= 3 {
+                            deactivateFrozenHoverZone()
+                            withAnimation(animationSpring) { isHovering = false }
+                            if !SharingStateManager.shared.preventNotchClose {
+                                vm.close()
+                            }
+                            return
+                        }
+                    } else {
+                        frozenHoverOutsideTicks = 0
+                    }
+                }
+            }
+        }
+    }
+
+    private func deactivateFrozenHoverZone() {
+        frozenHoverZoneActive = false
+        frozenHoverZoneWidth = 0
+        frozenHoverPointerMoved = false
+        frozenHoverOutsideTicks = 0
+        frozenHoverExitTask?.cancel()
+        frozenHoverExitTask = nil
+    }
+
+    private func isPointerInsideFrozenHoverZone() -> Bool {
+        guard let window = hostWindow else { return true }
+        guard let contentView = window.contentView else { return true }
+
+        let width = max(vm.closedNotchSize.width, frozenHoverZoneWidth)
+        let height = max(vm.notchSize.height, vm.effectiveClosedNotchHeight)
+        let pointer = window.mouseLocationOutsideOfEventStream
+
+        // Keep a generous top-band hit zone matching the previously opened overlay area.
+        // This avoids instant close when the cursor remains visually "where it was".
+        let centerX = contentView.bounds.midX
+        let halfWidth = (width / 2) + 10
+        let minY = contentView.bounds.height - max(height + 42, 220)
+
+        let insideX = abs(pointer.x - centerX) <= halfWidth
+        let insideY = pointer.y >= minY
+        return insideX && insideY
     }
 
  // MARK: - Gesture Handling
@@ -2257,12 +3959,14 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
 fileprivate struct BluetoothEdgeHoverTrackingView: NSViewRepresentable {
     let leftEdgeWidth: CGFloat
     let rightEdgeWidth: CGFloat
+    let isExpanded: Bool
     let onHoverZonesChanged: (_ hoveringSides: Bool, _ hoveringCenter: Bool) -> Void
 
     func makeNSView(context: Context) -> NSView {
         let view = HoverView()
         view.leftEdgeWidth = leftEdgeWidth
         view.rightEdgeWidth = rightEdgeWidth
+        view.isExpanded = isExpanded
         view.onHoverZonesChanged = onHoverZonesChanged
         return view
     }
@@ -2271,12 +3975,14 @@ fileprivate struct BluetoothEdgeHoverTrackingView: NSViewRepresentable {
         guard let view = nsView as? HoverView else { return }
         view.leftEdgeWidth = leftEdgeWidth
         view.rightEdgeWidth = rightEdgeWidth
+        view.isExpanded = isExpanded
         view.onHoverZonesChanged = onHoverZonesChanged
     }
 
     final class HoverView: NSView {
         var leftEdgeWidth: CGFloat = 0
         var rightEdgeWidth: CGFloat = 0
+        var isExpanded: Bool = false
         var onHoverZonesChanged: ((_ hoveringSides: Bool, _ hoveringCenter: Bool) -> Void)?
         private var trackingArea: NSTrackingArea?
 
@@ -2286,6 +3992,7 @@ fileprivate struct BluetoothEdgeHoverTrackingView: NSViewRepresentable {
 
             let options: NSTrackingArea.Options = [
                 .mouseEnteredAndExited,
+                .mouseMoved,
                 .activeAlways,
                 .inVisibleRect
             ]
@@ -2299,6 +4006,18 @@ fileprivate struct BluetoothEdgeHoverTrackingView: NSViewRepresentable {
 
         private func updateHover(with event: NSEvent) {
             let p = convert(event.locationInWindow, from: nil)
+            if isExpanded {
+                let tolerantBounds = bounds.insetBy(dx: -10, dy: -10)
+                guard tolerantBounds.contains(p) else {
+                    onHoverZonesChanged?(false, false)
+                    return
+                }
+                if !bounds.contains(p) {
+                    onHoverZonesChanged?(false, true)
+                    return
+                }
+            }
+
             guard bounds.contains(p) else {
                 onHoverZonesChanged?(false, false)
                 return
@@ -2469,13 +4188,14 @@ fileprivate struct BluetoothLiveActivityView: View {
             BluetoothEdgeHoverTrackingView(
                 leftEdgeWidth: isCompactMode ? 0 : hitLeftWidth,
                 rightEdgeWidth: hitRightWidth,
+                isExpanded: isExpanded,
                 onHoverZonesChanged: onHoverZonesChanged
             )
             .frame(width: hitTotalWidth, height: contentHeight, alignment: .topLeading)
         }
         .onHover { hovering in
    // Hard reset when pointer leaves the whole Bluetooth activity area.
-            if !hovering {
+            if !hovering, !isExpanded {
                 onHoverZonesChanged(false, false)
             }
         }

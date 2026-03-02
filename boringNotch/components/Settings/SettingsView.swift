@@ -613,7 +613,6 @@ struct Media: View {
     @ObservedObject var coordinator = BoringViewCoordinator.shared
     @Default(.hideNotchOption) var hideNotchOption
     @Default(.enableSneakPeek) private var enableSneakPeek
-    @Default(.sneakPeekStyles) var sneakPeekStyles
 
     @Default(.enableLyrics) var enableLyrics
   // MARK: - Appearance (moved here)
@@ -660,11 +659,6 @@ struct Media: View {
             
             Section {
                 Toggle("Show sneak peek on playback changes", isOn: $enableSneakPeek)
-                Picker("Sneak Peek Style", selection: $sneakPeekStyles) {
-                    ForEach(SneakPeekStyle.allCases) { style in
-                        Text(style.rawValue).tag(style)
-                    }
-                }
                 HStack {
                     Stepper(value: $waitInterval, in: 0...10, step: 1) {
                         HStack {
@@ -931,11 +925,20 @@ struct CalendarSettings: View {
                 Text("Always show full event titles")
             }
             Section(header: Text("Calendars")) {
-                if calendarManager.calendarAuthorizationStatus != .fullAccess {
+                if calendarManager.calendarAuthorizationStatus == .notDetermined {
+                    Text("Calendar access is not granted yet.")
+                        .multilineTextAlignment(.center)
+                        .padding(.bottom, 6)
+                    Button("Grant Calendar Access") {
+                        Task {
+                            await calendarManager.checkCalendarAuthorization()
+                        }
+                    }
+                } else if calendarManager.calendarAuthorizationStatus != .fullAccess {
                     Text("Calendar access is denied. Please enable it in System Settings.")
                         .foregroundColor(.red)
                         .multilineTextAlignment(.center)
-                        .padding()
+                        .padding(.bottom, 6)
                     Button("Open Calendar Settings") {
                         if let settingsURL = URL(
                             string:
@@ -966,11 +969,20 @@ struct CalendarSettings: View {
                 }
             }
             Section(header: Text("Reminders")) {
-                if calendarManager.reminderAuthorizationStatus != .fullAccess {
+                if calendarManager.reminderAuthorizationStatus == .notDetermined {
+                    Text("Reminder access is not granted yet.")
+                        .multilineTextAlignment(.center)
+                        .padding(.bottom, 6)
+                    Button("Grant Reminder Access") {
+                        Task {
+                            await calendarManager.checkReminderAuthorization()
+                        }
+                    }
+                } else if calendarManager.reminderAuthorizationStatus != .fullAccess {
                     Text("Reminder access is denied. Please enable it in System Settings.")
                         .foregroundColor(.red)
                         .multilineTextAlignment(.center)
-                        .padding()
+                        .padding(.bottom, 6)
                     Button("Open Reminder Settings") {
                         if let settingsURL = URL(
                             string:
@@ -1005,8 +1017,13 @@ struct CalendarSettings: View {
         .navigationTitle("Calendar")
         .onAppear {
             Task {
-                await calendarManager.checkCalendarAuthorization()
-                await calendarManager.checkReminderAuthorization()
+                calendarManager.refreshCalendarAuthorizationStatus()
+                calendarManager.refreshReminderAuthorizationStatus()
+                if calendarManager.calendarAuthorizationStatus == .fullAccess
+                    || calendarManager.reminderAuthorizationStatus == .fullAccess
+                {
+                    await calendarManager.reloadCalendarAndReminderLists()
+                }
             }
         }
     }
@@ -1030,7 +1047,6 @@ func lighterColor(from nsColor: NSColor, amount: CGFloat = 0.14) -> Color {
 }
 
 struct About: View {
-    @State private var showBuildNumber: Bool = false
     let updaterController: SPUStandardUpdaterController
     @Environment(\.openWindow) var openWindow
     var body: some View {
@@ -1040,23 +1056,14 @@ struct About: View {
                     HStack {
                         Text("Release name")
                         Spacer()
-                        Text(Defaults[.releaseName])
+                        Text("Alpha")
                             .foregroundStyle(.secondary)
                     }
                     HStack {
                         Text("Version")
                         Spacer()
-                        if showBuildNumber {
-                            Text("(\(Bundle.main.buildVersionNumber ?? ""))")
-                                .foregroundStyle(.secondary)
-                        }
-                        Text(Bundle.main.releaseVersionNumber ?? "unkown")
+                        Text("0.2")
                             .foregroundStyle(.secondary)
-                    }
-                    .onTapGesture {
-                        withAnimation {
-                            showBuildNumber.toggle()
-                        }
                     }
                 } header: {
                     Text("Version info")
@@ -1067,7 +1074,7 @@ struct About: View {
                 HStack(spacing: 30) {
                     Spacer(minLength: 0)
                     Button {
-                        if let url = URL(string: "https://github.com/TheBoredTeam/boring.notch") {
+                        if let url = URL(string: "https://github.com/Clayton630/QuartzNotch") {
                             NSWorkspace.shared.open(url)
                         }
                     } label: {
@@ -1124,9 +1131,6 @@ struct Shelf: View {
     var body: some View {
         Form {
             Section {
-                Defaults.Toggle(key: .boringShelf) {
-                    Text("Enable shelf")
-                }
                 Defaults.Toggle(key: .openShelfByDefault) {
                     Text("Open shelf by default if items are present")
                 }
@@ -1156,17 +1160,8 @@ struct Shelf: View {
                 Picker("Quick Share Service", selection: $quickShareProvider) {
                     ForEach(quickShareService.availableProviders, id: \.id) { provider in
                         HStack {
-                            Group {
-                                if let imgData = provider.imageData, let nsImg = NSImage(data: imgData) {
-                                    Image(nsImage: nsImg)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                } else {
-                                    Image(systemName: "square.and.arrow.up")
-                                }
-                            }
-                            .frame(width: 16, height: 16)
-                            .foregroundColor(.accentColor)
+                            quickShareProviderMenuIcon(provider)
+                            .frame(width: 10, height: 10)
                             Text(provider.id)
                         }
                         .tag(provider.id)
@@ -1176,17 +1171,8 @@ struct Shelf: View {
                 
                 if let selectedProvider = selectedProvider {
                     HStack {
-                        Group {
-                            if let imgData = selectedProvider.imageData, let nsImg = NSImage(data: imgData) {
-                                Image(nsImage: nsImg)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                            } else {
-                                Image(systemName: "square.and.arrow.up")
-                            }
-                        }
+                        quickShareProviderIcon(selectedProvider)
                         .frame(width: 16, height: 16)
-                        .foregroundColor(.accentColor)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Currently selected: \(selectedProvider.id)")
                                 .font(.caption)
@@ -1213,6 +1199,97 @@ struct Shelf: View {
         .accentColor(.effectiveAccent)
         .navigationTitle("Shelf")
     }
+
+    @ViewBuilder
+    private func quickShareProviderIcon(_ provider: QuickShareProvider) -> some View {
+        if isAirDropProvider(provider.id) {
+            Image("AirDrop")
+                .resizable()
+                .renderingMode(.template)
+                .aspectRatio(contentMode: .fit)
+                .foregroundColor(.accentColor)
+        } else if let symbol = systemSymbolName(for: provider.id) {
+            Image(systemName: symbol)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundColor(.accentColor)
+        } else if let imgData = provider.imageData, let nsImg = NSImage(data: imgData) {
+            Image(nsImage: nsImg)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .saturation(0)
+                .brightness(0.04)
+                .colorMultiply(.accentColor)
+        } else if let nsImg = ProviderAppIconResolver.icon(forProviderName: provider.id) {
+            Image(nsImage: nsImg)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .saturation(0)
+                .brightness(0.04)
+                .colorMultiply(.accentColor)
+        } else {
+            Image(systemName: "square.and.arrow.up")
+                .symbolRenderingMode(.hierarchical)
+                .foregroundColor(.accentColor)
+        }
+    }
+
+    @ViewBuilder
+    private func quickShareProviderMenuIcon(_ provider: QuickShareProvider) -> some View {
+        if isAirDropProvider(provider.id) {
+            if let tinted = tintedAirDropMenuImage() {
+                Image(nsImage: tinted)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+            } else {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundColor(.accentColor)
+            }
+        } else {
+            quickShareProviderIcon(provider)
+        }
+    }
+
+    private func tintedAirDropMenuImage() -> NSImage? {
+        guard let base = NSImage(named: "AirDrop") else { return nil }
+        guard let cg = base.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let size = NSSize(width: 16, height: 16)
+        let output = NSImage(size: size)
+        output.lockFocus()
+        NSColor.systemBlue.setFill()
+        let rect = NSRect(origin: .zero, size: size)
+        let src = NSSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
+        let scale = min(size.width / max(src.width, 1), size.height / max(src.height, 1))
+        let drawSize = NSSize(width: src.width * scale, height: src.height * scale)
+        let drawRect = NSRect(
+            x: (size.width - drawSize.width) / 2,
+            y: (size.height - drawSize.height) / 2,
+            width: drawSize.width,
+            height: drawSize.height
+        )
+        NSImage(cgImage: cg, size: src).draw(in: drawRect)
+        rect.fill(using: .sourceAtop)
+        output.unlockFocus()
+        output.isTemplate = false
+        return output
+    }
+
+    private func isAirDropProvider(_ providerName: String) -> Bool {
+        providerName.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .contains("airdrop")
+    }
+
+    private func systemSymbolName(for providerName: String) -> String? {
+        let name = providerName.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+        if name.contains("message") || name.contains("imessage") { return "message.fill" }
+        if name.contains("mail") { return "envelope.fill" }
+        if name.contains("notes") || name.contains("note") { return "note.text" }
+        if name.contains("reminder") || name.contains("rappel") { return "list.bullet" }
+        if name.contains("system share menu") { return "square.and.arrow.up" }
+        return nil
+    }
+
 }
 
 //struct Extensions: View {
@@ -1359,7 +1436,7 @@ struct Advanced: View {
     @Default(.customAccentColorData) var customAccentColorData
     @Default(.extendHoverArea) var extendHoverArea
     @Default(.showOnLockScreen) var showOnLockScreen
-    @Default(.hideFromScreenRecording) var hideFromScreenRecording
+    @Default(.hideFromScreenRecordingMode) var hideFromScreenRecordingMode
     
     @State private var customAccentColor: Color = .accentColor
     @State private var selectedPresetColor: PresetAccentColor? = nil
@@ -1561,15 +1638,15 @@ struct Advanced: View {
                 Defaults.Toggle(key: .extendHoverArea) {
                     Text("Extend hover area")
                 }
-                Defaults.Toggle(key: .hideTitleBar) {
-                    Text("Hide title bar")
-                }
                 Defaults.Toggle(key: .showOnLockScreen) {
                     Text("Show notch on lock screen")
                 }
-                Defaults.Toggle(key: .hideFromScreenRecording) {
-                    Text("Hide from screen recording")
+                Picker("Hide on screen capture", selection: $hideFromScreenRecordingMode) {
+                    ForEach(ScreenRecordingVisibilityMode.allCases) { mode in
+                        Text(screenRecordingModeLabel(mode)).tag(mode)
+                    }
                 }
+                .pickerStyle(.menu)
             } header: {
                 Text("Window Behavior")
             }
@@ -1585,6 +1662,17 @@ struct Advanced: View {
     // Force refresh the UI
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: Notification.Name("AccentColorChanged"), object: nil)
+        }
+    }
+
+    private func screenRecordingModeLabel(_ mode: ScreenRecordingVisibilityMode) -> String {
+        switch mode {
+        case .fullyHidden:
+            return "Always"
+        case .onlyWhenNotInUse:
+            return "Only when closed and unused"
+        case .onlyWhenClosed:
+            return "Only when closed"
         }
     }
     

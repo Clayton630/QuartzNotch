@@ -9,10 +9,23 @@ import Combine
 import Defaults
 import SwiftUI
 
-let defaultImage: NSImage = .init(
-    systemSymbolName: "heart.fill",
-    accessibilityDescription: "Album Art"
-)!
+private func makeDefaultAlbumArtImage() -> NSImage {
+    let size = NSSize(width: 512, height: 512)
+    let image = NSImage(size: size)
+    image.lockFocus()
+    NSColor(calibratedWhite: 0.28, alpha: 1.0).setFill()
+    NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
+    image.unlockFocus()
+    return image
+}
+
+let defaultImage: NSImage = makeDefaultAlbumArtImage()
+
+private enum MusicDisplayPlaceholder {
+    static let title = "Not Playing"
+    static let artist = ""
+    static let album = "Unknown Album"
+}
 
 
 enum AlbumArtFlipDirection {
@@ -53,8 +66,8 @@ class MusicManager: ObservableObject {
     private var youTubeMusicController: YouTubeMusicController? = nil
 
   // Published properties for UI
-    @Published var songTitle: String = "I'm Handsome"
-    @Published var artistName: String = "Me"
+    @Published var songTitle: String = MusicDisplayPlaceholder.title
+    @Published var artistName: String = MusicDisplayPlaceholder.artist
     @Published var albumArt: NSImage = defaultImage
 
   // Album art flip animation (UI-driven)
@@ -62,7 +75,7 @@ class MusicManager: ObservableObject {
     @Published var albumArtFlipDirection: AlbumArtFlipDirection = .next
     @Published var albumArtFlipImage: NSImage = defaultImage
     @Published var isPlaying = false
-    @Published var album: String = "Self Love"
+    @Published var album: String = MusicDisplayPlaceholder.album
     @Published var isPlayerIdle: Bool = true
     @Published var animations: BoringAnimations = .init()
     @Published var avgColor: NSColor = .white
@@ -113,9 +126,9 @@ class MusicManager: ObservableObject {
     private var artworkSignature: ArtworkSignature? = nil
 
   // Store last values at the time artwork was changed
-    private var lastArtworkTitle: String = "I'm Handsome"
-    private var lastArtworkArtist: String = "Me"
-    private var lastArtworkAlbum: String = "Self Love"
+    private var lastArtworkTitle: String = MusicDisplayPlaceholder.title
+    private var lastArtworkArtist: String = MusicDisplayPlaceholder.artist
+    private var lastArtworkAlbum: String = MusicDisplayPlaceholder.album
     private var lastArtworkBundleIdentifier: String? = nil
 
     private var pendingAlbumArtFlipDirection: AlbumArtFlipDirection? = nil
@@ -128,6 +141,16 @@ class MusicManager: ObservableObject {
 
     @Published var isTransitioning: Bool = false
     private var transitionWorkItem: DispatchWorkItem?
+
+    var isUsingIdleMetadata: Bool {
+        songTitle == MusicDisplayPlaceholder.title && artistName == MusicDisplayPlaceholder.artist
+    }
+
+    var hasResolvableBundleIcon: Bool {
+        guard let bundleID = bundleIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !bundleID.isEmpty else { return false }
+        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) != nil
+    }
 
   // MARK: - Initialization
     init() {
@@ -349,6 +372,11 @@ class MusicManager: ObservableObject {
   // MARK: - Update Methods
     @MainActor
     private func updateFromPlaybackState(_ state: PlaybackState) {
+        let normalizedTitle = state.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedArtist = state.artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayTitle = normalizedTitle.isEmpty ? MusicDisplayPlaceholder.title : state.title
+        let displayArtist = normalizedArtist.isEmpty ? MusicDisplayPlaceholder.artist : state.artist
+
     // Check for playback state changes (playing/paused)
         if state.isPlaying != self.isPlaying {
             NSLog("Playback state changed: \(state.isPlaying ? "Playing" : "Paused")")
@@ -414,12 +442,12 @@ class MusicManager: ObservableObject {
         let repeatModeChanged = state.repeatMode != self.repeatMode
         let volumeChanged = state.volume != self.volume
         
-        if state.title != self.songTitle {
-            self.songTitle = state.title
+        if displayTitle != self.songTitle {
+            self.songTitle = displayTitle
         }
 
-        if state.artist != self.artistName {
-            self.artistName = state.artist
+        if displayArtist != self.artistName {
+            self.artistName = displayArtist
         }
 
         if state.album != self.album {
@@ -768,11 +796,7 @@ class MusicManager: ObservableObject {
 
     private func updateSneakPeek() {
         if isPlaying && Defaults[.enableSneakPeek] {
-            if Defaults[.sneakPeekStyles] == .standard {
-                coordinator.toggleSneakPeek(status: true, type: .music)
-            } else {
-                coordinator.toggleExpandingView(status: true, type: .music)
-            }
+            coordinator.toggleSneakPeek(status: true, type: .music)
         }
     }
 

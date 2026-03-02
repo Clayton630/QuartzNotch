@@ -201,6 +201,9 @@
         }
       }
     },
+    "-%@" : {
+
+    },
     "-1m" : {
 
     },
@@ -314,6 +317,9 @@
     "“Bluetooth” shows or hides the device-connected popup." : {
 
     },
+    "“Focus mode” shows or hides the concentration live activity in the closed notch." : {
+
+    },
     "“Lock screen” shows or hides the lock/unlock popup. (The notch visibility on lock screen is controlled in Advanced → Show notch on lock screen.)" : {
 
     },
@@ -324,6 +330,7 @@
 
     },
     "(%@)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1334,6 +1341,9 @@
 
     },
     "00:00" : {
+
+    },
+    "0.2" : {
 
     },
     "About" : {
@@ -2441,6 +2451,9 @@
         }
       }
     },
+    "Alpha" : {
+
+    },
     "Always show full event titles" : {
       "localizations" : {
         "ar" : {
@@ -3242,6 +3255,9 @@
           }
         }
       }
+    },
+    "Background style" : {
+
     },
     "Battery" : {
       "localizations" : {
@@ -4147,6 +4163,9 @@
           }
         }
       }
+    },
+    "Calendar access is not granted yet." : {
+
     },
     "Calendars" : {
       "localizations" : {
@@ -7868,6 +7887,7 @@
       }
     },
     "Drop files here" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8779,6 +8799,7 @@
       }
     },
     "Enable shelf" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9482,6 +9503,9 @@
         }
       }
     },
+    "File Tray" : {
+
+    },
     "Files dropped on the shelf will be shared via this service" : {
       "localizations" : {
         "ar" : {
@@ -9681,6 +9705,12 @@
           }
         }
       }
+    },
+    "Focus mode" : {
+
+    },
+    "Full Disk Access required for custom Focus icon and color" : {
+
     },
     "Full screen behavior" : {
       "localizations" : {
@@ -10482,6 +10512,12 @@
         }
       }
     },
+    "Grant Calendar Access" : {
+
+    },
+    "Grant Reminder Access" : {
+
+    },
     "Hide all-day events" : {
       "localizations" : {
         "ar" : {
@@ -10883,6 +10919,7 @@
       }
     },
     "Hide from screen recording" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10982,7 +11019,11 @@
         }
       }
     },
+    "Hide on screen capture" : {
+
+    },
     "Hide title bar" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13797,6 +13838,9 @@
         }
       }
     },
+    "Minuteur" : {
+
+    },
     "Mirror" : {
       "localizations" : {
         "ar" : {
@@ -13896,6 +13940,9 @@
           }
         }
       }
+    },
+    "Mirror Clock app timer" : {
+
     },
     "Mirror shape" : {
       "extractionState" : "stale",
@@ -17330,6 +17377,9 @@
         }
       }
     },
+    "Reminder access is not granted yet." : {
+
+    },
     "Reminders" : {
       "localizations" : {
         "ar" : {
@@ -17829,6 +17879,9 @@
           }
         }
       }
+    },
+    "Request Full Disk Access" : {
+
     },
     "Reset" : {
 
@@ -20557,6 +20610,7 @@
       }
     },
     "Sneak Peek Style" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -21469,6 +21523,9 @@
       }
     },
     "Timer" : {
+
+    },
+    "Timer ringtone" : {
 
     },
     "Tint progress bar with accent color" : {
@@ -23375,6 +23432,9 @@
           }
         }
       }
+    },
+    "Without this permission, Focus name can still be detected, but icon and tint may stay generic." : {
+
     },
     "You can now enjoy the app. If you want to tweak things further, you can always visit the settings." : {
       "localizations" : {
