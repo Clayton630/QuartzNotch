@@ -9,7 +9,7 @@
             <sparkle:shortVersionString>0.1.11</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<h2>QuartzNotch 0.1.11</h2><p>Update system test build.</p>]]></description>
-            <enclosure url="https://github.com/Clayton630/QuartzNotch/releases/download/v0.1.11/QuartzNotch-0.1.11(1011).dmg" length="14222617" type="application/octet-stream" sparkle:edSignature="jsZbjCqMRW8zV9Y+DpwG9Fyh7rE0ANCQcsmDxegIORCohNOGCV8kgjFxJ1aeeex3gct+MHi6RnWD0zjr0gpsDw=="/>
+            <enclosure url="https://github.com/Clayton630/QuartzNotch/releases/download/0.1.11/QuartzNotch-0.1.11.1011.dmg" length="14222617" type="application/octet-stream" sparkle:edSignature="jsZbjCqMRW8zV9Y+DpwG9Fyh7rE0ANCQcsmDxegIORCohNOGCV8kgjFxJ1aeeex3gct+MHi6RnWD0zjr0gpsDw=="/>
         </item>
         <item>
             <title>0.1.10</title>
