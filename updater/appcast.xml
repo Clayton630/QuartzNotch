@@ -1,6 +1,17 @@
 <?xml version="1.0" standalone="yes"?>
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
+
+        <item>
+            <title>0.2</title>
+            <pubDate>Wed, 04 Mar 2026 23:40:00 +0100</pubDate>
+            <link>https://github.com/Clayton630/QuartzNotch/releases</link>
+            <sparkle:version>1020</sparkle:version>
+            <sparkle:shortVersionString>0.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuartzNotch 0.2</h2><p>Major UX and feature update.</p>]]></description>
+            <enclosure url="https://github.com/Clayton630/QuartzNotch/releases/download/V0.2/QuartzNotch-0.2.1020.dmg" length="16294186" type="application/octet-stream" sparkle:edSignature="jfOQ2wlB2B0DAHRrr41hyb9dFOiuJxjOcnwVoEK4afWSMELc1Hkzk1Aa2WoZGQT4H9AeznKZMg1skt/mM8R6Cg=="/>
+        </item>
         <item>
             <title>0.1.11</title>
             <pubDate>Mon, 02 Mar 2026 11:27:23 +0100</pubDate>
