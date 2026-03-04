@@ -39,6 +39,7 @@ class BoringViewModel: NSObject, ObservableObject {
     
     let webcamManager = WebcamManager.shared
     @Published var isCameraExpanded: Bool = false
+    @Published var suppressCameraLayoutInOpenContent: Bool = false
     @Published var isRequestingAuthorization: Bool = false
     
     deinit {
@@ -192,6 +193,14 @@ class BoringViewModel: NSObject, ObservableObject {
     }
 
     func open() {
+    // Clear stale drop-target state before open animation starts.
+    // Without this, a previous closed-notch drag target can render one frame
+    // of misplaced highlight while the open layout is still settling.
+        dragDetectorTargeting = false
+        generalDropTargeting = false
+        dropZoneTargeting = false
+        dropEvent = false
+
         self.notchSize = openNotchSize
         self.notchState = .open
         
@@ -209,6 +218,11 @@ class BoringViewModel: NSObject, ObservableObject {
         if isCameraExpanded {
             toggleCameraPreview()
         }
+
+    // Reset drop-target state when closing as well to keep next open clean.
+        dragDetectorTargeting = false
+        generalDropTargeting = false
+        dropZoneTargeting = false
 
         self.notchSize = getClosedNotchSize(screenUUID: self.screenUUID)
         self.closedNotchSize = self.notchSize
@@ -236,6 +250,10 @@ class BoringViewModel: NSObject, ObservableObject {
         if isCameraExpanded {
             toggleCameraPreview()
         }
+
+        dragDetectorTargeting = false
+        generalDropTargeting = false
+        dropZoneTargeting = false
 
         self.notchSize = getClosedNotchSize(screenUUID: self.screenUUID)
         self.closedNotchSize = self.notchSize

@@ -89,9 +89,6 @@ class BatteryStatusViewModel: ObservableObject {
                 self.statusText = "Low Power: \(self.isInLowPowerMode ? "On" : "Off")"
             }
 
-      // (unchanged) low power mode remains a notification
-            notifyImportanChangeStatus()
-
         case .isChargingChanged(let charging):
             print("🔌 Charging: \(charging ? "Yes" : "No")")
             print("maxCapacity: \(self.maxCapacity)")

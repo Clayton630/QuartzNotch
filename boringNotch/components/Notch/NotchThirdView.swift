@@ -53,7 +53,10 @@ struct NotchThirdView: View {
     }
 
     private var shouldShowCamera: Bool {
-        showMirror && webcamManager.cameraAvailable && vm.isCameraExpanded
+        showMirror
+            && webcamManager.cameraAvailable
+            && vm.isCameraExpanded
+            && !vm.suppressCameraLayoutInOpenContent
     }
     
     var body: some View {

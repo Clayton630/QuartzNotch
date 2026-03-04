@@ -87,7 +87,9 @@ struct Pages: View {
             } header: {
                 Text("Pages")
             } footer: {
-                Text("These toggles control which pages are available when the notch is open. At least one page must remain enabled.")
+                if pageUseLiquidGlassBackground {
+                    Text("⚠ Semi liquid glass mode is still experimental and may occasionally present visual bugs or slight stutters")
+                }
             }
         }
         .navigationTitle("Pages")

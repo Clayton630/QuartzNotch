@@ -26,7 +26,7 @@ struct WelcomeView: View {
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 100, height: 100)
                         .padding(.bottom, 8)
-                    Text("Boring Notch")
+                    Text("QuartzNotch")
                         .font(.system(.largeTitle, design: .default))
                         .fontWeight(.semibold)
                     Text("Welcome")
@@ -57,7 +57,8 @@ struct WelcomeView: View {
                             .padding(.horizontal, 20)
                             .padding(.vertical, 6)
                     }
-                    .buttonStyle(BorderedProminentButtonStyle())
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
                 }
                 .padding(.top)
             }

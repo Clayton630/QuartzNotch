@@ -408,9 +408,21 @@ class MusicManager: ObservableObject {
             if artworkChanged, let artwork = state.artwork {
                 self.updateArtwork(artwork)
             } else if state.artwork == nil {
-        // Don't immediately downgrade to the app icon: keep the last known good artwork.
-        // Only use the app icon if we don't have anything meaningful yet.
-                if self.albumArt == defaultImage, let appIconImage = AppIconAsNSImage(for: state.bundleIdentifier) {
+        // If source app changed and there is no artwork, we must switch visuals immediately
+        // to the new app icon (prevents stale artwork from previous app).
+                if bundleChanged {
+                    if let appIconImage = AppIconAsNSImage(for: state.bundleIdentifier) {
+                        self.usingAppIconForArtwork = true
+                        self.updateAlbumArt(newAlbumArt: appIconImage)
+                    } else {
+            // No icon resolvable for the new source: clear stale artwork explicitly.
+                        self.usingAppIconForArtwork = false
+                        self.updateAlbumArt(newAlbumArt: defaultImage)
+                    }
+                } else if self.albumArt == defaultImage,
+                          let appIconImage = AppIconAsNSImage(for: state.bundleIdentifier)
+                {
+          // Same source with no artwork yet: keep icon fallback behavior.
                     self.usingAppIconForArtwork = true
                     self.updateAlbumArt(newAlbumArt: appIconImage)
                 }

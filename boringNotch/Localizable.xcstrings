@@ -1340,6 +1340,9 @@
     "+10s" : {
 
     },
+    "⚠ Semi liquid glass mode is still experimental and may occasionally present visual bugs or slight stutters" : {
+
+    },
     "00:00" : {
 
     },
@@ -3764,6 +3767,7 @@
       }
     },
     "Boring Notch" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9303,6 +9307,7 @@
       }
     },
     "Extend hover area" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10153,7 +10158,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Commencez"
+            "value" : "Commencer"
           }
         },
         "hu" : {
@@ -12439,97 +12444,97 @@
         "ar" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Made with 🫶🏻 by not so boring not.people"
+            "value" : "Made with 🫶🏻 by Clayton"
           }
         },
         "cs" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Vyrobeno s 🫶🏻 ne tak nudnými ne lidmi"
+            "value" : "Vyrobeno s 🫶🏻 od Claytona"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Gemacht mit 🫶🏻 durch nicht so boring not.people"
+            "value" : "Gemacht mit 🫶🏻 von Clayton"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Made with 🫶🏻 by not so boring not.people"
+            "value" : "Made with 🫶🏻 by Clayton"
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Made with 🫶🏻 by not so boring not.people"
+            "value" : "Made with 🫶🏻 by Clayton"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Hecho con 🫶🏻 por gente no tan aburrida"
+            "value" : "Hecho con 🫶🏻 por Clayton"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Fait avec 🫶🏻 par des personnes pas si ennuyeuses - boring not.people"
+            "value" : "Fait avec 🫶🏻 par Clayton"
           }
         },
         "hu" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Made with 🫶🏻 by not so boring not.people"
+            "value" : "Made with 🫶🏻 by Clayton"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Realizzato col 🫶🏻 da not so boring not.people"
+            "value" : "Realizzato col 🫶🏻 da Clayton"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "지루하지 않은 비사람들이 🫶🏻 마음을 담아 만들었습니다"
+            "value" : "Clayton이 🫶🏻로 만들었습니다"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Zrobione z 🫶🏻 przez niezbyt nudnych ludzi"
+            "value" : "Zrobione z 🫶🏻 przez Claytona"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Made with 🫶🏻 by not so boring not.people"
+            "value" : "Feito com 🫶🏻 por Clayton"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Made with 🫶🏻 by not so boring not.people"
+            "value" : "Сделано с 🫶🏻 Clayton"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "O kadar da sıkıcı olmayan insanlar tarafından 🫶🏻 ile yapılmıştır"
+            "value" : "🫶🏻 ile Clayton tarafından yapıldı"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Made with 🫶🏻 by not so boring not.people"
+            "value" : "Зроблено з 🫶🏻 Clayton"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "不那么无趣的 not.people 团队 用🫶🏻出品"
+            "value" : "由 Clayton 用 🫶🏻 制作"
           }
         }
       }
@@ -21417,9 +21422,6 @@
       }
     },
     "System Wide follows macOS Now Playing (any media app)." : {
-
-    },
-    "These toggles control which pages are available when the notch is open. At least one page must remain enabled." : {
 
     },
     "Time to Full Charge: %lld min" : {

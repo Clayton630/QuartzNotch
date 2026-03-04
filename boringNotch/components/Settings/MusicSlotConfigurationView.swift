@@ -15,6 +15,7 @@ struct MusicSlotConfigurationView: View {
     @State private var draggedSlot: MusicControlButton?
 
     private let fixedSlotCount: Int = 5
+    private let previewNeutralTint: Color = .gray.opacity(0.78)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -132,7 +133,7 @@ struct MusicSlotConfigurationView: View {
                                     if control != .none {
                                         Image(systemName: control.iconName)
                                             .font(.system(size: control.prefersLargeScale ? 18 : 15, weight: .medium))
-                                            .foregroundStyle(control == .none ? Color.secondary : Color.primary)
+                                            .foregroundStyle(control == .none ? Color.secondary : previewNeutralTint)
                                             .frame(width: 28, height: 28)
                                     }
                                 }
@@ -232,15 +233,15 @@ struct MusicSlotConfigurationView: View {
     private func previewIconColor(for slot: MusicControlButton) -> Color {
         switch slot {
         case .shuffle:
-            return musicManager.isShuffled ? .red : .primary
+            return musicManager.isShuffled ? .red : previewNeutralTint
         case .repeatMode:
-            return musicManager.repeatMode != .off ? .red : .primary
+            return musicManager.repeatMode != .off ? .red : previewNeutralTint
         case .favorite:
-            return musicManager.isFavoriteTrack ? .red : .primary
+            return musicManager.isFavoriteTrack ? .red : previewNeutralTint
         case .playPause:
-            return .primary
+            return previewNeutralTint
         default:
-            return .primary
+            return previewNeutralTint
         }
     }
 

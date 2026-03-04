@@ -15,6 +15,7 @@ struct ShelfView: View {
     @StateObject var tvm = ShelfStateViewModel.shared
     @StateObject var selection = ShelfSelectionModel.shared
     @StateObject private var quickLookService = QuickLookService()
+    @State private var isLocalDropTargeting = false
     @ObservedObject var webcamManager = WebcamManager.shared
     @Default(.pageUseLiquidGlassBackground) private var pageUseLiquidGlassBackground
 
@@ -28,7 +29,14 @@ struct ShelfView: View {
     }
 
     private var shouldShowCamera: Bool {
-        isMirrorEnabled && webcamManager.cameraAvailable && vm.isCameraExpanded
+        isMirrorEnabled
+            && webcamManager.cameraAvailable
+            && vm.isCameraExpanded
+            && !vm.suppressCameraLayoutInOpenContent
+    }
+
+    private var isDropHighlighted: Bool {
+        isLocalDropTargeting
     }
 
     var body: some View {
@@ -81,6 +89,13 @@ struct ShelfView: View {
         .padding(.vertical, 10)
         .onAppear { isPagerScrollEnabled = true }
         .onDisappear { isPagerScrollEnabled = true }
+        .onDisappear {
+            isLocalDropTargeting = false
+            vm.dragDetectorTargeting = false
+        }
+        .onChange(of: isLocalDropTargeting) { _, targeted in
+            vm.dragDetectorTargeting = targeted
+        }
         .onChange(of: tvm.isEmpty) { isEmpty in
       // If the tray becomes empty, re-enable pager scrolling immediately.
             if isEmpty { isPagerScrollEnabled = true }
@@ -127,22 +142,19 @@ struct ShelfView: View {
         return ZStack {
       // Invisible fill that defines a reliable hit/drop region.
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(cardBaseFill.opacity(vm.dragDetectorTargeting ? 1.0 : idleFillOpacity))
+                .fill(cardBaseFill.opacity(isDropHighlighted ? 1.0 : idleFillOpacity))
                 .overlay {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(cardBaseFill.opacity(vm.dragDetectorTargeting ? 0.22 : idleOverlayOpacity))
+                        .fill(cardBaseFill.opacity(isDropHighlighted ? 0.22 : idleOverlayOpacity))
                 }
                 .shadow(color: Color.black.opacity(pageUseLiquidGlassBackground ? 0.25 : 0.40), radius: 6, x: 0, y: 2)
 
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1.3)
-                .overlay {
-                    if vm.dragDetectorTargeting {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1.2)
-                    }
-                }
-                .animation(nil, value: vm.dragDetectorTargeting)
+                .strokeBorder(
+                    isDropHighlighted ? Color.accentColor.opacity(0.62) : Color.white.opacity(0.12),
+                    lineWidth: 1.3
+                )
+                .animation(nil, value: isDropHighlighted)
         }
         .overlay {
             content
@@ -191,19 +203,19 @@ struct ShelfView: View {
                     ZStack {
                         let actionBlue = Color(nsColor: .systemBlue)
                         Circle()
-                            .fill(actionBlue.opacity(vm.dragDetectorTargeting ? 0.27 : 0.21))
+                            .fill(actionBlue.opacity(isDropHighlighted ? 0.27 : 0.21))
                             .frame(width: 48, height: 48)
 
                         Image(systemName: "tray.and.arrow.down.fill")
                             .font(.system(size: 17, weight: .medium))
-                            .foregroundStyle(actionBlue.opacity(vm.dragDetectorTargeting ? 1.0 : 0.95))
+                            .foregroundStyle(actionBlue.opacity(isDropHighlighted ? 1.0 : 0.95))
                     }
-                    .scaleEffect(vm.dragDetectorTargeting ? 1.14 : 1.0)
+                    .scaleEffect(isDropHighlighted ? 1.14 : 1.0)
                     .shadow(
-                        color: Color(nsColor: .systemBlue).opacity(vm.dragDetectorTargeting ? 0.32 : 0.0),
-                        radius: vm.dragDetectorTargeting ? 4.0 : 0.0
+                        color: Color(nsColor: .systemBlue).opacity(isDropHighlighted ? 0.32 : 0.0),
+                        radius: isDropHighlighted ? 4.0 : 0.0
                     )
-                    .animation(.spring(response: 0.30, dampingFraction: 0.62), value: vm.dragDetectorTargeting)
+                    .animation(.spring(response: 0.30, dampingFraction: 0.62), value: isDropHighlighted)
                     .padding(.bottom, 4)
 
                     Text("File Tray")
@@ -215,7 +227,7 @@ struct ShelfView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data],
-                        isTargeted: $vm.dragDetectorTargeting) { providers in
+                        isTargeted: $isLocalDropTargeting) { providers in
                     handleDrop(providers: providers)
                 }
             } else {
@@ -232,7 +244,7 @@ struct ShelfView: View {
         // On macOS, the NSScrollView subtree can block parent .onDrop hit-testing.
         // Attach the drop destination here so the whole tray area accepts drops.
                 .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data],
-                        isTargeted: $vm.dragDetectorTargeting) { providers in
+                        isTargeted: $isLocalDropTargeting) { providers in
                     handleDrop(providers: providers)
                 }
             }

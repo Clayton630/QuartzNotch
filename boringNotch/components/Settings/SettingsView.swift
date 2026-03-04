@@ -1049,6 +1049,7 @@ func lighterColor(from nsColor: NSColor, amount: CGFloat = 0.14) -> Color {
 struct About: View {
     let updaterController: SPUStandardUpdaterController
     @Environment(\.openWindow) var openWindow
+    @Environment(\.colorScheme) private var colorScheme
     var body: some View {
         VStack {
             Form {
@@ -1080,9 +1081,11 @@ struct About: View {
                     } label: {
                         VStack(spacing: 5) {
                             Image("Github")
+                                .renderingMode(.template)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: 18)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                             Text("GitHub")
                         }
                         .contentShape(Rectangle())
@@ -1434,7 +1437,6 @@ struct Shelf: View {
 struct Advanced: View {
     @Default(.useCustomAccentColor) var useCustomAccentColor
     @Default(.customAccentColorData) var customAccentColorData
-    @Default(.extendHoverArea) var extendHoverArea
     @Default(.showOnLockScreen) var showOnLockScreen
     @Default(.hideFromScreenRecordingMode) var hideFromScreenRecordingMode
     
@@ -1635,9 +1637,6 @@ struct Advanced: View {
             }
             
             Section {
-                Defaults.Toggle(key: .extendHoverArea) {
-                    Text("Extend hover area")
-                }
                 Defaults.Toggle(key: .showOnLockScreen) {
                     Text("Show notch on lock screen")
                 }

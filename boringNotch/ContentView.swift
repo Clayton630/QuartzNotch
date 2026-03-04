@@ -324,8 +324,10 @@ struct ContentView: View {
 
     @State private var hoverTask: Task<Void, Never>?
     @State private var liquidCloseTransitionTask: Task<Void, Never>?
+    @State private var liquidTransitionPerfTask: Task<Void, Never>?
     @State private var liquidVisualBlend: CGFloat = 0
     @State private var liquidStrokeReveal: CGFloat = 0
+    @State private var liquidTransitionPerfMode: Bool = false
     @State private var keepLiquidVisualDuringClose: Bool = false
     @State private var isHovering: Bool = false
     @State private var detachedSecondaryAppearToken: Int = 0
@@ -338,6 +340,7 @@ struct ContentView: View {
     @State private var bluetoothCenterHoverTask: Task<Void, Never>?
     @State private var bluetoothSidesHoverTask: Task<Void, Never>?
     @State private var bluetoothTransitionTask: Task<Void, Never>?
+    @State private var bluetoothPopupCloseTask: Task<Void, Never>?
 
  // Hover expansion for the Timer closed live activity (sides only; center keeps classic notch hover)
     @State private var isTimerPopupHovering: Bool = false
@@ -353,41 +356,67 @@ struct ContentView: View {
     @State private var timerSidesHoverTask: Task<Void, Never>?
     @State private var timerTransitionTask: Task<Void, Never>?
     @State private var timerPopupRearmTask: Task<Void, Never>?
+    @State private var timerPopupCloseTask: Task<Void, Never>?
 
  // Proximity hover for timer sides (keeps expansion when pointer slips to an external screen above).
     @State private var hostWindow: NSWindow?
     @State private var timerGlobalMouseMonitor: Any?
+    @State private var nowPlayingClickMonitor: Any?
     @State private var isTimerProximityHovering: Bool = false
     @State private var closedPopupFailsafeTask: Task<Void, Never>?
     @State private var timerAlarmBackgroundImpulseX: CGFloat = 0
     @State private var timerAlarmBackgroundDirection: CGFloat = -1
     @State private var timerAlarmBackgroundSettleTask: Task<Void, Never>?
     @State private var lastTimerAlertHapticAt: Date = .distantPast
+    @State private var isNowPlayingLeftHovering: Bool = false
+    @State private var isNowPlayingRightHovering: Bool = false
+    @State private var isNowPlayingSneakPeekForcedByHover: Bool = false
+    @State private var nowPlayingSneakPeekWatchdogTask: Task<Void, Never>?
+    @State private var nowPlayingSneakPeekCloseTask: Task<Void, Never>?
 
     @State private var anyDropDebounceTask: Task<Void, Never>?
     @State private var gestureProgress: CGFloat = .zero
     @State private var haptics: Bool = false
     @State private var suppressAutoCloseUntil: Date = .distantPast
+    @State private var suppressNotchOpenUntilAfterTimerPopupClose: Date = .distantPast
+    @State private var openingFromNowPlayingCenterHover: Bool = false
     @State private var frozenHoverExitTask: Task<Void, Never>?
     @State private var frozenHoverZoneWidth: CGFloat = 0
     @State private var frozenHoverZoneActive: Bool = false
     @State private var frozenHoverStartPointer: CGPoint = .zero
     @State private var frozenHoverPointerMoved: Bool = false
     @State private var frozenHoverOutsideTicks: Int = 0
+    @State private var openHoverWatchdogTask: Task<Void, Never>?
+    @State private var openContentRevealTask: Task<Void, Never>?
 
  // prevents hover exit flicker during open animation/layout churn
     @State private var ignoreHoverExitUntil: Date = .distantPast
 
     @State private var isSwitchingOverlay: Bool = false
+    @State private var overlaySwitchToken: Int = 0
     private let overlaySwitchDelayMs: UInt64 = 140
     @State private var overlayWidthHold: CGFloat = 0
     @State private var overlayHeightHold: CGFloat = 0
     @State private var calendarRestoreAfterCamera: Bool = false
+    @State private var calendarToCameraExitOffsetX: CGFloat = 0
+    @State private var calendarToCameraTrailingReserve: CGFloat = 0
+    @State private var deferCameraOverlayDuringToCameraSwitch: Bool = false
     @State private var overlaySwitchDirection: OverlaySwitchDirection = .none
+    @State private var openContentRevealProgress: CGFloat = 0
+    @State private var notchOpenHorizontalToken: Int = 0
+    @State private var lastNotchHoverHapticAt: Date = .distantPast
+    private let calendarOverlayContentWidth: CGFloat = 215
+    private let calendarOverlayLeadingGutterWidth: CGFloat = 6
+    private var calendarOverlayTotalWidth: CGFloat {
+        calendarOverlayContentWidth + calendarOverlayLeadingGutterWidth
+    }
 
  // Controls whether the pager captures horizontal scroll events.
  // When the pointer is over the file tray, we disable this so the tray can scroll.
     @State private var isPagerScrollEnabled: Bool = true
+    private var isPagerScrollEffectivelyEnabled: Bool {
+        isPagerScrollEnabled && !vm.anyDropZoneTargeting
+    }
 
  // Battery closed notification *organic* width animation (custom easing)
     @State private var batteryChinFrom: CGFloat = 0
@@ -395,7 +424,7 @@ struct ContentView: View {
     @State private var batteryChinPhase: CGFloat = 1
 
  // Slightly longer than the background-only tween so content blur/opacity has time to be perceived.
-    private let batteryAppearDuration: Double = 0.28
+    private let batteryAppearDuration: Double = 0.21
     private let batteryDisappearDuration: Double = 0.46
 
  // MARK: - Battery closed live activity content reveal
@@ -426,7 +455,7 @@ struct ContentView: View {
         case .toCamera:
             return .asymmetric(
                 insertion: .move(edge: .trailing).combined(with: .opacity),
-                removal: .move(edge: .leading).combined(with: .opacity)
+                removal: .identity
             )
         case .none:
             return .opacity.combined(with: .scale(scale: 0.98))
@@ -437,7 +466,7 @@ struct ContentView: View {
         switch overlaySwitchDirection {
         case .toCamera:
             return .asymmetric(
-                insertion: .move(edge: .leading).combined(with: .opacity),
+                insertion: .move(edge: .trailing).combined(with: .opacity),
                 removal: .move(edge: .trailing).combined(with: .opacity)
             )
         case .toCalendar:
@@ -934,18 +963,10 @@ struct ContentView: View {
                 isTimerExpandedHovering = hovering
                 if hovering {
                     isTimerSidesHovering = true
+                    timerPopupCloseTask?.cancel()
+                    timerPopupCloseTask = nil
                 } else {
-                    timerSidesHoverTask?.cancel()
-                    timerSidesHoverTask = Task { @MainActor in
-                        try? await Task.sleep(for: .milliseconds(120))
-                        guard !Task.isCancelled else { return }
-                        if keepTimerPopupOpenForFinishedAlert { return }
-                        if !isTimerSidesHovering && !isTimerExpandedHovering {
-                            withAnimation(NotchMotion.popupHover) {
-                                isTimerPopupHovering = false
-                            }
-                        }
-                    }
+                    scheduleTimerPopupCloseIfNeeded(delayMs: 120)
                 }
             }
             .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
@@ -1034,6 +1055,10 @@ struct ContentView: View {
             onSidesHoverChanged: { hovering in
                 // Direct hover only (no proximity hover with external displays)
                 isTimerSidesHovering = hovering
+                if hovering {
+                    timerPopupCloseTask?.cancel()
+                    timerPopupCloseTask = nil
+                }
                 timerSidesHoverTask?.cancel()
                 timerTransitionTask?.cancel()
 
@@ -1053,25 +1078,7 @@ struct ContentView: View {
                     // Re-arm only after a real hover exit, so the next timer appearance
                     // cannot auto-open from a stale/continuous pointer position.
                     isTimerPopupHoverArmed = Date() >= suppressTimerPopupAutoOpenUntil
-                    // Leave hysteresis: avoid falling back to "center hover" when grazing the boundary.
-                    timerSidesHoverTask = Task { @MainActor in
-                        try? await Task.sleep(for: .milliseconds(140))
-                        guard !Task.isCancelled else { return }
-                        if isTimerExpandedHovering { return }
-                        if isHovering { return }
-                        if !isTimerSidesHovering {
-                            isTimerPopupTransitioning = true
-                            timerTransitionTask?.cancel()
-                            timerTransitionTask = Task { @MainActor in
-                                try? await Task.sleep(for: .milliseconds(220))
-                                guard !Task.isCancelled else { return }
-                                isTimerPopupTransitioning = false
-                            }
-                            withAnimation(NotchMotion.popupHover) {
-                                isTimerPopupHovering = false
-                            }
-                        }
-                    }
+                    scheduleTimerPopupCloseIfNeeded(delayMs: 150)
                 }
             },
             isTimerReadOnly: { timer in
@@ -1130,6 +1137,23 @@ struct ContentView: View {
         && !shouldShowLockActivityClosed
         && !shouldShowFocusActivityClosed
         && !shouldShowFileTrayActivityClosed
+    }
+
+    private var hasNowPlayingLiveActivityActive: Bool {
+        (!coordinator.expandingView.show || coordinator.expandingView.type == .music)
+        && (musicManager.isPlaying || !musicManager.isPlayerIdle)
+        && coordinator.musicLiveActivityEnabled
+        && !vm.hideOnClosed
+        && !shouldShowLockActivityClosed
+        && !shouldShowFocusActivityClosed
+        && !shouldShowFileTrayActivityClosed
+    }
+
+    private var isMusicSneakPeekVisibleClosed: Bool {
+        coordinator.sneakPeek.show
+        && coordinator.sneakPeek.type == .music
+        && vm.notchState == .closed
+        && !vm.hideOnClosed
     }
 
     private var shouldShowFaceClosed: Bool {
@@ -1427,6 +1451,11 @@ struct ContentView: View {
             return 18
         }
 
+  // Sneak peek music (left hover): slightly rounder bottom corners.
+        if isMusicSneakPeekVisibleClosed {
+            return cornerRadiusInsets.closed.bottom + 2
+        }
+
         return cornerRadiusInsets.closed.bottom
     }
 
@@ -1536,7 +1565,10 @@ struct ContentView: View {
         let base: CGFloat = 420
 
         let extraCameraWidth: CGFloat = isCameraVisibleComputed ? 160 : 0
-        let extraCalendarWidth: CGFloat = isCalendarVisibleComputed ? 230 : 0
+        let extraCalendarWidth: CGFloat = {
+            if isSwitchingOverlay && overlaySwitchDirection == .toCamera { return 0 }
+            return isCalendarVisibleComputed ? 230 : 0
+        }()
         let overlaySwitchWidthHold: CGFloat =
             (isSwitchingOverlay && overlaySwitchDirection == .toCalendar) ? 230 : 0
         // Keep the historical open width even if the visual top corners are forced to 0.
@@ -1570,8 +1602,9 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private func liquidV11Layer(cornerRadius: CGFloat, tintOpacity: Double) -> some View {
-        TimelineView(.periodic(from: .now, by: 1.0 / 30.0)) { context in
+    private func liquidV11Layer(cornerRadius: CGFloat, tintOpacity: Double, perfMode: Bool) -> some View {
+        let refreshRate = perfMode ? (1.0 / 18.0) : (1.0 / 30.0)
+        TimelineView(.periodic(from: .now, by: refreshRate)) { context in
             NotchLiquidGlassBackground(
                 variant: 11,
                 cornerRadius: cornerRadius,
@@ -1842,6 +1875,22 @@ struct ContentView: View {
             return t * t * (3 - 2 * t)
         }()
         let notchTopLineColor: Color = useLiquidPageBackground ? .clear : .black
+        let isLiquidTransitioningNow: Bool = useLiquidPageBackground && liquidTransitionPerfMode
+        let headerRevealProgress: CGFloat = {
+            guard vm.notchState == .open else { return 0 }
+            let t = min(max((openContentRevealProgress - 0.52) / 0.34, 0), 1)
+            return t * t * (3 - 2 * t)
+        }()
+        let headerWidthProgress: CGFloat = {
+            guard vm.notchState == .open else { return 0 }
+            let t = min(max((openContentRevealProgress - 0.40) / 0.46, 0), 1)
+            return t * t * (3 - 2 * t)
+        }()
+        let headerYOffset: CGFloat = {
+            guard vm.notchState == .open else { return -34 }
+            return -30 + (18 * headerRevealProgress)
+        }()
+        let headerScaleX: CGFloat = 0.42 + (0.58 * headerWidthProgress)
         // Keep NSGlassEffectView corners neutral; the notch shape clipping drives real geometry.
         let liquidCornerRadius: CGFloat = 0
 
@@ -1854,7 +1903,10 @@ struct ContentView: View {
                     : cornerRadiusInsets.closed.bottom
                 let openOuterHorizontalPadding: CGFloat = vm.notchState == .open ? 1 : 0
                 let mainLayout = NotchLayout()
-                    .offset(x: -timerBackgroundShakeX, y: -timerBackgroundShakeY)
+                    .offset(
+                        x: -timerBackgroundShakeX,
+                        y: -timerBackgroundShakeY
+                    )
                     .frame(alignment: .top)
                     .frame(maxWidth: vm.notchState == .open ? openWidthValueComputed : nil)
                     .padding(
@@ -1865,8 +1917,12 @@ struct ContentView: View {
                     .padding(.bottom, vm.notchState == .open ? 12 : 0)
                     .padding(.top, vm.notchState == .open ? -10 : 0)
                     .animation(notchStateAnimation, value: vm.notchState)
+                    .animation(NotchMotion.notchOpenHorizontal, value: notchOpenHorizontalToken)
                     .animation(notchLayoutAnimation, value: isLayoutExpandedComputed)
-                    .animation(notchLayoutAnimation, value: showCalendar)
+                    .animation(
+                        (isSwitchingOverlay && overlaySwitchDirection == .toCamera) ? nil : notchLayoutAnimation,
+                        value: showCalendar
+                    )
 
                 mainLayout
                     .background {
@@ -1877,10 +1933,14 @@ struct ContentView: View {
 
                             if useLiquidPageBackground {
                                 ZStack(alignment: .top) {
-                                    liquidV11Layer(cornerRadius: liquidCornerRadius, tintOpacity: 0.04)
+                                    liquidV11Layer(
+                                        cornerRadius: liquidCornerRadius,
+                                        tintOpacity: 0.04,
+                                        perfMode: isLiquidTransitioningNow
+                                    )
                                         .padding(0)
                                         .scaleEffect(1.0)
-                                        .blur(radius: 1.15)
+                                        .blur(radius: isLiquidTransitioningNow ? 0.65 : 1.15)
                                         .clipShape(currentNotchShape)
                                         .opacity(liquidGlassBlend)
                                         .allowsHitTesting(false)
@@ -1922,7 +1982,7 @@ struct ContentView: View {
                                                 endPoint: .bottom
                                             )
                                             .padding(.horizontal, -28)
-                                            .blur(radius: 8.2)
+                                            .blur(radius: isLiquidTransitioningNow ? 4.6 : 8.2)
 
                                             Rectangle()
                                                 .fill(Color.black)
@@ -1952,8 +2012,10 @@ struct ContentView: View {
                                 .padding(.horizontal, topCornerRadius + 3)
 
                             if useLiquidPageBackground {
-                                liquidCornerShadowLayer()
-                                    .opacity(liquidGlassBlend)
+                                if !isLiquidTransitioningNow {
+                                    liquidCornerShadowLayer()
+                                        .opacity(liquidGlassBlend)
+                                }
 
                                 // White contour all around, only in Liquid Glass mode.
                                 currentNotchShape
@@ -1994,10 +2056,14 @@ struct ContentView: View {
                             BoringHeader()
                                 .frame(height: max(24, vm.effectiveClosedNotchHeight))
                                 .padding(.top, 6)
-                                .offset(y: -12)
-                                .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
+                                .offset(y: headerYOffset)
+                                .scaleEffect(x: headerScaleX, y: 1.0, anchor: .top)
+                                .opacity(
+                                    (gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
+                                    * headerRevealProgress
+                                )
                                 .zIndex(3000)
-                                .allowsHitTesting(true)
+                                .allowsHitTesting(headerRevealProgress > 0.65)
                         }
                     }
      // Avoid the "late"/inconsistent-looking drop shadow under the expanded notch.
@@ -2021,8 +2087,12 @@ struct ContentView: View {
                         y: timerBackgroundShakeY
                     )
                     .animation(notchStateAnimation, value: vm.notchState)
+                    .animation(NotchMotion.notchOpenHorizontal, value: notchOpenHorizontalToken)
                     .animation(notchLayoutAnimation, value: isLayoutExpandedComputed)
-                    .animation(notchLayoutAnimation, value: showCalendar)
+                    .animation(
+                        (isSwitchingOverlay && overlaySwitchDirection == .toCamera) ? nil : notchLayoutAnimation,
+                        value: showCalendar
+                    )
                     .animation(notchLayoutAnimation, value: activeQuickTimers.count)
                     .animation(notchLayoutAnimation, value: gestureProgress)
                     .contentShape(Rectangle())
@@ -2033,6 +2103,12 @@ struct ContentView: View {
                         if vm.notchState == .closed {
                             if shouldShowTimerActivityClosed && isTimerPopupHovering { return }
                             if isBluetoothClosedNotificationShowing && isBluetoothPopupHovering { return }
+                            if shouldShowMusicActivityClosed && (isNowPlayingLeftHovering || isNowPlayingRightHovering) {
+                                if isNowPlayingRightHovering {
+                                    performNowPlayingRightButtonAction()
+                                }
+                                return
+                            }
                         }
                         doOpen()
                     }
@@ -2065,6 +2141,19 @@ struct ContentView: View {
                         }
                     }
                     .onChange(of: vm.notchState) { _, newState in
+                        if pageUseLiquidGlassBackground {
+                            liquidTransitionPerfTask?.cancel()
+                            liquidTransitionPerfMode = true
+                            liquidTransitionPerfTask = Task { @MainActor in
+                                try? await Task.sleep(for: .milliseconds(520))
+                                guard !Task.isCancelled else { return }
+                                liquidTransitionPerfMode = false
+                            }
+                        } else {
+                            liquidTransitionPerfTask?.cancel()
+                            liquidTransitionPerfMode = false
+                        }
+
                         liquidCloseTransitionTask?.cancel()
                         liquidCloseTransitionTask = nil
 
@@ -2100,13 +2189,33 @@ struct ContentView: View {
                         }
 
                         if newState == .open {
-                            ignoreHoverExitUntil = Date().addingTimeInterval(0.25)
+                            notchOpenHorizontalToken &+= 1
+                            ignoreHoverExitUntil = Date().addingTimeInterval(
+                                openingFromNowPlayingCenterHover ? 0.48 : 0.25
+                            )
+                            restartOpenContentRevealAnimation()
+                            if openingFromNowPlayingCenterHover {
+                                Task { @MainActor in
+                                    try? await Task.sleep(for: .milliseconds(16))
+                                    guard vm.notchState == .open else { return }
+                                    activateFrozenHoverZone()
+                                }
+                            }
+                            startOpenHoverWatchdogIfNeeded()
                         } else if newState == .closed {
+                            openingFromNowPlayingCenterHover = false
+                            openContentRevealTask?.cancel()
+                            openContentRevealTask = nil
+                            openContentRevealProgress = 0
+                            openHoverWatchdogTask?.cancel()
+                            openHoverWatchdogTask = nil
                             // Never keep timer popup expanded when closing from open notch.
                             suppressTimerPopupAutoOpenUntil = Date().addingTimeInterval(0.35)
                             timerSidesHoverTask?.cancel()
                             timerTransitionTask?.cancel()
                             timerPopupRearmTask?.cancel()
+                            timerPopupCloseTask?.cancel()
+                            timerPopupCloseTask = nil
                             isTimerPopupHovering = false
                             isTimerSidesHovering = false
                             isTimerExpandedHovering = false
@@ -2146,6 +2255,10 @@ struct ContentView: View {
                     .onChange(of: pageUseLiquidGlassBackground) { _, enabled in
                         liquidCloseTransitionTask?.cancel()
                         liquidCloseTransitionTask = nil
+                        if !enabled {
+                            liquidTransitionPerfTask?.cancel()
+                            liquidTransitionPerfMode = false
+                        }
                         keepLiquidVisualDuringClose = enabled && vm.notchState == .open
                         liquidVisualBlend = (enabled && vm.notchState == .open) ? 1 : 0
                         liquidStrokeReveal = (enabled && vm.notchState == .open) ? 1 : 0
@@ -2227,20 +2340,44 @@ struct ContentView: View {
                 liquidVisualBlend = (pageUseLiquidGlassBackground && vm.notchState == .open) ? 1 : 0
                 liquidStrokeReveal = (pageUseLiquidGlassBackground && vm.notchState == .open) ? 1 : 0
                 lockSuppressionProgress = lockTransition.suppressClosedActivities ? 1 : 0
+                openContentRevealProgress = (vm.notchState == .open) ? 1 : 0
                 let w = computedChinWidth
                 batteryChinFrom = w
                 batteryChinTo = w
                 batteryChinPhase = 1
                 applyScreenRecordingVisibilityPolicy()
+                installNowPlayingClickMonitorIfNeeded()
+                if vm.notchState == .open {
+                    startOpenHoverWatchdogIfNeeded()
+                }
             }
             .onDisappear {
                 liquidCloseTransitionTask?.cancel()
                 liquidCloseTransitionTask = nil
+                liquidTransitionPerfTask?.cancel()
+                liquidTransitionPerfTask = nil
+                liquidTransitionPerfMode = false
+                openHoverWatchdogTask?.cancel()
+                openHoverWatchdogTask = nil
+                openContentRevealTask?.cancel()
+                openContentRevealTask = nil
+                bluetoothPopupCloseTask?.cancel()
+                bluetoothPopupCloseTask = nil
+                timerPopupCloseTask?.cancel()
+                timerPopupCloseTask = nil
+                nowPlayingSneakPeekWatchdogTask?.cancel()
+                nowPlayingSneakPeekWatchdogTask = nil
+                nowPlayingSneakPeekCloseTask?.cancel()
+                nowPlayingSneakPeekCloseTask = nil
                 timerPopupRearmTask?.cancel()
                 timerPopupRearmTask = nil
                 if let m = timerGlobalMouseMonitor {
                     NSEvent.removeMonitor(m)
                     timerGlobalMouseMonitor = nil
+                }
+                if let m = nowPlayingClickMonitor {
+                    NSEvent.removeMonitor(m)
+                    nowPlayingClickMonitor = nil
                 }
                 closedPopupFailsafeTask?.cancel()
                 closedPopupFailsafeTask = nil
@@ -2320,6 +2457,12 @@ struct ContentView: View {
                 }
             }
             .onChange(of: showCalendar) { oldCalendarOn, calendarOn in
+                if calendarOn {
+                    calendarToCameraExitOffsetX = 0
+                    calendarToCameraTrailingReserve = 0
+                    deferCameraOverlayDuringToCameraSwitch = false
+                    vm.suppressCameraLayoutInOpenContent = false
+                }
                 if calendarOn { calendarRestoreAfterCamera = false }
                 if oldCalendarOn && !calendarOn && !isCameraVisibleComputed {
                     activateFrozenHoverZone(widthHint: 230)
@@ -2329,6 +2472,8 @@ struct ContentView: View {
                 guard !isSwitchingOverlay else { return }
 
                 if calendarOn, vm.isCameraExpanded {
+                    overlaySwitchToken &+= 1
+                    let token = overlaySwitchToken
                     isSwitchingOverlay = true
                     overlaySwitchDirection = .toCalendar
 
@@ -2341,9 +2486,11 @@ struct ContentView: View {
 
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: overlaySwitchDelayMs * 1_000_000)
+                        guard token == overlaySwitchToken else { return }
                         withAnimation(animationSpring) { showCalendar = true }
 
                         try? await Task.sleep(nanoseconds: 180 * 1_000_000)
+                        guard token == overlaySwitchToken else { return }
                         withAnimation(NotchMotion.notchLayout) {
                             overlayWidthHold = 0
                             overlayHeightHold = 0
@@ -2359,59 +2506,87 @@ struct ContentView: View {
             }
             .onChange(of: vm.isCameraExpanded) { oldCameraOn, cameraOn in
                 suppressAutoCloseUntil = Date().addingTimeInterval(0.45)
+                if !cameraOn {
+                    vm.suppressCameraLayoutInOpenContent = false
+                }
                 if oldCameraOn && !cameraOn && !showCalendar {
                     activateFrozenHoverZone(widthHint: 160)
                 }
                 if cameraOn, showCalendar {
                     calendarRestoreAfterCamera = true
-                    withAnimation(animationSpring) { showCalendar = false }
-                }
+                    overlaySwitchToken &+= 1
+                    let token = overlaySwitchToken
 
-                guard !isSwitchingOverlay else { return }
-
-                if cameraOn, showCalendar {
                     isSwitchingOverlay = true
                     overlaySwitchDirection = .toCamera
+                    deferCameraOverlayDuringToCameraSwitch = true
+                    vm.suppressCameraLayoutInOpenContent = true
+                    calendarToCameraTrailingReserve = calendarOverlayTotalWidth
 
                     let currentExtra: CGFloat = (isCalendarVisibleComputed ? 230 : 0)
                     overlayWidthHold = max(160, currentExtra)
 
-                    // Step 1: hide calendar while keeping the wider notch width held.
-                    withAnimation(animationSpring) { showCalendar = false }
-                    // Step 2: then animate width down to camera width.
+                    // Step 1: animate the real calendar panel out to the right.
+                    withAnimation(animationSpring) {
+                        calendarToCameraExitOffsetX = 170
+                    }
+
+                    // Step 2: remove calendar with no transition, then settle to camera width.
                     Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 16_000_000) // ~1 frame
-                        withAnimation(animationSpring) {
+                        try? await Task.sleep(nanoseconds: overlaySwitchDelayMs * 1_000_000)
+                        guard token == overlaySwitchToken else { return }
+                        var tx = Transaction()
+                        tx.animation = nil
+                        withTransaction(tx) {
+                            showCalendar = false
+                        }
+                        deferCameraOverlayDuringToCameraSwitch = false
+                        withAnimation(NotchMotion.notchLayout) {
                             overlayWidthHold = 160
+                            calendarToCameraTrailingReserve = 0
+                            vm.suppressCameraLayoutInOpenContent = false
                         }
                     }
 
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: overlaySwitchDelayMs * 1_000_000)
-
+                        guard token == overlaySwitchToken else { return }
                         if !vm.isCameraExpanded {
                             withAnimation(animationSpring) { vm.toggleCameraPreview() }
                         }
 
                         try? await Task.sleep(nanoseconds: 180 * 1_000_000)
+                        guard token == overlaySwitchToken else { return }
                         withAnimation(NotchMotion.notchLayout) {
                             overlayWidthHold = 0
+                            calendarToCameraExitOffsetX = 0
+                            calendarToCameraTrailingReserve = 0
+                            vm.suppressCameraLayoutInOpenContent = false
                         }
                         isSwitchingOverlay = false
                         overlaySwitchDirection = .none
                     }
+                    return
                 }
 
+                guard !isSwitchingOverlay else { return }
+
                 if !cameraOn, calendarRestoreAfterCamera {
+                    overlaySwitchToken &+= 1
+                    let token = overlaySwitchToken
                     calendarRestoreAfterCamera = false
                     isSwitchingOverlay = true
                     overlaySwitchDirection = .toCalendar
+                    calendarToCameraTrailingReserve = 0
+                    deferCameraOverlayDuringToCameraSwitch = false
+                    vm.suppressCameraLayoutInOpenContent = false
 
                     overlayWidthHold = 230
                     withAnimation(animationSpring) { showCalendar = true }
 
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: 180 * 1_000_000)
+                        guard token == overlaySwitchToken else { return }
                         withAnimation(NotchMotion.notchLayout) {
                             overlayWidthHold = 0
                         }
@@ -2429,6 +2604,8 @@ struct ContentView: View {
             .onChange(of: isBluetoothClosedNotificationShowing) { _, showing in
                 if showing { return }
 
+                bluetoothPopupCloseTask?.cancel()
+                bluetoothPopupCloseTask = nil
                 bluetoothCenterHoverTask?.cancel()
                 bluetoothSidesHoverTask?.cancel()
                 bluetoothTransitionTask?.cancel()
@@ -2440,6 +2617,8 @@ struct ContentView: View {
             }
             .onChange(of: isBluetoothPopupHovering) { _, isOpen in
                 if isOpen {
+                    bluetoothPopupCloseTask?.cancel()
+                    bluetoothPopupCloseTask = nil
                     ensureClosedPopupFailsafeRunning()
                 } else if !isTimerPopupHovering {
                     closedPopupFailsafeTask?.cancel()
@@ -2453,6 +2632,8 @@ struct ContentView: View {
                 }
                 timerPopupRearmTask?.cancel()
                 timerPopupRearmTask = nil
+                timerPopupCloseTask?.cancel()
+                timerPopupCloseTask = nil
                 timerSidesHoverTask?.cancel()
                 timerTransitionTask?.cancel()
                 isTimerPopupHovering = false
@@ -2465,11 +2646,16 @@ struct ContentView: View {
                 if isOpen {
                     ensureClosedPopupFailsafeRunning()
                 } else if !isBluetoothPopupHovering {
+                    // Prevent immediate notch open when the pointer is still grazing
+                    // the central hover zone right after collapsing the timer popup.
+                    suppressNotchOpenUntilAfterTimerPopupClose = Date().addingTimeInterval(0.35)
                     closedPopupFailsafeTask?.cancel()
                     closedPopupFailsafeTask = nil
 
                     timerSidesHoverTask?.cancel()
                     timerTransitionTask?.cancel()
+                    timerPopupCloseTask?.cancel()
+                    timerPopupCloseTask = nil
                     isTimerSidesHovering = false
                     isTimerExpandedHovering = false
                     isTimerProximityHovering = false
@@ -2482,11 +2668,21 @@ struct ContentView: View {
                     }
                 }
             }
+            .onChange(of: isTimerProximityHovering) { _, hovering in
+                if hovering {
+                    timerPopupCloseTask?.cancel()
+                    timerPopupCloseTask = nil
+                } else if isTimerPopupHovering {
+                    scheduleTimerPopupCloseIfNeeded(delayMs: 150)
+                }
+            }
             .onChange(of: activeQuickTimers.count) { _, count in
                 guard count == 0 else { return }
 
                 timerPopupRearmTask?.cancel()
                 timerPopupRearmTask = nil
+                timerPopupCloseTask?.cancel()
+                timerPopupCloseTask = nil
                 timerSidesHoverTask?.cancel()
                 timerTransitionTask?.cancel()
                 isTimerPopupHovering = false
@@ -2498,6 +2694,21 @@ struct ContentView: View {
                 keepTimerPopupOpenForFinishedAlert = false
 
                 handleHover(isHovering)
+            }
+            .onChange(of: shouldShowMusicActivityClosed) { _, showing in
+                if showing { return }
+                isNowPlayingLeftHovering = false
+                isNowPlayingRightHovering = false
+                nowPlayingSneakPeekWatchdogTask?.cancel()
+                nowPlayingSneakPeekWatchdogTask = nil
+                nowPlayingSneakPeekCloseTask?.cancel()
+                nowPlayingSneakPeekCloseTask = nil
+                if isNowPlayingSneakPeekForcedByHover {
+                    isNowPlayingSneakPeekForcedByHover = false
+                    if coordinator.sneakPeek.show && coordinator.sneakPeek.type == .music {
+                        coordinator.toggleSneakPeek(status: false, type: .music)
+                    }
+                }
             }
     }
 
@@ -2587,6 +2798,10 @@ struct ContentView: View {
                                 let opacity = minOpacity + (1.0 - minOpacity) * pow(r, 3.0)
                                 let blurRadius = maxBlur * pow(1.0 - r, 1.05)
                                 let scale = 0.985 + 0.015 * pow(r, 1.25)
+                                let isCriticalBattery = batteryModel.levelBattery < 20
+                                let batteryAccentColor: Color = isCriticalBattery
+                                    ? .red
+                                    : (batteryModel.isInLowPowerMode ? .yellow : .green)
 
                                 HStack(spacing: 0) {
                                     Text(batteryClosedStatusText)
@@ -2608,12 +2823,15 @@ struct ContentView: View {
                                     HStack(spacing: 3) {
                                         Text("\(Int(batteryModel.levelBattery))%")
                                             .font(.system(size: fontSize, weight: .medium))
-                                            .foregroundStyle(.green)
+                                            .foregroundStyle(batteryAccentColor)
                                             .lineLimit(1)
                                             .minimumScaleFactor(0.75)
                                             .allowsTightening(true)
 
-                                        NotificationBatteryIcon(levelBattery: batteryModel.levelBattery)
+                                        NotificationBatteryIcon(
+                                            levelBattery: batteryModel.levelBattery,
+                                            isLowPowerMode: batteryModel.isInLowPowerMode
+                                        )
                                             .frame(width: 29, height: 12)
                                     }
                                     .opacity(opacity)
@@ -2656,6 +2874,8 @@ struct ContentView: View {
                                     isExpanded: isBluetoothPopupHovering,
                                     onHoverZonesChanged: { hoveringSides, hoveringCenter in
                                         if hoveringSides {
+                                            bluetoothPopupCloseTask?.cancel()
+                                            bluetoothPopupCloseTask = nil
                                             bluetoothSidesHoverTask?.cancel()
                                             bluetoothCenterHoverTask?.cancel()
 
@@ -2686,6 +2906,8 @@ struct ContentView: View {
                                         }
 
                                         if hoveringCenter {
+                                            bluetoothPopupCloseTask?.cancel()
+                                            bluetoothPopupCloseTask = nil
            // Keep expanded while cursor is still inside activity (center zone).
                                             bluetoothSidesHoverTask?.cancel()
                                             bluetoothCenterHoverTask?.cancel()
@@ -2733,27 +2955,11 @@ struct ContentView: View {
                                             bluetoothCenterHoverTask?.cancel()
 
                                             if isBluetoothSidesHovering || isBluetoothPopupHovering {
-                                                bluetoothSidesHoverTask?.cancel()
-                                                bluetoothSidesHoverTask = Task { @MainActor in
-                                                    try? await Task.sleep(for: .milliseconds(120))
-                                                    guard !Task.isCancelled else { return }
-                                                    self.isBluetoothSidesHovering = false
-
-                                                    if self.coordinator.expandingView.show && self.coordinator.expandingView.type == .bluetooth {
-                                                        self.coordinator.resumeExpandingViewAutoHide()
-                                                    }
-
-                                                    self.isBluetoothPopupTransitioning = true
-                                                    self.bluetoothTransitionTask?.cancel()
-                                                    self.bluetoothTransitionTask = Task { @MainActor in
-                                                        try? await Task.sleep(for: .milliseconds(240))
-                                                        guard !Task.isCancelled else { return }
-                                                        self.isBluetoothPopupTransitioning = false
-                                                    }
-                                                    withAnimation(NotchMotion.popupHover) {
-                                                        self.isBluetoothPopupHovering = false
-                                                    }
+                                                self.isBluetoothSidesHovering = false
+                                                if self.coordinator.expandingView.show && self.coordinator.expandingView.type == .bluetooth {
+                                                    self.coordinator.resumeExpandingViewAutoHide()
                                                 }
+                                                scheduleBluetoothPopupCloseIfNeeded(delayMs: 120)
                                             }
                                         }
                                     }
@@ -2779,7 +2985,18 @@ struct ContentView: View {
                             }
        // Priority 8: player
                             else if shouldShowMusicActivityClosed {
-                                MusicLiveActivity(isCompactMode: isNowPlayingCompactMode)
+                                MusicLiveActivity(
+                                    isCompactMode: isNowPlayingCompactMode,
+                                    showPauseOnRight: isNowPlayingRightHovering,
+                                    onHoverZonesChanged: { hoveringLeft, hoveringRight, _ in
+                                        isNowPlayingLeftHovering = hoveringLeft
+                                        isNowPlayingRightHovering = hoveringRight
+                                        updateNowPlayingSneakPeekHoverState()
+                                    },
+                                    onPauseRequested: {
+                                        performNowPlayingRightButtonAction()
+                                    }
+                                )
                                     .frame(alignment: .center)
                                     .transition(
                                         .asymmetric(
@@ -2841,21 +3058,31 @@ struct ContentView: View {
                             if vm.notchState == .closed
                                 && !vm.hideOnClosed
                             {
-                                HStack(alignment: .center) {
-                                    Image(systemName: "music.note")
-                                    GeometryReader { geo in
-                                        MarqueeText(
-                                            .constant(musicManager.songTitle + " - " + musicManager.artistName),
-                                            textColor: Defaults[.playerColorTinting]
-                                            ? Color(nsColor: musicManager.avgColor).ensureMinimumBrightness(factor: 0.6)
-                                            : .gray,
-                                            minDuration: 1,
-                                            frameWidth: geo.size.width
-                                        )
-                                    }
-                                }
+                                let sneakPeekTextWidth = max(60, computedPrimaryChinWidthRaw - 2)
+                                MarqueeText(
+                                    .constant(musicManager.songTitle + " - " + musicManager.artistName),
+                                    font: .system(size: 12, weight: .medium),
+                                    nsFont: .caption1,
+                                    textColor: Defaults[.playerColorTinting]
+                                    ? Color(nsColor: musicManager.avgColor).ensureMinimumBrightness(factor: 0.6)
+                                    : .gray,
+                                    minDuration: 1,
+                                    frameWidth: sneakPeekTextWidth,
+                                    useEdgeFade: true,
+                                    measuredPointSize: 12,
+                                    measuredWeight: .medium,
+                                    isPaused: !musicManager.isPlaying
+                                )
+                                .frame(width: sneakPeekTextWidth, height: 16, alignment: .leading)
                                 .foregroundStyle(.gray)
-                                .padding(.bottom, 10)
+                                .offset(y: -7)
+                                .transition(
+                                    .asymmetric(
+                                        insertion: .identity,
+                                        removal: .opacity.combined(with: .move(edge: .top))
+                                    )
+                                )
+                                .animation(.easeOut(duration: 0.045), value: coordinator.sneakPeek.show)
                             }
                         }
                     }
@@ -2863,31 +3090,34 @@ struct ContentView: View {
             }
             .conditionalModifier(
                 (coordinator.sneakPeek.show
-                 && (coordinator.sneakPeek.type == .music)
-                 && vm.notchState == .closed
-                 && !vm.hideOnClosed)
-                || (coordinator.sneakPeek.show
-                    && (coordinator.sneakPeek.type != .music)
-                    && vm.notchState == .closed)
+                 && (coordinator.sneakPeek.type != .music)
+                 && vm.notchState == .closed)
             ) { view in
                 view.fixedSize()
             }
             .zIndex(2)
 
             if vm.notchState == .open {
+                let revealP = max(0, min(1, openContentRevealProgress))
                 ZStack(alignment: .topTrailing) {
-                    let calendarContentWidth: CGFloat = 215
-                    let calendarLeadingGutterWidth: CGFloat = 6
-                    let calendarTotalWidth: CGFloat = calendarContentWidth + calendarLeadingGutterWidth
                     let isCameraOverlayVisible: Bool =
                         Defaults[.showMirror]
                         && webcamManager.cameraAvailable
                         && vm.isCameraExpanded
+                        && !(isSwitchingOverlay
+                             && overlaySwitchDirection == .toCamera
+                             && deferCameraOverlayDuringToCameraSwitch)
                     let reservedTrailing: CGFloat = {
                         if isSwitchingOverlay && overlaySwitchDirection == .toCalendar {
-                            return calendarTotalWidth
+                            return calendarOverlayTotalWidth
                         }
-                        return showCalendar ? calendarTotalWidth : 0
+                        if isSwitchingOverlay && overlaySwitchDirection == .toCamera {
+                            return max(
+                                showCalendar ? calendarOverlayTotalWidth : 0,
+                                calendarToCameraTrailingReserve
+                            )
+                        }
+                        return showCalendar ? calendarOverlayTotalWidth : 0
                     }()
 
                     GeometryReader { geo in
@@ -2911,7 +3141,10 @@ struct ContentView: View {
                                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                                         .onAppear { coordinator.currentView = .third }
                                 } else {
-                                    NotchHomeView(albumArtNamespace: albumArtNamespace)
+                                    NotchHomeView(
+                                        albumArtNamespace: albumArtNamespace,
+                                        albumRevealCompensationProgress: hasNowPlayingLiveActivityActive ? revealP : 1
+                                    )
                                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                                         .onAppear { coordinator.currentView = .home }
                                 }
@@ -2927,13 +3160,16 @@ struct ContentView: View {
 
                                 NotchPagerDynamic(
                                     selection: $coordinator.currentView,
-                                    isScrollEnabled: $isPagerScrollEnabled,
+                                    isScrollEnabled: .constant(isPagerScrollEffectivelyEnabled),
                                     enabledViews: enabledViews,
                                     page: { view in
                                         switch view {
                                         case .home:
                                             AnyView(
-                                                NotchHomeView(albumArtNamespace: albumArtNamespace)
+                                                NotchHomeView(
+                                                    albumArtNamespace: albumArtNamespace,
+                                                    albumRevealCompensationProgress: hasNowPlayingLiveActivityActive ? revealP : 1
+                                                )
                                                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                                             )
                                         case .shelf:
@@ -2961,9 +3197,10 @@ struct ContentView: View {
                     if showCalendar {
                         CalendarOverlayView()
                             .environmentObject(vm)
-                            .frame(width: calendarTotalWidth)
+                            .frame(width: calendarOverlayTotalWidth)
                             .padding(.top, 6)
                             .padding(.trailing, -10)
+                            .offset(x: calendarToCameraExitOffsetX)
                             .transition(calendarOverlayTransition)
                             .zIndex(998)
                     }
@@ -2975,8 +3212,18 @@ struct ContentView: View {
                             .zIndex(999)
                     }
                 }
-                .animation(animationSpring, value: showCalendar)
-                .animation(animationSpring, value: vm.isCameraExpanded)
+                .animation(
+                    (isSwitchingOverlay && overlaySwitchDirection == .toCamera) ? nil : animationSpring,
+                    value: showCalendar
+                )
+                .animation(
+                    (isSwitchingOverlay && overlaySwitchDirection == .toCamera) ? nil : animationSpring,
+                    value: vm.isCameraExpanded
+                )
+                .offset(y: -82 * (1 - revealP))
+                .scaleEffect(x: 1.0, y: 0.72 + (0.28 * revealP), anchor: .top)
+                .blur(radius: 9.5 * (1 - revealP))
+                .opacity(0.22 + (0.78 * revealP))
                 .zIndex(1)
                 .allowsHitTesting(true)
                 .opacity(
@@ -3489,7 +3736,26 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
     }
 
     @ViewBuilder
-    func MusicLiveActivity(isCompactMode: Bool) -> some View {
+    func MusicLiveActivity(
+        isCompactMode: Bool,
+        showPauseOnRight: Bool,
+        onHoverZonesChanged: @escaping (_ hoveringLeft: Bool, _ hoveringRight: Bool, _ hoveringCenter: Bool) -> Void,
+        onPauseRequested: @escaping () -> Void
+    ) -> some View {
+        let hoverTopExtension: CGFloat = 26
+        let hoverLeftExtension: CGFloat = 18
+        let sideWidth = max(0, vm.effectiveClosedNotchHeight - 12 + gestureProgress / 2)
+        let centerSegmentWidth = isCompactMode
+            ? (vm.closedNotchSize.width + -cornerRadiusInsets.closed.top + sideWidth + 10)
+            : (vm.closedNotchSize.width + -cornerRadiusInsets.closed.top)
+        let leftSegmentWidth = isCompactMode ? 0 : sideWidth
+        let rightSegmentWidth = sideWidth
+
+        let hitLeftWidth = isCompactMode ? 0 : max(leftSegmentWidth + hoverLeftExtension, 32)
+        let hitCenterWidth = max(0, centerSegmentWidth)
+        let hitRightWidth = max(rightSegmentWidth, 44)
+        let hitTotalWidth = max(0, hitLeftWidth + hitCenterWidth + hitRightWidth)
+
         HStack {
             if !isCompactMode {
                 AlbumArtFlipView(
@@ -3536,9 +3802,7 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                         }
                     }
                 )
-                .frame(width: isCompactMode
-                       ? (vm.closedNotchSize.width + -cornerRadiusInsets.closed.top + max(0, vm.effectiveClosedNotchHeight - 12) + 10)
-                       : (vm.closedNotchSize.width + -cornerRadiusInsets.closed.top))
+                .frame(width: centerSegmentWidth)
 
             HStack {
                 if isCompactMode {
@@ -3551,31 +3815,55 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                         geometryID: "albumArt",
                         namespace: albumArtNamespace
                     )
-                } else if useMusicVisualizer {
-                    Rectangle()
-                        .fill(
-                            Defaults[.coloredSpectrogram]
-                            ? Color(nsColor: musicManager.avgColor).gradient
-                            : Color.gray.gradient
-                        )
-                        .frame(width: 50, alignment: .center)
-                        .matchedGeometryEffect(id: "spectrum", in: albumArtNamespace)
-                        .mask {
-                            AudioSpectrumView(isPlaying: $musicManager.isPlaying)
-                                .frame(width: 16, height: 12)
-                        }
                 } else {
-                    LottieAnimationContainer()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    NowPlayingMorphingGlyph(
+                        progress: showPauseOnRight ? 1 : 0,
+                        isPlaying: musicManager.isPlaying,
+                        shouldAnimateWaveform: musicManager.isPlaying && musicManager.playbackRate > 0.01,
+                        tint: (Defaults[.coloredSpectrogram]
+                               ? Color(nsColor: musicManager.avgColor)
+                               : Color.gray).opacity(0.95)
+                    )
+                    .frame(width: 24, height: 24, alignment: .center)
+                    .animation(.spring(response: 0.34, dampingFraction: 0.87), value: showPauseOnRight)
+                    .animation(.spring(response: 0.24, dampingFraction: 0.85), value: musicManager.isPlaying)
                 }
             }
             .frame(
-                width: max(0, vm.effectiveClosedNotchHeight - 12 + gestureProgress / 2),
+                width: rightSegmentWidth,
                 height: max(0, vm.effectiveClosedNotchHeight - 12),
                 alignment: .center
             )
+            .contentShape(Rectangle())
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 0)
+                    .onEnded { _ in
+                        guard showPauseOnRight else { return }
+                        onPauseRequested()
+                    }
+            )
         }
         .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+        .overlay(alignment: .topLeading) {
+            NowPlayingEdgeHoverTrackingView(
+                leftEdgeWidth: hitLeftWidth + hoverLeftExtension,
+                rightEdgeWidth: hitRightWidth,
+                onHoverZonesChanged: onHoverZonesChanged,
+                onRightEdgeTap: onPauseRequested
+            )
+            .frame(
+                width: hitTotalWidth,
+                height: vm.effectiveClosedNotchHeight + hoverTopExtension,
+                alignment: .topLeading
+            )
+            .offset(x: isCompactMode ? 0 : -hoverLeftExtension)
+            .offset(y: -hoverTopExtension)
+        }
+        .onHover { hovering in
+            if !hovering {
+                onHoverZonesChanged(false, false, false)
+            }
+        }
     }
 
     @ViewBuilder
@@ -3677,12 +3965,92 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
         }
     }
 
+    private func closeTimerPopupIfNeeded() {
+        guard isTimerPopupHovering else { return }
+        isTimerPopupTransitioning = true
+        timerTransitionTask?.cancel()
+        timerTransitionTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(220))
+            guard !Task.isCancelled else { return }
+            isTimerPopupTransitioning = false
+        }
+        withAnimation(NotchMotion.popupHover) {
+            isTimerPopupHovering = false
+        }
+    }
+
+    private func scheduleTimerPopupCloseIfNeeded(delayMs: UInt64 = 140) {
+        timerPopupCloseTask?.cancel()
+        timerPopupCloseTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(Int(delayMs)))
+            guard !Task.isCancelled else {
+                timerPopupCloseTask = nil
+                return
+            }
+            guard vm.notchState == .closed else {
+                timerPopupCloseTask = nil
+                return
+            }
+            if keepTimerPopupOpenForFinishedAlert {
+                timerPopupCloseTask = nil
+                return
+            }
+            if isTimerSidesHovering || isTimerExpandedHovering || isTimerProximityHovering || isHovering {
+                timerPopupCloseTask = nil
+                return
+            }
+            closeTimerPopupIfNeeded()
+            timerPopupCloseTask = nil
+        }
+    }
+
+    private func closeBluetoothPopupIfNeeded() {
+        guard isBluetoothPopupHovering else { return }
+        isBluetoothPopupTransitioning = true
+        bluetoothTransitionTask?.cancel()
+        bluetoothTransitionTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(240))
+            guard !Task.isCancelled else { return }
+            isBluetoothPopupTransitioning = false
+        }
+        withAnimation(NotchMotion.popupHover) {
+            isBluetoothPopupHovering = false
+        }
+    }
+
+    private func scheduleBluetoothPopupCloseIfNeeded(delayMs: UInt64 = 120) {
+        bluetoothPopupCloseTask?.cancel()
+        bluetoothPopupCloseTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(Int(delayMs)))
+            guard !Task.isCancelled else {
+                bluetoothPopupCloseTask = nil
+                return
+            }
+            guard vm.notchState == .closed else {
+                bluetoothPopupCloseTask = nil
+                return
+            }
+            if isBluetoothSidesHovering || isBluetoothCenterHovering || isHovering {
+                bluetoothPopupCloseTask = nil
+                return
+            }
+            closeBluetoothPopupIfNeeded()
+            bluetoothPopupCloseTask = nil
+        }
+    }
+
     private func doOpen() {
   // Battery closed live activity remains horizontal-only.
         if isBatteryClosedNotificationShowing { return }
   // Do not open notch while Bluetooth popup is open or transitioning.
         if isBluetoothClosedNotificationShowing
             && (isBluetoothSidesHovering || isBluetoothPopupHovering || isBluetoothPopupTransitioning) { return }
+        let isNowPlayingCenterOpen =
+            shouldShowMusicActivityClosed
+            && !isNowPlayingLeftHovering
+            && !isNowPlayingRightHovering
+        openingFromNowPlayingCenterHover = isNowPlayingCenterOpen
+
         if pageUseLiquidGlassBackground {
             // Prime Liquid layers before notch state flips to .open so they are visible on frame 1.
             keepLiquidVisualDuringClose = true
@@ -3692,8 +4060,34 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                 liquidStrokeReveal = 1
             }
         }
-        ignoreHoverExitUntil = Date().addingTimeInterval(0.25)
+        ignoreHoverExitUntil = Date().addingTimeInterval(isNowPlayingCenterOpen ? 0.48 : 0.25)
         vm.open()
+    }
+
+    private func restartOpenContentRevealAnimation() {
+        openContentRevealTask?.cancel()
+        openContentRevealTask = nil
+        var resetTransaction = Transaction()
+        resetTransaction.animation = nil
+        withTransaction(resetTransaction) {
+            openContentRevealProgress = 0
+        }
+
+        openContentRevealTask = Task { @MainActor in
+            await Task.yield()
+            guard !Task.isCancelled else {
+                openContentRevealTask = nil
+                return
+            }
+            guard vm.notchState == .open else {
+                openContentRevealTask = nil
+                return
+            }
+            withAnimation(NotchMotion.openContentReveal) {
+                openContentRevealProgress = 1
+            }
+            openContentRevealTask = nil
+        }
     }
 
     private func closedPopupHoverBoundsContainsMouse() -> Bool {
@@ -3743,6 +4137,98 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
         }
     }
 
+    private func updateNowPlayingSneakPeekHoverState() {
+        let shouldForceMusicSneakPeek = isNowPlayingLeftHovering
+            && shouldShowMusicActivityClosed
+            && vm.notchState == .closed
+
+        if shouldForceMusicSneakPeek {
+            nowPlayingSneakPeekCloseTask?.cancel()
+            nowPlayingSneakPeekCloseTask = nil
+            if !isNowPlayingSneakPeekForcedByHover {
+                isNowPlayingSneakPeekForcedByHover = true
+                coordinator.toggleSneakPeek(
+                    status: true,
+                    type: .music,
+                    duration: 60
+                )
+            }
+            startNowPlayingSneakPeekWatchdogIfNeeded()
+            return
+        }
+
+        guard isNowPlayingSneakPeekForcedByHover else { return }
+        scheduleNowPlayingSneakPeekCloseIfNeeded()
+        startNowPlayingSneakPeekWatchdogIfNeeded()
+    }
+
+    private func scheduleNowPlayingSneakPeekCloseIfNeeded() {
+        nowPlayingSneakPeekCloseTask?.cancel()
+        nowPlayingSneakPeekCloseTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(170))
+            guard !Task.isCancelled else {
+                nowPlayingSneakPeekCloseTask = nil
+                return
+            }
+            guard isNowPlayingSneakPeekForcedByHover else {
+                nowPlayingSneakPeekCloseTask = nil
+                return
+            }
+            guard shouldShowMusicActivityClosed, vm.notchState == .closed else {
+                isNowPlayingSneakPeekForcedByHover = false
+                if coordinator.sneakPeek.show && coordinator.sneakPeek.type == .music {
+                    coordinator.toggleSneakPeek(status: false, type: .music)
+                }
+                nowPlayingSneakPeekCloseTask = nil
+                return
+            }
+            guard !isNowPlayingLeftHovering else {
+                nowPlayingSneakPeekCloseTask = nil
+                return
+            }
+
+            isNowPlayingSneakPeekForcedByHover = false
+            if coordinator.sneakPeek.show && coordinator.sneakPeek.type == .music {
+                coordinator.toggleSneakPeek(status: false, type: .music)
+            }
+            nowPlayingSneakPeekCloseTask = nil
+        }
+    }
+
+    private func startNowPlayingSneakPeekWatchdogIfNeeded() {
+        guard nowPlayingSneakPeekWatchdogTask == nil else { return }
+        nowPlayingSneakPeekWatchdogTask = Task { @MainActor in
+            var staleHoverTicks = 0
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(110))
+                guard !Task.isCancelled else { break }
+
+                guard isNowPlayingSneakPeekForcedByHover else { break }
+                guard shouldShowMusicActivityClosed, vm.notchState == .closed else {
+                    isNowPlayingSneakPeekForcedByHover = false
+                    if coordinator.sneakPeek.show && coordinator.sneakPeek.type == .music {
+                        coordinator.toggleSneakPeek(status: false, type: .music)
+                    }
+                    break
+                }
+
+                // Watchdog only for missed hover-exit events.
+                let pointerInsidePopupVicinity = closedPopupHoverBoundsContainsMouse()
+                if isNowPlayingLeftHovering && !pointerInsidePopupVicinity {
+                    staleHoverTicks += 1
+                    if staleHoverTicks >= 2 {
+                        isNowPlayingLeftHovering = false
+                        scheduleNowPlayingSneakPeekCloseIfNeeded()
+                        staleHoverTicks = 0
+                    }
+                } else {
+                    staleHoverTicks = 0
+                }
+            }
+            nowPlayingSneakPeekWatchdogTask = nil
+        }
+    }
+
  // MARK: - Hover Management
 
     private func handleHover(_ hovering: Bool) {
@@ -3758,9 +4244,12 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
   // Avoid conflicts: hovering should expand the Timer popup (sides), not open the notch.
   // (Center hover remains the classic notch-open behavior.)
         if shouldShowTimerActivityClosed && (isTimerPopupHovering || isTimerSidesHovering || isTimerProximityHovering) { return }
+        if shouldShowMusicActivityClosed && (isNowPlayingLeftHovering || isNowPlayingRightHovering) { return }
 
         let timerHoverBlocksOpen = shouldShowTimerActivityClosed
             && (isTimerPopupHovering || isTimerSidesHovering || isTimerProximityHovering)
+        let nowPlayingHoverBlocksOpen = shouldShowMusicActivityClosed
+            && (isNowPlayingLeftHovering || isNowPlayingRightHovering)
 
         hoverTask?.cancel()
 
@@ -3769,13 +4258,19 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
             withAnimation(animationSpring) { isHovering = true }
 
             if vm.notchState == .closed && Defaults[.enableHaptics] {
-                haptics.toggle()
+                let now = Date()
+                if now.timeIntervalSince(lastNotchHoverHapticAt) >= 0.28 {
+                    lastNotchHoverHapticAt = now
+                    haptics.toggle()
+                }
             }
 
             guard vm.notchState == .closed,
                   !coordinator.sneakPeek.show,
                   !isBatteryClosedNotificationShowing,
+                  Date() >= suppressNotchOpenUntilAfterTimerPopupClose,
                   !timerHoverBlocksOpen,
+                  !nowPlayingHoverBlocksOpen,
                   Defaults[.openNotchOnHover] else { return }
 
             hoverTask = Task {
@@ -3789,7 +4284,8 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                           self.isHovering,
                           !self.coordinator.sneakPeek.show,
                           !self.isBatteryClosedNotificationShowing,
-                          !timerStillBlocks else { return }
+                          !timerStillBlocks,
+                          !(self.shouldShowMusicActivityClosed && (self.isNowPlayingLeftHovering || self.isNowPlayingRightHovering)) else { return }
                     self.doOpen()
                 }
             }
@@ -3797,6 +4293,9 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
             if Date() < ignoreHoverExitUntil { return }
             if Date() < suppressAutoCloseUntil { return }
             if frozenHoverZoneActive { return }
+            // During open state, hover-enter/exit events can flicker while layout animates.
+            // Let the geometric watchdog handle close instead of trusting transient onHover(false).
+            if vm.notchState == .open { return }
 
             hoverTask = Task {
                 try? await Task.sleep(for: .milliseconds(100))
@@ -3888,6 +4387,51 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
         frozenHoverExitTask = nil
     }
 
+    private func startOpenHoverWatchdogIfNeeded() {
+        guard openHoverWatchdogTask == nil else { return }
+        openHoverWatchdogTask = Task { @MainActor in
+            var outsideTicks = 0
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(70))
+                guard !Task.isCancelled else { return }
+                guard vm.notchState == .open else { return }
+                guard !vm.isBatteryPopoverActive else { continue }
+                guard !SharingStateManager.shared.preventNotchClose else { continue }
+                guard !frozenHoverZoneActive else {
+                    outsideTicks = 0
+                    continue
+                }
+
+                if isPointerInsideOpenHoverZone() {
+                    outsideTicks = 0
+                } else {
+                    outsideTicks += 1
+                    if outsideTicks >= 3 {
+                        withAnimation(animationSpring) { isHovering = false }
+                        vm.close()
+                        return
+                    }
+                }
+            }
+        }
+    }
+
+    private func isPointerInsideOpenHoverZone() -> Bool {
+        guard let window = hostWindow else { return isHovering }
+        guard let contentView = window.contentView else { return isHovering }
+
+        let pointer = window.mouseLocationOutsideOfEventStream
+        let width = max(vm.closedNotchSize.width, openWidthValueComputed)
+        let halfWidth = (width / 2) + 10
+        let height = max(vm.notchSize.height, openHeightValueComputed ?? vm.notchSize.height)
+        let minY = contentView.bounds.height - (height + 9)
+        let centerX = contentView.bounds.midX
+
+        let insideX = abs(pointer.x - centerX) <= halfWidth
+        let insideY = pointer.y >= minY
+        return insideX && insideY
+    }
+
     private func isPointerInsideFrozenHoverZone() -> Bool {
         guard let window = hostWindow else { return true }
         guard let contentView = window.contentView else { return true }
@@ -3900,7 +4444,7 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
         // This avoids instant close when the cursor remains visually "where it was".
         let centerX = contentView.bounds.midX
         let halfWidth = (width / 2) + 10
-        let minY = contentView.bounds.height - max(height + 42, 220)
+        let minY = contentView.bounds.height - (height + 12)
 
         let insideX = abs(pointer.x - centerX) <= halfWidth
         let insideY = pointer.y >= minY
@@ -3911,7 +4455,7 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
 
     private func handleDownGesture(translation: CGFloat, phase: NSEvent.Phase) {
   // Don't trigger if pager scroll is disabled (user is interacting with scrollable content)
-        guard vm.notchState == .closed && isPagerScrollEnabled else { return }
+        guard vm.notchState == .closed && isPagerScrollEffectivelyEnabled else { return }
 
         if phase == .ended {
             withAnimation(animationSpring) { gestureProgress = .zero }
@@ -3931,7 +4475,7 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
 
     private func handleUpGesture(translation: CGFloat, phase: NSEvent.Phase) {
   // Don't trigger if pager scroll is disabled (user is interacting with scrollable content)
-        guard vm.notchState == .open && !vm.isHoveringCalendar && isPagerScrollEnabled else { return }
+        guard vm.notchState == .open && !vm.isHoveringCalendar && isPagerScrollEffectivelyEnabled else { return }
 
         withAnimation(animationSpring) {
             gestureProgress = (translation / Defaults[.gestureSensitivity]) * -20
@@ -3952,9 +4496,302 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
             if Defaults[.enableHaptics] { haptics.toggle() }
         }
     }
+
+    private func performNowPlayingRightButtonAction() {
+        let expectedPlaying = !musicManager.isPlaying
+        musicManager.playPause()
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(120))
+            guard musicManager.isPlaying != expectedPlaying else { return }
+            if expectedPlaying {
+                musicManager.play()
+            } else {
+                musicManager.pause()
+            }
+            try? await Task.sleep(for: .milliseconds(100))
+            guard musicManager.isPlaying != expectedPlaying else { return }
+            sendSystemPlayPauseMediaKey()
+        }
+    }
+
+    private func installNowPlayingClickMonitorIfNeeded() {
+        guard nowPlayingClickMonitor == nil else { return }
+        nowPlayingClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
+            guard vm.notchState == .closed else { return event }
+            guard shouldShowMusicActivityClosed else { return event }
+            guard isNowPlayingRightHovering else { return event }
+            performNowPlayingRightButtonAction()
+            return nil
+        }
+    }
+
+    private func sendSystemPlayPauseMediaKey() {
+        let keyTypePlayPause = 16
+
+        let keyDownData1 = (keyTypePlayPause << 16) | (0xA << 8)
+        if let keyDown = NSEvent.otherEvent(
+            with: .systemDefined,
+            location: .zero,
+            modifierFlags: NSEvent.ModifierFlags(rawValue: 0xA00),
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            subtype: 8,
+            data1: keyDownData1,
+            data2: -1
+        )?.cgEvent {
+            keyDown.post(tap: .cghidEventTap)
+        }
+
+        let keyUpData1 = (keyTypePlayPause << 16) | (0xB << 8)
+        if let keyUp = NSEvent.otherEvent(
+            with: .systemDefined,
+            location: .zero,
+            modifierFlags: NSEvent.ModifierFlags(rawValue: 0xB00),
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            subtype: 8,
+            data1: keyUpData1,
+            data2: -1
+        )?.cgEvent {
+            keyUp.post(tap: .cghidEventTap)
+        }
+    }
 }
 
 // MARK: - Bluetooth expanded view
+
+fileprivate struct NowPlayingEdgeHoverTrackingView: NSViewRepresentable {
+    let leftEdgeWidth: CGFloat
+    let rightEdgeWidth: CGFloat
+    let onHoverZonesChanged: (_ hoveringLeft: Bool, _ hoveringRight: Bool, _ hoveringCenter: Bool) -> Void
+    let onRightEdgeTap: () -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = HoverView()
+        view.leftEdgeWidth = leftEdgeWidth
+        view.rightEdgeWidth = rightEdgeWidth
+        view.onHoverZonesChanged = onHoverZonesChanged
+        view.onRightEdgeTap = onRightEdgeTap
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard let view = nsView as? HoverView else { return }
+        view.leftEdgeWidth = leftEdgeWidth
+        view.rightEdgeWidth = rightEdgeWidth
+        view.onHoverZonesChanged = onHoverZonesChanged
+        view.onRightEdgeTap = onRightEdgeTap
+    }
+
+    final class HoverView: NSView {
+        var leftEdgeWidth: CGFloat = 0
+        var rightEdgeWidth: CGFloat = 0
+        var onHoverZonesChanged: ((_ hoveringLeft: Bool, _ hoveringRight: Bool, _ hoveringCenter: Bool) -> Void)?
+        var onRightEdgeTap: (() -> Void)?
+        private var trackingArea: NSTrackingArea?
+
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            // Intercept clicks only on the right hover zone to guarantee pause action.
+            return isPointInRightZone(point) ? self : nil
+        }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let existing = trackingArea { removeTrackingArea(existing) }
+            let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect]
+            trackingArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
+            if let trackingArea { addTrackingArea(trackingArea) }
+        }
+
+        override func mouseEntered(with event: NSEvent) { updateHover(with: event) }
+        override func mouseMoved(with event: NSEvent) { updateHover(with: event) }
+        override func mouseExited(with event: NSEvent) { onHoverZonesChanged?(false, false, false) }
+        override func mouseDown(with event: NSEvent) {
+            let p = convert(event.locationInWindow, from: nil)
+            if isPointInRightZone(p) {
+                onRightEdgeTap?()
+            }
+        }
+
+        private func isPointInRightZone(_ p: NSPoint) -> Bool {
+            guard bounds.contains(p) else { return false }
+            let right = max(0, rightEdgeWidth)
+            return p.x >= (bounds.width - right)
+        }
+
+        private func updateHover(with event: NSEvent) {
+            let p = convert(event.locationInWindow, from: nil)
+            guard bounds.contains(p) else {
+                onHoverZonesChanged?(false, false, false)
+                return
+            }
+
+            let left = max(0, leftEdgeWidth)
+            let right = max(0, rightEdgeWidth)
+            let x = p.x
+            let w = bounds.width
+
+            let hoveringLeft = x <= left
+            let hoveringRight = x >= (w - right)
+            let hoveringCenter = !hoveringLeft && !hoveringRight
+            onHoverZonesChanged?(hoveringLeft, hoveringRight, hoveringCenter)
+        }
+    }
+}
+
+fileprivate struct NowPlayingMorphingGlyph: View {
+    var progress: CGFloat   // 0 = waveform, 1 = control icon
+    let isPlaying: Bool     // true => pause-like target, false => play-like target
+    let shouldAnimateWaveform: Bool
+    let tint: Color
+    @State private var displayedIsPlaying: Bool = true
+    @State private var incomingIsPlaying: Bool = true
+    @State private var iconSwapProgress: CGFloat = 1
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    private struct BarSpec {
+        var x: CGFloat
+        var width: CGFloat
+        var height: CGFloat
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: (progress > 0.98) || !shouldAnimateWaveform)) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            let p = max(0, min(1, progress))
+            let eased = p * p * (3 - 2 * p)
+            let playingMix: CGFloat = shouldAnimateWaveform ? 1 : 0
+            let waveFlat: [BarSpec] = [
+                .init(x: -8.0, width: 2.1, height: 2.6),
+                .init(x: -4.0, width: 2.1, height: 2.6),
+                .init(x:  0.0, width: 2.1, height: 2.6),
+                .init(x:  4.0, width: 2.1, height: 2.6),
+                .init(x:  8.0, width: 2.1, height: 2.6)
+            ]
+            let waveActive: [BarSpec] = [
+                .init(x: -8.0, width: 2.1, height: 6.5 + 2.0 * sin(t * 5.1)),
+                .init(x: -4.0, width: 2.1, height: 11.0 + 3.0 * sin(t * 6.1 + 0.8)),
+                .init(x:  0.0, width: 2.1, height: 7.8 + 2.4 * sin(t * 5.6 + 1.4)),
+                .init(x:  4.0, width: 2.1, height: 12.0 + 2.8 * sin(t * 6.5 + 2.2)),
+                .init(x:  8.0, width: 2.1, height: 7.0 + 2.0 * sin(t * 5.0 + 2.9))
+            ]
+            let wave: [BarSpec] = (0..<5).map { i in
+                let f = waveFlat[i]
+                let a = waveActive[i]
+                return .init(
+                    x: f.x + (a.x - f.x) * playingMix,
+                    width: f.width + (a.width - f.width) * playingMix,
+                    height: f.height + (a.height - f.height) * playingMix
+                )
+            }
+
+            let targetPause: [BarSpec] = [
+                .init(x: -8.0, width: 0.05, height: 0.05),
+                .init(x: -3.6, width: 3.1, height: 14.0),
+                .init(x:  0.0, width: 0.05, height: 0.05),
+                .init(x:  3.6, width: 3.1, height: 14.0),
+                .init(x:  8.0, width: 0.05, height: 0.05)
+            ]
+
+            let targetPlay: [BarSpec] = [
+                .init(x: -6.0, width: 2.1, height: 4.5),
+                .init(x: -3.0, width: 2.3, height: 7.0),
+                .init(x:  0.0, width: 2.5, height: 9.5),
+                .init(x:  3.0, width: 2.7, height: 12.0),
+                .init(x:  6.0, width: 2.9, height: 14.5)
+            ]
+            let target = isPlaying ? targetPause : targetPlay
+            let barsOpacity: CGFloat = {
+                if p < 0.90 { return 1 }
+                if p >= 0.995 { return 0 }
+                let t = (p - 0.90) / 0.095
+                return max(0, 1 - t)
+            }()
+
+            ZStack {
+                ForEach(0..<5, id: \.self) { i in
+                    let a = wave[i]
+                    let b = target[i]
+                    let x = a.x + (b.x - a.x) * eased
+                    let w = max(0.05, a.width + (b.width - a.width) * eased)
+                    let h = max(0.05, a.height + (b.height - a.height) * eased)
+
+                    RoundedRectangle(cornerRadius: min(w, h) * 0.45, style: .continuous)
+                        .fill(tint)
+                        .frame(width: w, height: h)
+                        .offset(x: x)
+                }
+            }
+            .opacity(barsOpacity)
+            .overlay {
+                // At rest only: draw exact control icon.
+                if p >= 0.995 {
+                    controlIconMorphLayer
+                }
+            }
+            .frame(width: 24, height: 24, alignment: .center)
+            .clipped()
+            .drawingGroup()
+        }
+        .onAppear {
+            displayedIsPlaying = isPlaying
+            incomingIsPlaying = isPlaying
+            iconSwapProgress = 1
+        }
+        .onChange(of: isPlaying) { oldValue, newValue in
+            guard oldValue != newValue else { return }
+            // Trigger icon morph only when we are in the final icon phase.
+            if max(0, min(1, progress)) >= 0.995 {
+                displayedIsPlaying = oldValue
+                incomingIsPlaying = newValue
+                iconSwapProgress = 0
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.85)) {
+                    iconSwapProgress = 1
+                }
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(320))
+                    displayedIsPlaying = newValue
+                    incomingIsPlaying = newValue
+                    iconSwapProgress = 1
+                }
+            } else {
+                // Keep state coherent while still morphing from waves.
+                displayedIsPlaying = newValue
+                incomingIsPlaying = newValue
+                iconSwapProgress = 1
+            }
+        }
+    }
+
+    private var controlIconMorphLayer: some View {
+        ZStack {
+            controlSymbol(isPlaying: displayedIsPlaying)
+                .opacity(1 - iconSwapProgress)
+                .scaleEffect(1.0 - 0.14 * iconSwapProgress)
+                .offset(x: displayedIsPlaying ? -0.5 * iconSwapProgress : 0.5 * iconSwapProgress)
+
+            controlSymbol(isPlaying: incomingIsPlaying)
+                .opacity(iconSwapProgress)
+                .scaleEffect(0.86 + 0.14 * iconSwapProgress)
+                .offset(x: incomingIsPlaying ? 0.5 * (1 - iconSwapProgress) : -0.5 * (1 - iconSwapProgress))
+        }
+        .compositingGroup()
+    }
+
+    private func controlSymbol(isPlaying: Bool) -> some View {
+        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+            .font(.system(size: 13, weight: .semibold, design: .rounded))
+            .foregroundStyle(tint)
+    }
+}
 
 fileprivate struct BluetoothEdgeHoverTrackingView: NSViewRepresentable {
     let leftEdgeWidth: CGFloat
@@ -4228,6 +5065,8 @@ struct GeneralDropTargetDelegateLocal: DropDelegate {
 
 
 
+
+
 // MARK: - NotchPagerDynamic (2-3 pages, swipe)
 
 struct NotchPagerDynamic: View {
@@ -4239,6 +5078,7 @@ struct NotchPagerDynamic: View {
 
     @State private var dragOffset: CGFloat = 0
     @State private var filteredDeltaX: CGFloat = 0
+    @State private var swipeStartBoostSamples: Int = 0
     @State private var isDragging: Bool = false
     @State private var isHovering: Bool = false
     @State private var isSwipeSettling: Bool = false
@@ -4256,7 +5096,6 @@ struct NotchPagerDynamic: View {
                 ForEach(Array(enabledViews.enumerated()), id: \.offset) { _, view in
                     page(view)
                         .frame(width: width)
-                        .clipped() // Clip each page individually.
                         .compositingGroup() // Force independent rendering for each page.
                         .allowsHitTesting(!isDragging)
                 }
@@ -4276,6 +5115,7 @@ struct NotchPagerDynamic: View {
         .onChange(of: selection) { _, _ in
             dragOffset = 0
             filteredDeltaX = 0
+            swipeStartBoostSamples = 0
             isDragging = false
         }
         .background(
@@ -4297,16 +5137,23 @@ struct NotchPagerDynamic: View {
     private func handleScroll(deltaX: CGFloat, width: CGFloat) {
         guard enabledViews.count > 1 else { return }
 
-        if !isDragging && abs(deltaX) > 0 { isDragging = true }
+        if !isDragging && abs(deltaX) > 0 {
+            isDragging = true
+            // Remove startup lag on the very first scroll sample.
+            filteredDeltaX = deltaX * 2.8
+            swipeStartBoostSamples = 8
+        }
 
   // Low-pass filter + tiny dead zone to suppress hand tremor jitter while dragging.
-        let jitterDeadZone: CGFloat = 0.20
+        let jitterDeadZone: CGFloat = 0.04
         let input = abs(deltaX) < jitterDeadZone ? 0 : deltaX
         let alpha: CGFloat = 0.42
         filteredDeltaX += (input - filteredDeltaX) * alpha
 
   // Keep strong finger coupling, but on filtered input.
-        let newOffset = dragOffset + (filteredDeltaX * 0.52)
+        let startBoost: CGFloat = swipeStartBoostSamples > 0 ? 2.35 : 1.0
+        let newOffset = dragOffset + (filteredDeltaX * 0.52 * startBoost)
+        if swipeStartBoostSamples > 0 { swipeStartBoostSamples -= 1 }
         let rubberBand: CGFloat = 130
 
         let minOffset = -(CGFloat(enabledViews.count - 1 - currentIndex) * width) - rubberBand
@@ -4324,17 +5171,18 @@ struct NotchPagerDynamic: View {
     private func snapToPage(velocity: CGFloat, width: CGFloat) {
         guard enabledViews.count > 1 else { return }
 
-        let threshold = width * 0.08
+        let threshold = width * 0.05
         var nextIndex = currentIndex
 
-        if dragOffset < -threshold || velocity < -0.40 {
+        if dragOffset < -threshold || velocity < -0.30 {
             nextIndex = min(currentIndex + 1, enabledViews.count - 1)
-        } else if dragOffset > threshold || velocity > 0.40 {
+        } else if dragOffset > threshold || velocity > 0.30 {
             nextIndex = max(currentIndex - 1, 0)
         }
 
         isDragging = false
         filteredDeltaX = 0
+        swipeStartBoostSamples = 0
         if nextIndex != currentIndex {
             isSwipeSettling = true
             selection = enabledViews[nextIndex]
@@ -4363,6 +5211,7 @@ struct NotchPager<First: View, Second: View>: View {
 
     @State private var dragOffset: CGFloat = 0
     @State private var filteredDeltaX: CGFloat = 0
+    @State private var swipeStartBoostSamples: Int = 0
     @State private var isDragging: Bool = false
     @State private var isHovering: Bool = false
     @State private var isSwipeSettling: Bool = false
@@ -4389,13 +5238,11 @@ struct NotchPager<First: View, Second: View>: View {
             HStack(spacing: 0) {
                 first
                     .frame(width: width)
-                    .clipped() // Clip each page individually.
                     .compositingGroup() // Force independent rendering.
                     .allowsHitTesting(!isDragging)
 
                 second
                     .frame(width: width)
-                    .clipped() // Clip each page individually.
                     .compositingGroup() // Force independent rendering.
                     .allowsHitTesting(!isDragging)
             }
@@ -4414,6 +5261,7 @@ struct NotchPager<First: View, Second: View>: View {
         .onChange(of: selection) { _, _ in
             dragOffset = 0
             filteredDeltaX = 0
+            swipeStartBoostSamples = 0
             isDragging = false
         }
         .background(
@@ -4433,16 +5281,23 @@ struct NotchPager<First: View, Second: View>: View {
     }
 
     func handleScroll(deltaX: CGFloat, width: CGFloat) {
-        if !isDragging && abs(deltaX) > 0 { isDragging = true }
+        if !isDragging && abs(deltaX) > 0 {
+            isDragging = true
+            // Remove startup lag on the very first scroll sample.
+            filteredDeltaX = deltaX * 2.8
+            swipeStartBoostSamples = 8
+        }
 
   // Low-pass filter + tiny dead zone to suppress hand tremor jitter while dragging.
-        let jitterDeadZone: CGFloat = 0.20
+        let jitterDeadZone: CGFloat = 0.04
         let input = abs(deltaX) < jitterDeadZone ? 0 : deltaX
         let alpha: CGFloat = 0.42
         filteredDeltaX += (input - filteredDeltaX) * alpha
 
   // Keep strong finger coupling, but on filtered input.
-        let newOffset = dragOffset + (filteredDeltaX * 0.52)
+        let startBoost: CGFloat = swipeStartBoostSamples > 0 ? 2.35 : 1.0
+        let newOffset = dragOffset + (filteredDeltaX * 0.52 * startBoost)
+        if swipeStartBoostSamples > 0 { swipeStartBoostSamples -= 1 }
         let rubberBand: CGFloat = 130
 
         if currentIndex == 0 {
@@ -4466,17 +5321,18 @@ struct NotchPager<First: View, Second: View>: View {
     }
 
     func snapToPage(velocity: CGFloat, width: CGFloat) {
-        let threshold = width * 0.08
+        let threshold = width * 0.05
         var nextIndex = currentIndex
 
         if currentIndex == 0 {
-            if dragOffset < -threshold || velocity < -0.40 { nextIndex = 1 }
+            if dragOffset < -threshold || velocity < -0.30 { nextIndex = 1 }
         } else {
-            if dragOffset > threshold || velocity > 0.40 { nextIndex = 0 }
+            if dragOffset > threshold || velocity > 0.30 { nextIndex = 0 }
         }
 
         isDragging = false
         filteredDeltaX = 0
+        swipeStartBoostSamples = 0
 
         if nextIndex != currentIndex {
             isSwipeSettling = true
@@ -4555,9 +5411,12 @@ struct ScrollSpy: NSViewRepresentable {
 
 private struct NotificationBatteryIcon: View {
     let levelBattery: Float
+    let isLowPowerMode: Bool
 
     private let emptyAssetName = "battery_empty"
     private let fullAssetName  = "battery_full"
+    private let lowPowerFillColor = Color(red: 1.0, green: 0.86, blue: 0.18)
+    private let criticalFillColor = Color(red: 1.0, green: 0.23, blue: 0.19)
 
     private static let nativeAspectRatio: CGFloat = 109.394295 / 52.0
 
@@ -4567,6 +5426,31 @@ private struct NotificationBatteryIcon: View {
 
         let clamped = min(max(p, 0.0), 99.0)
         return clamped / 110.0
+    }
+
+    private var isCriticalBattery: Bool {
+        levelBattery < 20
+    }
+
+    @ViewBuilder
+    private var fillImage: some View {
+        if isCriticalBattery {
+            Image(fullAssetName)
+                .resizable()
+                .renderingMode(.template)
+                .foregroundStyle(criticalFillColor)
+                .scaledToFit()
+        } else if isLowPowerMode {
+            Image(fullAssetName)
+                .resizable()
+                .renderingMode(.template)
+                .foregroundStyle(lowPowerFillColor)
+                .scaledToFit()
+        } else {
+            Image(fullAssetName)
+                .resizable()
+                .scaledToFit()
+        }
     }
 
     var body: some View {
@@ -4580,9 +5464,9 @@ private struct NotificationBatteryIcon: View {
                         .resizable()
                         .scaledToFit()
 
-                    Image(fullAssetName)
-                        .resizable()
-                        .scaledToFit()
+                    fillImage
+                        .frame(width: renderedWidth, height: geo.size.height, alignment: .leading)
+                        .clipped()
                         .mask(
                             HStack(spacing: 0) {
                                 Rectangle()

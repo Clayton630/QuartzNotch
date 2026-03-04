@@ -32,7 +32,11 @@ struct NotchShape: InsettableShape {
             )
         }
         set {
-            topCornerRadius = newValue.first
+            // In exact-bounds mode (used by the deployed notch), keep top corners
+            // non-animated to avoid the transient inward rounding at open start.
+            if !useExactBounds {
+                topCornerRadius = newValue.first
+            }
             bottomCornerRadius = newValue.second
         }
     }

@@ -19,6 +19,7 @@ struct FileShareView: View {
     @State private var hostView: NSView?
     @State private var interactionNonce: UUID = .init()
     @State private var isProcessing = false
+    @State private var isLocalDropTargeting = false
     
     private var selectedProvider: QuickShareProvider {
         quickShare.availableProviders.first(where: { $0.id == quickShareProvider }) ?? QuickShareProvider(id: "System Share Menu", imageData: nil, supportsRawText: true)
@@ -27,11 +28,18 @@ struct FileShareView: View {
     var body: some View {
         dropArea
             .background(NSViewHost(view: $hostView))
-            .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data, .image], isTargeted: $vm.dropZoneTargeting) { providers in
+            .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data, .image], isTargeted: $isLocalDropTargeting) { providers in
                 interactionNonce = .init()
                 vm.dropEvent = true
                 Task { await handleDrop(providers) }
                 return true
+            }
+            .onChange(of: isLocalDropTargeting) { _, targeted in
+                vm.dropZoneTargeting = targeted
+            }
+            .onDisappear {
+                isLocalDropTargeting = false
+                vm.dropZoneTargeting = false
             }
             .onTapGesture {
                 Task {
@@ -43,25 +51,23 @@ struct FileShareView: View {
     private var dropArea: some View {
         let cornerRadius: CGFloat = 16
         let hasLocalActivity = isProcessing || quickShare.isPickerOpen
+        let isDropHighlighted = isLocalDropTargeting
         let idleFillOpacity: Double = hasLocalActivity ? 0.82 : 0.60
         let idleOverlayOpacity: Double = hasLocalActivity ? 0.22 : 0.10
         return ZStack {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(cardBaseFill.opacity(vm.dropZoneTargeting ? 1.0 : idleFillOpacity))
+                .fill(cardBaseFill.opacity(isDropHighlighted ? 1.0 : idleFillOpacity))
                 .overlay {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(cardBaseFill.opacity(vm.dropZoneTargeting ? 0.22 : idleOverlayOpacity))
+                        .fill(cardBaseFill.opacity(isDropHighlighted ? 0.22 : idleOverlayOpacity))
                 }
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 1.3)
+                        .strokeBorder(
+                            isDropHighlighted ? Color.accentColor.opacity(0.62) : Color.white.opacity(0.12),
+                            lineWidth: 1.3
+                        )
                 )
-                .overlay {
-                    if vm.dropZoneTargeting {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1.2)
-                    }
-                }
                 .shadow(color: Color.black.opacity(pageUseLiquidGlassBackground ? 0.25 : 0.40), radius: 6, x: 0, y: 2)
 
       // Content
@@ -69,7 +75,7 @@ struct FileShareView: View {
                 ZStack {
                     let actionBlue = Color(nsColor: .systemBlue)
                     Circle()
-                        .fill(actionBlue.opacity(vm.dropZoneTargeting ? 0.27 : 0.21))
+                        .fill(actionBlue.opacity(isDropHighlighted ? 0.27 : 0.21))
                         .frame(width: 48, height: 48)
 
                     Group {
@@ -79,11 +85,11 @@ struct FileShareView: View {
                                 .renderingMode(.template)
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: 21, height: 21)
-                                .foregroundStyle(actionBlue.opacity(vm.dropZoneTargeting ? 1.0 : 0.95))
+                                .foregroundStyle(actionBlue.opacity(isDropHighlighted ? 1.0 : 0.95))
                         } else if let symbol = systemSymbolName(for: selectedProvider.id) {
                             Image(systemName: symbol)
                                 .symbolRenderingMode(.hierarchical)
-                                .foregroundStyle(actionBlue.opacity(vm.dropZoneTargeting ? 1.0 : 0.95))
+                                .foregroundStyle(actionBlue.opacity(isDropHighlighted ? 1.0 : 0.95))
                         } else if let imgData = selectedProvider.imageData, let nsImg = NSImage(data: imgData) {
                             Image(nsImage: nsImg)
                                 .resizable()
@@ -91,7 +97,7 @@ struct FileShareView: View {
                                 .saturation(0)
                                 .brightness(0.04)
                                 .colorMultiply(actionBlue)
-                                .opacity(vm.dropZoneTargeting ? 1.0 : 0.95)
+                                .opacity(isDropHighlighted ? 1.0 : 0.95)
                         } else if let nsImg = ProviderAppIconResolver.icon(forProviderName: selectedProvider.id) {
                             Image(nsImage: nsImg)
                                 .resizable()
@@ -99,22 +105,22 @@ struct FileShareView: View {
                                 .saturation(0)
                                 .brightness(0.04)
                                 .colorMultiply(actionBlue)
-                                .opacity(vm.dropZoneTargeting ? 1.0 : 0.95)
+                                .opacity(isDropHighlighted ? 1.0 : 0.95)
                         } else {
                             Image(systemName: "square.and.arrow.up")
                                 .symbolRenderingMode(.hierarchical)
-                                .foregroundStyle(actionBlue.opacity(vm.dropZoneTargeting ? 1.0 : 0.95))
+                                .foregroundStyle(actionBlue.opacity(isDropHighlighted ? 1.0 : 0.95))
                         }
                     }
                     .frame(width: 34, height: 34)
                         .font(.system(size: 17, weight: .medium))
                 }
-                .scaleEffect(vm.dropZoneTargeting ? 1.14 : 1.0)
+                .scaleEffect(isDropHighlighted ? 1.14 : 1.0)
                 .shadow(
-                    color: Color(nsColor: .systemBlue).opacity(vm.dropZoneTargeting ? 0.32 : 0.0),
-                    radius: vm.dropZoneTargeting ? 4.0 : 0.0
+                    color: Color(nsColor: .systemBlue).opacity(isDropHighlighted ? 0.32 : 0.0),
+                    radius: isDropHighlighted ? 4.0 : 0.0
                 )
-                .animation(.spring(response: 0.30, dampingFraction: 0.62), value: vm.dropZoneTargeting)
+                .animation(.spring(response: 0.30, dampingFraction: 0.62), value: isDropHighlighted)
                 .padding(.bottom, 4)
 
                 Text(selectedProvider.id)

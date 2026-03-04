@@ -345,6 +345,12 @@ private func cleanupWindows(shouldInvert: Bool = false) {
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleReopenOnboardingSetup),
+            name: .reopenOnboardingSetup,
+            object: nil
+        )
 
         NotificationCenter.default.addObserver(
             forName: Notification.Name.selectedScreenChanged, object: nil, queue: nil
@@ -601,12 +607,20 @@ private func cleanupWindows(shouldInvert: Bool = false) {
         statusItem?.menu?.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 
+    @objc private func handleReopenOnboardingSetup() {
+        reopenOnboardingSetup()
+    }
+
     @objc func quitAction() {
         NSApplication.shared.terminate(self)
     }
 
+    func reopenOnboardingSetup() {
+        showOnboardingWindow(step: .welcome)
+    }
+
     private func showOnboardingWindow(step: OnboardingStep = .welcome) {
-        if onboardingWindowController == nil {
+        if onboardingWindowController == nil || onboardingWindowController?.window == nil {
             let window = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 400, height: 600),
                 styleMask: [.titled, .fullSizeContentView],
@@ -624,10 +638,12 @@ private func cleanupWindows(shouldInvert: Bool = false) {
                         window.orderOut(nil)
 //            NSApp.setActivationPolicy(.accessory)
                         window.close()
+                        self.onboardingWindowController = nil
                         NSApp.deactivate()
                     },
                     onOpenSettings: {
                         window.close()
+                        self.onboardingWindowController = nil
                         SettingsWindowController.shared.showWindow()
                     }
                 ))
@@ -650,6 +666,7 @@ extension Notification.Name {
     static let showOnAllDisplaysChanged = Notification.Name("showOnAllDisplaysChanged")
     static let automaticallySwitchDisplayChanged = Notification.Name("automaticallySwitchDisplayChanged")
     static let expandedDragDetectionChanged = Notification.Name("expandedDragDetectionChanged")
+    static let reopenOnboardingSetup = Notification.Name("reopenOnboardingSetup")
 }
 
 extension CGRect: @retroactive Hashable {

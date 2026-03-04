@@ -15,6 +15,7 @@ import SwiftUI
 struct MusicPlayerView: View {
     @EnvironmentObject var vm: BoringViewModel
     let albumArtNamespace: Namespace.ID
+    let albumRevealCompensationProgress: CGFloat
 
     var body: some View {
         let sidePadding: CGFloat = 22
@@ -24,7 +25,11 @@ struct MusicPlayerView: View {
         let innerSpacing: CGFloat = 12
 
         return HStack(spacing: innerSpacing) {
-            AlbumArtView(vm: vm, albumArtNamespace: albumArtNamespace)
+            AlbumArtView(
+                vm: vm,
+                albumArtNamespace: albumArtNamespace,
+                revealCompensationProgress: albumRevealCompensationProgress
+            )
                 .frame(width: albumSize, height: albumSize)
                 .offset(y: 1)
 
@@ -45,12 +50,21 @@ struct AlbumArtView: View {
     @ObservedObject var musicManager = MusicManager.shared
     @ObservedObject var vm: BoringViewModel
     let albumArtNamespace: Namespace.ID
+    let revealCompensationProgress: CGFloat
     @Default(.pageUseLiquidGlassBackground) private var pageUseLiquidGlassBackground
 
     var body: some View {
+        let p = max(0, min(1, revealCompensationProgress))
+        let active = p < 0.999
+        let parentScaleY: CGFloat = 0.72 + (0.28 * p)
+        let inverseScaleY: CGFloat = active ? (1 / max(0.001, parentScaleY)) : 1
+        let inverseOffsetY: CGFloat = active ? (92 * (1 - p)) : 0
+
         ZStack(alignment: .bottomTrailing) {
             albumArtButton
         }
+        .scaleEffect(x: 1, y: inverseScaleY, anchor: .top)
+        .offset(y: inverseOffsetY)
     }
 
     private var albumArtBackground: some View {
@@ -270,8 +284,14 @@ struct MusicControlsView: View {
         )
         let padded = slotConfig.padded(to: sanitizedLimit, filler: .none)
         let result = Array(padded.prefix(sanitizedLimit))
-    // If calendar and camera are both visible alongside music, hide the edge slots
-        let shouldHideEdges = Defaults[.showCalendar] && Defaults[.showMirror] && webcamManager.cameraAvailable && vm.isCameraExpanded
+    // If calendar and camera are both visible alongside music, hide the edge slots.
+    // Defer this while camera layout is intentionally suppressed during calendar->camera switch.
+        let shouldHideEdges =
+            Defaults[.showCalendar]
+            && Defaults[.showMirror]
+            && webcamManager.cameraAvailable
+            && vm.isCameraExpanded
+            && !vm.suppressCameraLayoutInOpenContent
         if shouldHideEdges && result.count >= 5 {
             return Array(result.dropFirst().dropLast())
         }
@@ -281,9 +301,10 @@ struct MusicControlsView: View {
 
     @ViewBuilder
     private func slotView(for slot: MusicControlButton) -> some View {
+        let neutralControlTint = Color.gray.opacity(0.78)
         switch slot {
         case .shuffle:
-            HoverButton(icon: "shuffle", iconColor: musicManager.isShuffled ? .red : .primary, scale: .medium, customSize: 27, customIconFontSize: 14) {
+            HoverButton(icon: "shuffle", iconColor: musicManager.isShuffled ? .red : neutralControlTint, scale: .medium, customSize: 27, customIconFontSize: 14) {
                 MusicManager.shared.toggleShuffle()
             }
         case .previous:
@@ -310,11 +331,11 @@ struct MusicControlsView: View {
         case .favorite:
             FavoriteControlButton()
         case .goBackward:
-            HoverButton(icon: "gobackward.15", scale: .medium, customSize: 27, customIconFontSize: 14) {
+            HoverButton(icon: "gobackward.15", iconColor: neutralControlTint, scale: .medium, customSize: 27, customIconFontSize: 14) {
                 MusicManager.shared.skip(seconds: -15)
             }
         case .goForward:
-            HoverButton(icon: "goforward.15", scale: .medium, customSize: 27, customIconFontSize: 14) {
+            HoverButton(icon: "goforward.15", iconColor: neutralControlTint, scale: .medium, customSize: 27, customIconFontSize: 14) {
                 MusicManager.shared.skip(seconds: 15)
             }
         case .none:
@@ -336,7 +357,7 @@ struct MusicControlsView: View {
     private var repeatIconColor: Color {
         switch musicManager.repeatMode {
         case .off:
-            return .primary
+            return .gray.opacity(0.78)
         case .all, .one:
             return .red
         }
@@ -359,7 +380,7 @@ struct FavoriteControlButton: View {
     }
 
     private var iconColor: Color {
-        musicManager.isFavoriteTrack ? .red : .primary
+        musicManager.isFavoriteTrack ? .red : .gray.opacity(0.78)
     }
 }
 
@@ -391,7 +412,7 @@ struct VolumeControlView: View {
             }) {
                 Image(systemName: volumeIcon)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(musicManager.volumeControlSupported ? .white : .gray)
+                    .foregroundColor(musicManager.volumeControlSupported ? .gray.opacity(0.78) : .gray)
             }
             .buttonStyle(PlainButtonStyle())
             .disabled(!musicManager.volumeControlSupported)
@@ -473,6 +494,7 @@ struct NotchHomeView: View {
     @Default(.showMirror) private var showMirror
 
     let albumArtNamespace: Namespace.ID
+    let albumRevealCompensationProgress: CGFloat
     private let cameraReservedWidth: CGFloat = 132
 
     var body: some View {
@@ -490,18 +512,28 @@ struct NotchHomeView: View {
     }
 
     private var shouldShowCamera: Bool {
-        showMirror && webcamManager.cameraAvailable && vm.isCameraExpanded
+        showMirror
+            && webcamManager.cameraAvailable
+            && vm.isCameraExpanded
+            && !vm.suppressCameraLayoutInOpenContent
+    }
+
+    private var compactSpacingMode: Bool {
+        shouldShowCamera && showCalendar
     }
 
     private var mainContent: some View {
-        HStack(alignment: .top, spacing: (shouldShowCamera && showCalendar) ? 10 : 15) {
-            MusicPlayerView(albumArtNamespace: albumArtNamespace)
+        HStack(alignment: .top, spacing: compactSpacingMode ? 10 : 15) {
+            MusicPlayerView(
+                albumArtNamespace: albumArtNamespace,
+                albumRevealCompensationProgress: albumRevealCompensationProgress
+            )
             if shouldShowCamera {
                 Spacer(minLength: 0)
                     .frame(width: cameraReservedWidth, height: 0)
             }
         }
-        .animation(.interactiveSpring(response: 0.35, dampingFraction: 0.85), value: showCalendar)
+        .animation(.interactiveSpring(response: 0.35, dampingFraction: 0.85), value: compactSpacingMode)
         .transition(.opacity)
         .blur(radius: vm.notchState == .closed ? 30 : 0)
     }
@@ -525,13 +557,18 @@ struct MusicSliderView: View {
 
 
     var body: some View {
+        let timestampTint: Color =
+            Defaults[.playerColorTinting]
+            ? Color(nsColor: color).ensureMinimumBrightness(factor: 0.6)
+            : .gray.opacity(0.78)
+
         VStack {
             CustomSlider(
                 value: $sliderValue,
                 range: 0...duration,
                 color: Defaults[.sliderColor] == SliderColorEnum.albumArt
                     ? Color(nsColor: color).ensureMinimumBrightness(factor: 0.8)
-                    : Defaults[.sliderColor] == SliderColorEnum.accent ? .effectiveAccent : .white,
+                    : Defaults[.sliderColor] == SliderColorEnum.accent ? .effectiveAccent : timestampTint,
                 dragging: $dragging,
                 lastDragged: $lastDragged,
                 onValueChange: { newValue in
@@ -551,10 +588,7 @@ struct MusicSliderView: View {
                 Text("-\(timeString(from: max(0, duration - sliderValue)))")
             }
             .fontWeight(.medium)
-            .foregroundColor(
-                Defaults[.playerColorTinting]
-                    ? Color(nsColor: color).ensureMinimumBrightness(factor: 0.6) : .gray.opacity(0.78)
-            )
+            .foregroundColor(timestampTint)
             .font(.caption)
         }
         .onChange(of: currentDate) {
