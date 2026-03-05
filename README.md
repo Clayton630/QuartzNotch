@@ -9,20 +9,25 @@ QuartzNotch is a fork of BoringNotch focused on smoother interactions, richer li
 ## Changelog
 
 - Made the notch more compact, with dynamic width that adapts to displayed content.
-- Introduced a new page navigation system that is smoother and more intuitive.
+- Introducing a new page navigation system that is smoother and more intuitive.
+- Added a third page with quick timers and a fully functionnal clipboard manager.
 - Added a new toolbar capsule for quick access to key features and actions.
-- Added a new animated lock screen live activity.
 - Merged music providers so no manual provider selection is needed anymore.
-- Added a shelf live activity showing how many files are currently in the shelf.
 - Added a new track-skipping animation inspired by iOS Dynamic Island behavior.
 - Slightly refined the notch shape.
-- Updated default options for a better out-of-the-box experience.
-- Revamped the charging live activity.
-- Added a dedicated Live Activities category in Settings.
-- Added an expandable Bluetooth devices live activity.
+- Added a new semi Liquid Glass background option
+- Completely revamped the files shelf for a better experience
 - Improved the Settings experience overall.
-- Added a third page with quick timers and a clipboard manager.
-- Added a live activity timer.
+- Updated default options for a better out-of-the-box experience.
+- Refined media page and controls
+- Added a dedicated Live Activities category in Settings.
+- Revamped the charging live activity, now with an adaptive tinting.
+- Added a new animated lock screen live activity.
+- Added a shelf live activity showing how many files are in it.
+- Added an expandable Bluetooth devices live activity.
+- Added an expandable timer live activity with synchronised trackpad vibrations.
+- Added a focus mode live activity
+- Added quick actions to the Now Playing live activity (hover on the left side to show sneak peek, and hover on the right side to quickly play/pause).
 - Added support for displaying two live activities at the same time.
 - Overhauled and improved animations across the app.
 
@@ -40,13 +45,9 @@ System requirements:
 ## Build From Source
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Clayton630/QuartzNotch
 cd codex
 open boringNotch.xcodeproj
 ```
 
 Build and run from Xcode (`Cmd + R`).
-
-## License
-
-See `LICENSE`.
