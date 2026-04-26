@@ -8,9 +8,9 @@
 
         <item>
             <title>0.3</title>
-            <pubDate>Sun, 26 Apr 2026 02:44:34 +0200</pubDate>
+            <pubDate>Sun, 26 Apr 2026 02:52:00 +0200</pubDate>
             <link>https://github.com/Clayton630/QuartzNotch/releases/tag/v0.3</link>
-            <sparkle:version>1030</sparkle:version>
+            <sparkle:version>1031</sparkle:version>
             <sparkle:shortVersionString>0.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description><![CDATA[
@@ -18,10 +18,10 @@
                 <p>Latest alpha release with layout, live activity, calendar, lock screen, and update-system fixes.</p>
             ]]></description>
             <enclosure
-                url="https://github.com/Clayton630/QuartzNotch/releases/download/v0.3/QuartzNotch-0.3(1030).dmg"
-                length="21408387"
+                url="https://github.com/Clayton630/QuartzNotch/releases/download/v0.3/QuartzNotch-0.3(1031).dmg"
+                length="21408379"
                 type="application/octet-stream"
-                sparkle:edSignature="FnpOIrUi+qH12sYEqMluMBA6GMyUxZaxPMPXdbNn8/t/XvhJfIYDU7bHQY2+nSysKeztZxHgnGsGcFWG8S1EDA=="/>
+                sparkle:edSignature="0Ln72AE1u8TMIuA/9xtRMpeJoVTQRN30HfNtLKMcdb0Gdq1BZG7tSCuZjojPQbqmO+NwkyF1Rs1zYC0FOdcCCA=="/>
         </item>
     </channel>
 </rss>
