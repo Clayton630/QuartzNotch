@@ -50,7 +50,7 @@ QuartzNotch started as a fork of Boring Notch and has since evolved with a redes
 
 - macOS 14 or later
 - Apple Silicon or Intel Mac
-- Xcode 16 or later if you want to build from source
+- Xcode 26 or later if you want to build from source
 
 ## Download
 
