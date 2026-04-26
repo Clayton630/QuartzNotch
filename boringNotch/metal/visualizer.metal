@@ -1,10 +1,3 @@
-//
-//  visualizer.metal
-//  boringNotch
-//
-//  Created by Harsh Vardhan  Goswami  on 28/08/24.
-//
-
 #include <metal_stdlib>
 using namespace metal;
 

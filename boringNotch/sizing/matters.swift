@@ -8,13 +8,6 @@ let batterySneakSize: CGSize = .init(width: 160, height: 1)
 
 let shadowPadding: CGFloat = 20
 
-/// Canonical metrics for the opened notch.
-///
-/// These values deliberately do not read `NSScreen`, `safeAreaInsets`,
-/// menu-bar height, calendar state, camera state, or debug preview state.
-/// Physical screen measurements are valid for the closed notch only. The
-/// opened notch is a fixed designed surface; side overlays may extend width,
-/// but they must never mutate page height, page scale, or page origin.
 enum OpenNotchLayoutMetrics {
     static let shellSize: CGSize = .init(width: 640, height: 190)
     static let horizontalWindowOverhang: CGFloat = 30
@@ -149,9 +142,6 @@ enum MusicPlayerImageSizes {
     OpenNotchLayoutMetrics.headerShoulderSafetyInset
 }
 
-/// Fixed spacer height reserved for the open-notch header overlay.
-/// Keeping this at the 13" reference height prevents the open content
-/// from being pushed downward on taller 15"/16" built-in displays.
 @MainActor func getOpenHeaderLayoutSpacerHeight() -> CGFloat {
     OpenNotchLayoutMetrics.headerHeight
 }

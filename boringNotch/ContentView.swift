@@ -1035,8 +1035,6 @@ struct ContentView: View {
     }
 
 
- /// When the timer activity is shown, shift the whole closed notch slightly left so the extra width
- /// appears on the right (digits) instead of being symmetric.
     private var closedChinOffsetX: CGFloat {
         if shouldShowTimerActivityClosed && isTimerCompactMode {
             let ext = (timerActivityLayout.sidePadding + timerActivityLayout.leftWidth + 2) * closedActivityVisibility
@@ -1820,11 +1818,6 @@ struct ContentView: View {
         return getOpenLayoutCompression(screenUUID: vm.screenUUID)
     }
 
-    /// The stable pager content width — the open-notch frame width with no
-    /// overlay (calendar / camera) contribution.  Overlays expand the window
-    /// horizontally but the pager should never grow along with them; clamping
-    /// `contentWidth` to this value keeps every page layout-stable throughout
-    /// calendar / camera open-close animations.
     private var openBaseContentWidthComputed: CGFloat {
         guard vm.notchState == .open else { return 0 }
         let base: CGFloat = 420
@@ -1845,9 +1838,6 @@ struct ContentView: View {
         return max(24, getOpenHeaderLayoutSpacerHeight())
     }
 
-    /// Spacer height reserved above the open content pager.
-    /// Unlike the visual header height, this stays fixed so larger built-in
-    /// displays don't shift the content downward.
     private var openHeaderSpacerHeightComputed: CGFloat {
         guard vm.notchState == .open else { return vm.effectiveClosedNotchHeight }
         return max(24, getOpenHeaderLayoutSpacerHeight())
@@ -2938,8 +2928,6 @@ struct ContentView: View {
                 isBluetoothSidesHovering = false
                 isBluetoothCenterHovering = false
                 isBluetoothPopupTransitioning = false
-                // isHovering may have been left true because handleHover's early return
-                // for Bluetooth prevented it from ever being set to false while BT was active.
                 withAnimation(animationSpring) { isHovering = false }
                 coordinator.resumeExpandingViewAutoHide()
             }
@@ -3533,9 +3521,6 @@ struct ContentView: View {
                     }()
 
                     GeometryReader { geo in
-                        // Clamp to canonical open-notch metrics. The hosting window and
-                        // side overlays may resize, but page layout must not inherit those
-                        // measurements.
                         let contentWidth = max(0, min(geo.size.width, openBaseContentWidthComputed))
                         let contentHeight = min(max(0, geo.size.height), openContentViewportHeightComputed)
                         let usableContentHeight = max(0, contentHeight + getOpenContentTopLift())
@@ -5216,8 +5201,6 @@ fileprivate struct NowPlayingEdgeHoverTrackingView: NSViewRepresentable {
         override func updateTrackingAreas() {
             super.updateTrackingAreas()
             if let existing = trackingArea { removeTrackingArea(existing) }
-            // .assumeInside: fire mouseEntered immediately if cursor is already inside
-            // when the tracking area is (re-)created — critical after live activity transitions
             let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect, .assumeInside]
             trackingArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
             if let trackingArea { addTrackingArea(trackingArea) }

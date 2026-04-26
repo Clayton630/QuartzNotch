@@ -350,7 +350,6 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
                 
                 if url.startAccessingSecurityScopedResource() {
                     draggedURLs.append(url)
-                    NSLog("🔐 Started security-scoped access for drag: \(url.path)")
                 }
                 
                 pasteboardItem.setString(url.absoluteString, forType: .fileURL)
@@ -395,7 +394,6 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
 
             for url in draggedURLs {
                 url.stopAccessingSecurityScopedResource()
-                NSLog("🔐 Stopped security-scoped access after drag: \(url.path)")
             }
             draggedURLs.removeAll()
 

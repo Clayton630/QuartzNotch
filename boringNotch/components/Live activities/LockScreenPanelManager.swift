@@ -1009,9 +1009,6 @@ final class LockScreenPanelManager {
 
         window.setFrame(backdropFrame, display: true)
 
-        // If the window is already on screen, let the internal crossfade in
-        // LockScreenExpandedAlbumArtBackdropOverlay handle the track change — don't
-        // recreate the content view (which would trigger onAppear and flash the wallpaper).
         if window.isVisible {
             showLoginOverlay()
             window.orderFrontRegardless()
@@ -1038,15 +1035,8 @@ final class LockScreenPanelManager {
         window.contentView?.layer?.masksToBounds = false
         window.contentView?.layer?.backgroundColor = NSColor.clear.cgColor
 
-        // Show the clock/date overlay first so it is already rendered before the
-        // backdrop becomes visible — prevents the flicker where the backdrop appears
-        // for one frame without the clock.
         showLoginOverlay()
 
-        // Delegate to a lock-screen SkyLight space at level 400 (same mechanism as
-        // LiqoriaRecovered: SLSSetLoginwindowConnection + SLSAddWindowsToSpaces every call).
-        // Backdrop at base level, then bring the panel back on top (Liqoria pattern:
-        // orderFrontRegardless backdrop, then orderFrontRegardless playerWindow).
         LockScreenBackdropSkyLightOperator.shared.delegateWindow(window)
         hasDelegatedExpandedArtworkBackdrop = true
         window.orderFrontRegardless()
@@ -1074,12 +1064,8 @@ final class LockScreenPanelManager {
         })
     }
 
-    // MARK: - LoginUIKit reconstruction overlay (clock/date on top of artwork backdrop)
+    // MARK: - LoginUIKit reconstruction overlay
 
-    /// Creates (or reuses) a full-screen, mouse-transparent NSWindow that shows the
-    /// native lock-screen clock and date via Apple's private LoginUIKit.framework.
-    /// The window is delegated to a SkyLight space at level+5 (405), matching the
-    /// exact Z-order used by LiqoriaRecovered → `delegateLoginWindow`.
     private func showLoginOverlay() {
         guard let screen = currentScreen() else { return }
         let overlayFrame = screen.frame
@@ -1109,29 +1095,21 @@ final class LockScreenPanelManager {
 
         window.setFrame(overlayFrame, display: true)
 
-        // If already on screen, just reorder — the LUI2 controllers are already live.
         if window.isVisible {
             window.orderFrontRegardless()
             panelWindow?.orderFrontRegardless()
             return
         }
 
-        // Use the NSView directly — no SwiftUI/NSHostingView wrapper — so Auto Layout
-        // constraints inside LockScreenUIKitReconstructionNSView get the exact screen
-        // bounds with no extra insets introduced by the SwiftUI layout engine.
         let uikitView = LockScreenUIKitReconstructionNSView()
         uikitView.frame = NSRect(origin: .zero, size: overlayFrame.size)
         uikitView.autoresizingMask = [.width, .height]
         window.contentView = uikitView
 
-        // level+5 = 405 (kSLSSpaceAbsoluteLevelNotificationCenterAtScreenLock + 5)
-        // This is the same level LiqoriaRecovered uses for the login overlay (clock/date).
         let baseLevel = LockScreenBackdropSkyLightOperator.shared.lockScreenLevel
         LockScreenBackdropSkyLightOperator.shared.delegateWindow(window, level: baseLevel + 5)
         hasDelegatedLoginOverlay = true
 
-        // Start invisible so LUI2 controllers' built-in appear animations
-        // (zoom from below, slide from left) run silently before we fade in.
         window.alphaValue = 0
         window.orderFrontRegardless()
         panelWindow?.orderFrontRegardless()

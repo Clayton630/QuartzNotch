@@ -50,7 +50,6 @@ final class ShelfPersistenceService {
             }
             
             if failedCount > 0 {
-                print("📦 Successfully loaded \(validItems.count) shelf items, discarded \(failedCount) corrupted items")
             }
             
             return validItems

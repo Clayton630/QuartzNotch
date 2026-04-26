@@ -1,10 +1,3 @@
-//
-//  BoringNotchXPCHelper.swift
-//  BoringNotchXPCHelper
-//
-//  Created by Alexander on 2025-11-16.
-//
-
 import Foundation
 import ApplicationServices
 import IOKit

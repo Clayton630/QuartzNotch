@@ -1337,9 +1337,6 @@ struct LockScreenExpandedAlbumArtOverlay: View {
 
 // MARK: - Full-screen blurred album art backdrop
 
-/// Full-screen blurred+zoomed album art covering the entire lock screen.
-/// Liqoria approach: go ABOVE the native lock screen UI, then reconstruct
-/// clock/date via LoginUIKit (see LockScreenLoginUIKitReconstructionView).
 // MARK: - Album palette extraction
 
 private enum AlbumPaletteExtractor {
@@ -1591,30 +1588,19 @@ struct LockScreenExpandedAlbumArtBackdropOverlay: View {
 }
 
 // MARK: - LoginUIKit lock-screen reconstruction
-// Ported 1:1 from LiqoriaRecovered/RecoveredPlayerSurfaces.swift → RecoveredLoginUIKitView.
-// Positions, ratios, clock settings and constraint constant are all recovered from
-// the Liqoria binary — nothing is guessed.
 final class LockScreenUIKitReconstructionNSView: NSView {
     private var didInstall = false
-    // All three controllers must be retained for the lifetime of this view.
-    // If dateVC/statusVC are not stored, ARC releases them after installControllers()
-    // returns, causing dateView.intrinsicContentSize to reset and bigTimeView to drift.
     private var statusVC: NSViewController?
     private var dateVC: NSViewController?
     private var bigTimeVC: NSViewController?
     private var tickTimer: Timer?
 
-    // Constraints updated in updateLiqoriaConstraints() on every layout pass.
     private var bigTimeTopConstraint: NSLayoutConstraint?
     private var dateTopConstraint: NSLayoutConstraint?
     private var statusTopConstraint: NSLayoutConstraint?
     private var statusTrailingConstraint: NSLayoutConstraint?
-    // Fallback from Liqoria binary (134.49); overwritten at runtime by _bigTimeConstraintConstant.
     private var recoveredBigTimeConstraintConstant: CGFloat = 134.49
 
-    // LoginUIKit controllers expect a UIKit-style coordinate system (Y down, origin
-    // at top-left). Flipping the view makes topAnchor + positive constant correctly
-    // place things from the visual top, matching how Liqoria's constraints were derived.
     override var isFlipped: Bool { true }
 
     override init(frame frameRect: NSRect) {
@@ -1635,13 +1621,13 @@ final class LockScreenUIKitReconstructionNSView: NSView {
     }
 
     override func layout() {
-        updateLiqoriaConstraints()
+        updateLoginUIKitConstraints()
         super.layout()
     }
 
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
-        updateLiqoriaConstraints()
+        updateLoginUIKitConstraints()
     }
 
     deinit { stopTicking() }
@@ -1670,11 +1656,6 @@ final class LockScreenUIKitReconstructionNSView: NSView {
         applyClockSettings(to: [bigTimeVC, dateVC])
         recoveredBigTimeConstraintConstant = readBigTimeConstraintConstant() ?? 134.49
 
-        // ── Status bar ────────────────────────────────────────────────────────
-        // From Liqoria disassembly:
-        //   status.top      = content.top   (constant = 0)
-        //   status.trailing = content.trailing - 20
-        //   status.height   = NSStatusBar.system.thickness
         if let sv = statusVC?.view {
             sv.translatesAutoresizingMaskIntoConstraints = false
             addSubview(sv)
@@ -1691,11 +1672,6 @@ final class LockScreenUIKitReconstructionNSView: NSView {
             statusVC?.viewDidAppear()
         }
 
-        // ── Date + clock ──────────────────────────────────────────────────────
-        // From Liqoria disassembly:
-        //   date.top     = content.top  + (height × 0.09361124277114867)
-        //   bigTime.top  = date.bottom  + (constraintConstant × -0.148)
-        //   date.centerX = bigTime.centerX = content.centerX
         let bigTimeView = bigTimeVC.view
         let dateView    = dateVC.view
         bigTimeView.translatesAutoresizingMaskIntoConstraints = false
@@ -1720,13 +1696,13 @@ final class LockScreenUIKitReconstructionNSView: NSView {
             vc.viewDidAppear()
         }
 
-        updateLiqoriaConstraints()
+        updateLoginUIKitConstraints()
         tick()
     }
 
-    // MARK: - Liqoria constraint constants (recovered from disassembly)
+    // MARK: - Constraint updates
 
-    private func updateLiqoriaConstraints() {
+    private func updateLoginUIKitConstraints() {
         guard bounds.height > 0 else { return }
         dateTopConstraint?.constant    = effectiveLoginContentHeight * 0.09361124277114867
         bigTimeTopConstraint?.constant = recoveredBigTimeConstraintConstant * -0.148
@@ -1734,9 +1710,6 @@ final class LockScreenUIKitReconstructionNSView: NSView {
         statusTrailingConstraint?.constant = -20
     }
 
-    /// LoginUIKit lays out the clock/date block against the lock-screen content
-    /// area, not the raw display bounds. On notched/menu-bar displays, using the
-    /// full height pushes the reconstructed date/time slightly too low.
     private var effectiveLoginContentHeight: CGFloat {
         guard let screen = window?.screen else { return bounds.height }
         let menuBarInset = max(0, screen.frame.maxY - screen.visibleFrame.maxY)

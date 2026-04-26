@@ -62,21 +62,3 @@ Please do not open public issues for security vulnerabilities.
 Use GitHub’s private vulnerability reporting if available, or contact the maintainer privately.
 
 See `SECURITY.md` for more details.
-
-- `/Users/clayton/Downloads/codex/SECURITY.md`
-
-## Localizations
-
-Translations are handled through [Crowdin](https://crowdin.com/project/boring-notch).
-
-## Code Contributions
-
-External code contributions are not the primary workflow for this project right now.
-
-If you want to propose a code change:
-
-- open an issue first
-- describe the problem or idea clearly
-- wait for alignment before spending time on implementation
-
-That helps avoid duplicated work and keeps the project manageable.

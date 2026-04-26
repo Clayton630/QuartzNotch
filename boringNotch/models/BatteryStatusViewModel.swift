@@ -4,7 +4,6 @@ import Foundation
 import IOKit.ps
 import SwiftUI
 
-/// A view model that manages and monitors the battery status of the device
 class BatteryStatusViewModel: ObservableObject {
 
     private var wasCharging: Bool = false
@@ -32,13 +31,11 @@ class BatteryStatusViewModel: ObservableObject {
         setupMonitor()
     }
 
-  /// Sets up the initial power status by fetching battery information
     private func setupPowerStatus() {
         let batteryInfo = managerBattery.initializeBatteryInfo()
         updateBatteryInfo(batteryInfo)
     }
 
-  /// Sets up the monitor to observe battery events
     private func setupMonitor() {
         managerBatteryId = managerBattery.addObserver { [weak self] event in
             guard let self = self else { return }
@@ -46,13 +43,10 @@ class BatteryStatusViewModel: ObservableObject {
         }
     }
 
-  /// Handles battery events and updates the corresponding properties
     private func handleBatteryEvent(_ event: BatteryActivityManager.BatteryEvent) {
         switch event {
 
         case .powerSourceChanged(let pluggedIn):
-            print("🔌 Power source: \(pluggedIn ? "Connected" : "Disconnected")")
-
             if pluggedIn {
                 let snap = managerBattery.currentBatteryInfo()
                 withAnimation {
@@ -73,24 +67,17 @@ class BatteryStatusViewModel: ObservableObject {
             }
 
         case .batteryLevelChanged(let level):
-            print("🔋 Battery level: \(Int(level))%")
             withAnimation {
                 self.levelBattery = level
             }
 
         case .lowPowerModeChanged(let isEnabled):
-            print("[PERF] Low power mode: \(isEnabled ? "Enabled" : "Disabled")")
-
             withAnimation {
                 self.isInLowPowerMode = isEnabled
                 self.statusText = "Low Power: \(self.isInLowPowerMode ? "On" : "Off")"
             }
 
         case .isChargingChanged(let charging):
-            print("🔌 Charging: \(charging ? "Yes" : "No")")
-            print("maxCapacity: \(self.maxCapacity)")
-            print("levelBattery: \(self.levelBattery)")
-
             withAnimation {
                 self.isCharging = charging
                 if charging {
@@ -105,23 +92,20 @@ class BatteryStatusViewModel: ObservableObject {
             }
 
         case .timeToFullChargeChanged(let time):
-            print("🕒 Time to full charge: \(time) minutes")
             withAnimation {
                 self.timeToFullCharge = time
             }
 
         case .maxCapacityChanged(let capacity):
-            print("🔋 Max capacity: \(capacity)")
             withAnimation {
                 self.maxCapacity = capacity
             }
 
         case .error(let description):
-            print("[WARN] Error: \(description)")
+            statusText = description
         }
     }
 
-  /// Updates the battery information with the given BatteryInfo instance
     private func updateBatteryInfo(_ batteryInfo: BatteryInfo) {
         withAnimation {
             self.levelBattery = batteryInfo.currentCapacity
@@ -135,7 +119,6 @@ class BatteryStatusViewModel: ObservableObject {
         }
     }
 
-  /// Notifies important changes in the battery status with an optional delay
     private func notifyImportanChangeStatus(delay: Double = 0.0) {
         Task {
             try? await Task.sleep(for: .seconds(delay))
@@ -144,7 +127,6 @@ class BatteryStatusViewModel: ObservableObject {
     }
 
     deinit {
-        print("🔌 Cleaning up battery monitoring...")
         if let managerBatteryId: Int = managerBatteryId {
             managerBattery.removeObserver(byId: managerBatteryId)
         }

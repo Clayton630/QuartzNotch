@@ -2,15 +2,15 @@ import Foundation
 import SwiftUI
 
 enum LogCategory: String {
-    case lifecycle = "🔄"
-    case memory = "💾"
+    case lifecycle = "[LIFECYCLE] "
+    case memory = "[MEMORY] "
     case performance = "[PERF] "
-    case ui = "🎨"
-    case network = "🌐"
+    case ui = "[UI] "
+    case network = "[NETWORK] "
     case error = "[ERROR] "
     case warning = "[WARN] "
     case success = "[OK] "
-    case debug = "🔍"
+    case debug = "[DEBUG] "
 }
 
 struct Logger {

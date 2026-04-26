@@ -4,17 +4,7 @@ import SkyLightWindow
 import Defaults
 import Combine
 
-/// Call this ONCE, as early as possible in the app lifecycle — before any `SkyLightOperator.shared`
-/// access. Registers the process's WindowServer connection as a loginwindow peer via
-/// `SLSSetLoginwindowConnection`. Once registered, SkyLight spaces at level 400 created on this
-/// connection are anchored inside the loginwindow rendering layer:
-///   - On the lock screen  → they appear BELOW the native lock-screen UI (clock, password, widgets)
-///                           but ABOVE the wallpaper. Exactly how Liqoria works.
-///   - On the normal desktop → behaviour unchanged (no native lock-screen UI to be below).
-///
-/// Confirmed from Liqoria arm64 disassembly at 0x1001f3d44: this is the very first call after
-/// `SLSMainConnectionID()`, performed before any `SLSSpaceCreate`. The call must happen before
-/// `SkyLightOperator.shared` is initialised (which is lazy — first access triggers it).
+/// Registers this process as a loginwindow peer before any SkyLight space is created.
 func prepareSkyLightLoginwindowAnchor() {
     typealias F_SLSMainConnectionID = @convention(c) () -> Int32
     typealias F_SLSSetLoginwindowConnection = @convention(c) (Int32) -> Int32
@@ -48,28 +38,6 @@ extension SkyLightOperator {
     }
 }
 
-// Routes an NSWindow into a dedicated SkyLight space at absolute level 400
-// (kSLSSpaceAbsoluteLevelNotificationCenterAtScreenLock), exactly matching the
-// mechanism recovered from LiqoriaRecovered/SkyLightRecoveredBridge.swift.
-//
-// Key findings from the LiqoriaRecovered decompilation:
-//
-// 1. Liqoria does NOT go BELOW the native lock screen UI — it goes ABOVE it.
-//    The backdrop covers the entire screen (incl. native clock/date), then Liqoria
-//    reconstructs those elements using LoginUIKit.framework private controllers
-//    (LUI2BigTimeViewController, LUI2DateViewController, LUI2StatusViewController).
-//
-// 2. The real mechanism is SLSAddWindowsToSpaces (not SLSSpaceAddWindowsAndRemoveFromSpaces).
-//    Argument order: SLSAddWindowsToSpaces(conn, windowsCFArray, spacesCFArray).
-//
-// 3. SLSSetLoginwindowConnection is called EVERY time a window is delegated (not just once
-//    at startup). The space is created lazily and cached.
-//
-// 4. Level = kSLSSpaceAbsoluteLevelNotificationCenterAtScreenLock (400) for the backdrop,
-//    401 for the player, 405 for the login overlay (clock/date).
-//
-// 5. Before adding to the new space, the window is removed from its current spaces via
-//    SLSCopySpacesForWindows + SLSRemoveWindowsFromSpaces.
 final class LockScreenBackdropSkyLightOperator {
     static let shared = LockScreenBackdropSkyLightOperator()
 
@@ -118,15 +86,12 @@ final class LockScreenBackdropSkyLightOperator {
             ?? dlsym(h, "CGSCopySpacesForWindows")
                 .map { unsafeBitCast($0, to: F_SLSCopySpacesForWindows.self) }
 
-        // Read the exact level constant from the SkyLight binary itself,
-        // same as LiqoriaRecovered does via loadMutablePointer.
         let levelPtr = dlsym(h, "kSLSSpaceAbsoluteLevelNotificationCenterAtScreenLock")
             .map { $0.assumingMemoryBound(to: Int32.self).pointee }
         lockScreenLevel = levelPtr ?? 400
     }
 
     /// Delegate `window` to a lock-screen SkyLight space at the given absolute level.
-    /// SLSSetLoginwindowConnection is called each time (matches LiqoriaRecovered behaviour).
     @discardableResult
     func delegateWindow(_ window: NSWindow, level: Int32? = nil) -> Int32 {
         let targetLevel = level ?? lockScreenLevel
@@ -146,7 +111,6 @@ final class LockScreenBackdropSkyLightOperator {
         }
 
         let windowsCF = [NSNumber(value: window.windowNumber)] as CFArray
-        // Remove from current spaces first (matches LiqoriaRecovered step-by-step)
         if let copySpaces = fnCopySpaces,
            let currentSpaces = copySpaces(conn, 7, windowsCF)?.takeRetainedValue(),
            CFArrayGetCount(currentSpaces) > 0 {

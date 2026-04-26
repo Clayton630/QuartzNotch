@@ -34,18 +34,14 @@ class TemporaryFileStorageService {
 
         do {
             try FileManager.default.removeItem(at: url)
-            print("Deleted file: \(url.path)")
 
             let contents = try FileManager.default.contentsOfDirectory(atPath: folderURL.path)
             if contents.isEmpty {
                 try FileManager.default.removeItem(at: folderURL)
-                print("Folder was empty, deleted folder: \(folderURL.path)")
             } else {
-                print("Folder not deleted — it still contains \(contents.count) item(s).")
             }
 
         } catch {
-            print("Error: \(error.localizedDescription)")
         }
     }
     
@@ -66,7 +62,6 @@ class TemporaryFileStorageService {
                 try data.write(to: fileURL)
                 return fileURL
             } catch {
-                print("Error: \(error)")
                 return nil
             }
             
@@ -85,7 +80,6 @@ class TemporaryFileStorageService {
                 try data.write(to: fileURL)
                 return fileURL
             } catch {
-                print("Error: \(error)")
                 return nil
             }
             
@@ -105,7 +99,6 @@ class TemporaryFileStorageService {
                 try data.write(to: fileURL)
                 return fileURL
             } catch {
-                print("Error: \(error)")
                 return nil
             }
         }
