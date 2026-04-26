@@ -1,0 +1,17 @@
+name: Feature request
+description: Suggest an improvement or new feature for QuartzNotch
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing an idea.
+
+  - type: textarea
+    id: feature
+    attributes:
+      label: Feature request
+      description: Describe the feature, the use case, and why it would be valuable.
+      placeholder: What would you like QuartzNotch to do, and why would it help?
+    validations:
+      required: true
