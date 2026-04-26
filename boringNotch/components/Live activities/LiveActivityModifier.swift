@@ -1,9 +1,3 @@
-//
-// LiveActivityModifier.swift
-// boringNotch
-//
-// Created by Richard Kunkli on 12/08/2024.
-//
 
 import SwiftUI
 
@@ -24,7 +18,6 @@ struct LiveActivityModifier<Left: View, Right: View>: ViewModifier {
                 HStack {
                     leftContent()
                     Spacer()
-            //.frame(minWidth: vm.closedNotchSize.width)
                     rightContent()
                 }
                 .padding()

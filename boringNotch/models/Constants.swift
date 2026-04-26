@@ -1,9 +1,3 @@
-//
-// Constants.swift
-// boringNotch
-//
-// Created by Richard Kunkli on 2024. 10. 17..
-//
 
 import SwiftUI
 import Defaults
@@ -37,6 +31,7 @@ enum HideNotchOption: String, Defaults.Serializable {
 }
 
 enum ScreenRecordingVisibilityMode: String, CaseIterable, Identifiable, Defaults.Serializable {
+    case disabled = "Disabled"
     case fullyHidden = "Fully hidden"
     case onlyWhenClosed = "Only when closed"
     case onlyWhenNotInUse = "Only when not in use"
@@ -44,10 +39,12 @@ enum ScreenRecordingVisibilityMode: String, CaseIterable, Identifiable, Defaults
     var id: String { rawValue }
 }
 
-// Define notification names at file scope
 extension Notification.Name {
     static let mediaControllerChanged = Notification.Name("mediaControllerChanged")
     static let playbackScopeChanged = Notification.Name("playbackScopeChanged")
+    static let musicPreviousButtonAnimationTriggered = Notification.Name("musicPreviousButtonAnimationTriggered")
+    static let musicNextButtonAnimationTriggered = Notification.Name("musicNextButtonAnimationTriggered")
+    static let hoverButtonAnimationNoop = Notification.Name("hoverButtonAnimationNoop")
 
   /// Request the notch window to temporarily become key to allow inline text entry.
     static let notchTextInputBegan = Notification.Name("notchTextInputBegan")
@@ -55,7 +52,6 @@ extension Notification.Name {
     static let notchTextInputEnded = Notification.Name("notchTextInputEnded")
 }
 
-// Playback scope (2-mode UX)
 enum PlaybackScope: String, CaseIterable, Identifiable, Defaults.Serializable {
     case systemWide = "System Wide"
     case musicOnly = "Music Only"
@@ -63,7 +59,6 @@ enum PlaybackScope: String, CaseIterable, Identifiable, Defaults.Serializable {
     var id: String { self.rawValue }
 }
 
-// Media controller types for selection in settings
 enum MediaControllerType: String, CaseIterable, Identifiable, Defaults.Serializable {
     case nowPlaying = "Now Playing"
     case appleMusic = "Apple Music"
@@ -73,13 +68,42 @@ enum MediaControllerType: String, CaseIterable, Identifiable, Defaults.Serializa
     var id: String { self.rawValue }
 }
 
-// Action to perform when Option (⌥) is held while pressing media keys
 enum OptionKeyAction: String, CaseIterable, Identifiable, Defaults.Serializable {
     case openSettings = "Open System Settings"
     case showHUD = "Show HUD"
     case none = "No Action"
 
     var id: String { self.rawValue }
+}
+
+enum LargeScreenLayoutPreviewMode: String, CaseIterable, Identifiable, Defaults.Serializable {
+    case automatic = "Automatic"
+    case macBookAir15 = "MacBook Air 15-inch"
+    case macBookPro16 = "MacBook Pro 16-inch"
+
+    var id: String { rawValue }
+
+    var simulatedClosedNotchHeight: CGFloat? {
+        switch self {
+        case .automatic:
+            return nil
+        case .macBookAir15:
+            return 35
+        case .macBookPro16:
+            return 37
+        }
+    }
+
+    var simulatedOpenHeaderCenterWidth: CGFloat? {
+        switch self {
+        case .automatic:
+            return nil
+        case .macBookAir15:
+            return 202
+        case .macBookPro16:
+            return 214
+        }
+    }
 }
 
 extension Defaults.Keys {
@@ -92,7 +116,8 @@ extension Defaults.Keys {
   // MARK: Behavior
     static let minimumHoverDuration = Key<TimeInterval>("minimumHoverDuration", default: 0.2)
     static let enableHaptics = Key<Bool>("enableHaptics", default: true)
-    static let openNotchOnHover = Key<Bool>("openNotchOnHover", default: false)
+    static let openNotchOnHover = Key<Bool>("openNotchOnHover", default: true)
+    static let cameraPreviewClickAction = Key<CameraPreviewClickAction>("cameraPreviewClickAction", default: .capturePhoto)
     static let notchHeightMode = Key<WindowHeightMode>(
         "notchHeightMode",
         default: WindowHeightMode.matchRealNotchSize
@@ -103,8 +128,10 @@ extension Defaults.Keys {
     )
     static let nonNotchHeight = Key<CGFloat>("nonNotchHeight", default: 32)
     static let notchHeight = Key<CGFloat>("notchHeight", default: 32)
-  //static let openLastTabByDefault = Key<Bool>("openLastTabByDefault", default: false)
     static let showOnLockScreen = Key<Bool>("showOnLockScreen", default: true)
+    static let enableLockScreenMediaWidget = Key<Bool>("enableLockScreenMediaWidget", default: true)
+    static let lockScreenMusicPanelWidth = Key<Double>("lockScreenMusicPanelWidth", default: 420)
+    static let lockScreenMusicVerticalOffset = Key<Double>("lockScreenMusicVerticalOffset", default: 0)
     static let hideFromScreenRecordingLegacy = Key<Bool>("hideFromScreenRecording", default: false)
     static let hideFromScreenRecordingMode = Key<ScreenRecordingVisibilityMode>(
         "hideFromScreenRecordingMode",
@@ -113,9 +140,8 @@ extension Defaults.Keys {
     
   // MARK: Appearance
     static let showEmojis = Key<Bool>("showEmojis", default: false)
-  //static let alwaysShowTabs = Key<Bool>("alwaysShowTabs", default: true)
     static let showMirror = Key<Bool>("showMirror", default: true)
-    static let settingsIconInNotch = Key<Bool>("settingsIconInNotch", default: false)
+    static let settingsIconInNotch = Key<Bool>("settingsIconInNotch", default: true)
     static let enableShadow = Key<Bool>("enableShadow", default: true)
     static let cornerRadiusScaling = Key<Bool>("cornerRadiusScaling", default: true)
 
@@ -163,6 +189,7 @@ extension Defaults.Keys {
   // MARK: Live Activities
     static let liveActivityShelfContent = Key<Bool>("liveActivityShelfContent", default: true)
     static let liveActivityLockScreen = Key<Bool>("liveActivityLockScreen", default: true)
+    static let enableLockScreenTimerWidget = Key<Bool>("enableLockScreenTimerWidget", default: true)
     static let bluetoothLiveActivityEnabled = Key<Bool>("bluetoothLiveActivityEnabled", default: true)
     static let focusLiveActivityEnabled = Key<Bool>("focusLiveActivityEnabled", default: true)
   /// Closed-notch timer indicator (Quick Timers page)
@@ -171,17 +198,17 @@ extension Defaults.Keys {
     static let quickTimerAlertToneID = Key<String>("quickTimerAlertToneID", default: "systemDefault")
   /// Mirrors Clock.app system timer into the timer live activity.
     static let mirrorSystemClockTimer = Key<Bool>("mirrorSystemClockTimer", default: true)
-  // NOTE: "Charging state" and "Now playing" are wired to existing settings:
-  // - Battery -> showPowerStatusNotifications
-  // - Media  -> @AppStorage("musicLiveActivityEnabled")
 
   // MARK: Pages
-  // Page 1: NotchHomeView (media controls, etc.)
-  // Page 2: ShelfView (file tray + share block)
     static let pageHomeEnabled = Key<Bool>("pageHomeEnabled", default: true)
     static let pageShelfEnabled = Key<Bool>("pageShelfEnabled", default: true)
-static let pageThirdEnabled = Key<Bool>("pageThirdEnabled", default: true)
+    static let pageThirdEnabled = Key<Bool>("pageThirdEnabled", default: true)
+    static let pageOrder = Key<[String]>(
+        "pageOrder",
+        default: NotchViews.allCases.map(\.rawValue)
+    )
     static let pageUseLiquidGlassBackground = Key<Bool>("pageUseLiquidGlassBackground", default: false)
+    static let forceLiquidGlassCompatibilityFallback = Key<Bool>("forceLiquidGlassCompatibilityFallback", default: false)
 
   // MARK: Downloads
     static let enableDownloadListener = Key<Bool>("enableDownloadListener", default: true)
@@ -198,11 +225,11 @@ static let pageThirdEnabled = Key<Bool>("pageThirdEnabled", default: true)
     static let showOpenNotchHUD = Key<Bool>("showOpenNotchHUD", default: true)
     static let showOpenNotchHUDPercentage = Key<Bool>("showOpenNotchHUDPercentage", default: true)
     static let showClosedNotchHUDPercentage = Key<Bool>("showClosedNotchHUDPercentage", default: false)
-  // Option key modifier behaviour for media keys
     static let optionKeyAction = Key<OptionKeyAction>("optionKeyAction", default: OptionKeyAction.openSettings)
     
   // MARK: Shelf
     static let boringShelf = Key<Bool>("boringShelf", default: true)
+    static let allowShelfRevealWhenPageHidden = Key<Bool>("allowShelfRevealWhenPageHidden", default: true)
     static let openShelfByDefault = Key<Bool>("openShelfByDefault", default: true)
     static let shelfTapToOpen = Key<Bool>("shelfTapToOpen", default: true)
     static let quickShareProvider = Key<String>("quickShareProvider", default: QuickShareProvider.defaultProvider.id)
@@ -230,8 +257,12 @@ static let pageThirdEnabled = Key<Bool>("pageThirdEnabled", default: true)
   // MARK: Advanced Settings
     static let useCustomAccentColor = Key<Bool>("useCustomAccentColor", default: false)
     static let customAccentColorData = Key<Data?>("customAccentColorData", default: nil)
-  // Internal compatibility key used by layout/chin geometry.
+    static let appIconChoice = Key<AppIconChoice>("appIconChoice", default: .classic)
     static let hideTitleBar = Key<Bool>("hideTitleBar", default: true)
+    static let debugLargeScreenLayoutPreviewMode = Key<LargeScreenLayoutPreviewMode>(
+        "debugLargeScreenLayoutPreviewMode",
+        default: .automatic
+    )
     
     static let didClearLegacyURLCacheV1 = Key<Bool>("didClearLegacyURLCache_v1", default: false)
     static let didMigratePlaybackScopeV1 = Key<Bool>("didMigratePlaybackScope_v1", default: false)

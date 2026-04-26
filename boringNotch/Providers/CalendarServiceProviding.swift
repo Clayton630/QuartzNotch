@@ -1,11 +1,3 @@
-//
-// CalendarServiceProvider.swift
-// Calendr
-//
-// Created by Paker on 31/12/20.
-// Original source: Original source: https://github.com/pakerwreah/Calendr
-// Modified by Alexander on 08/06/25
-//
 
 import Foundation
 @preconcurrency import EventKit
@@ -64,7 +56,6 @@ class CalendarService: CalendarServiceProviding {
         
         var events: [EventModel] = []
         
-    // Fetch regular events
         if hasAccess(to: .event) {
             let eventCalendars = ekCalendars.filter { store.calendars(for: .event).contains($0) }
             let predicate = store.predicateForEvents(withStart: start, end: end, calendars: eventCalendars)
@@ -72,7 +63,6 @@ class CalendarService: CalendarServiceProviding {
             events.append(contentsOf: ekEvents.compactMap { EventModel(from: $0) })
         }
         
-    // Fetch reminders
         if hasAccess(to: .reminder) {
             let reminderCalendars = ekCalendars.filter { store.calendars(for: .reminder).contains($0) }
             events.append(contentsOf: await fetchReminders(from: start, to: end, calendars: reminderCalendars))
@@ -83,13 +73,11 @@ class CalendarService: CalendarServiceProviding {
     
     private func fetchReminders(from start: Date, to end: Date, calendars: [EKCalendar]) async -> [EventModel] {
         return await withCheckedContinuation { continuation in
-      // Create predicate for reminders with due dates in the specified range
             let predicate = store.predicateForReminders(in: calendars)
             
             store.fetchReminders(matching: predicate) { reminders in
                 
                 let filteredReminders = (reminders ?? []).filter { reminder in
-          // Check if reminder has a due date within our range
                     guard let dueDate = reminder.dueDateComponents?.date else {
                         return false
                     }
@@ -97,7 +85,6 @@ class CalendarService: CalendarServiceProviding {
                     return dueDate >= start && dueDate <= end
                 }
                 
-        // Convert to EventModel
                 let eventModels = filteredReminders.compactMap { reminder in
                     EventModel(from: reminder)
                 }
@@ -128,7 +115,9 @@ extension CalendarModel {
             title: calendar.title,
             color: calendar.color,
             isSubscribed: calendar.isSubscribed || calendar.isDelegate,
-            isReminder: calendar.allowedEntityTypes.contains(.reminder)
+            isReminder: calendar.allowedEntityTypes.contains(.reminder),
+            isBirthday: calendar.type == .birthday,
+            isHoliday: calendar.type == .subscription
         )
     }
 }

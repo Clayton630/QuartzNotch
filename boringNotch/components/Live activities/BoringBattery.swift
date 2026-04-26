@@ -15,7 +15,6 @@ struct BatteryView: View {
 
     private var pillIconGray: Color { .gray.opacity(0.65) }
 
-  // CHANGE: bolt instead of plug when plugged in
     var iconStatus: String {
         if isCharging || isPluggedIn { return "bolt" }
         else { return "" }

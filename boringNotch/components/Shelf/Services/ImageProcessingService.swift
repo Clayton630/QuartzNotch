@@ -1,9 +1,3 @@
-//
-// ImageProcessingService.swift
-// boringNotch
-//
-// Created by Alexander on 2025-10-16.
-//
 
 import Foundation
 import AppKit
@@ -81,7 +75,6 @@ final class ImageProcessingService {
         
         let processedImage = NSImage(cgImage: output, size: inputImage.size)
         
-    // Create temporary file
         let originalName = url.deletingPathExtension().lastPathComponent
         let newName = "\(originalName)_no_bg.png"
         
@@ -129,16 +122,13 @@ final class ImageProcessingService {
             throw ImageProcessingError.invalidImage
         }
         
-    // Scale image if needed
         if let maxDim = options.maxDimension {
             inputImage = scaleImage(inputImage, maxDimension: maxDim)
         }
         
-    // Get image data based on format
         let imageData: Data?
         
         if options.removeMetadata {
-      // Create new image without metadata
             guard let cgImage = inputImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
                 throw ImageProcessingError.invalidImage
             }
@@ -153,7 +143,6 @@ final class ImageProcessingService {
             throw ImageProcessingError.conversionFailed
         }
         
-    // Create temporary file
         let originalName = url.deletingPathExtension().lastPathComponent
         let newName = "\(originalName)_converted.\(options.format.fileExtension)"
         
@@ -188,7 +177,6 @@ final class ImageProcessingService {
         case .bmp:
             return bitmap.representation(using: .bmp, properties: [:])
         case .heic:
-      // HEIC requires using CIContext
             guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
                 return nil
             }
@@ -226,11 +214,9 @@ final class ImageProcessingService {
             return image
         }
 
-    // Preserve the source color space for exact color matching
         let colorSpace = srcCG.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
         let ciContext = CIContext(options: [.workingColorSpace: colorSpace])
 
-    // Render using the CIContext with matching color space
         guard let dstCG = ciContext.createCGImage(output, from: output.extent, format: .RGBA8, colorSpace: colorSpace) else {
             return image
         }
@@ -263,7 +249,6 @@ final class ImageProcessingService {
             throw ImageProcessingError.pdfCreationFailed
         }
         
-    // Create temporary file
         let name = outputName ?? "images_\(Date().timeIntervalSince1970).pdf"
         let pdfName = name.hasSuffix(".pdf") ? name : "\(name).pdf"
         

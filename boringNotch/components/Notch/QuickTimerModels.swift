@@ -1,9 +1,3 @@
-//
-// QuickTimerModels.swift
-// boringNotch
-//
-// Created by AI Assistant on 2026-02-02.
-//
 
 import Foundation
 import Combine
@@ -22,7 +16,6 @@ private enum QuickTimerPresetStorage {
     }
 }
 
-// Presets for quick timers
 enum TimerPreset: CaseIterable, Hashable {
     case oneMin
     case threeMin
@@ -55,7 +48,6 @@ enum TimerPreset: CaseIterable, Hashable {
   /// Returns a user-customized duration (in seconds) if one exists.
     var customDurationSeconds: Int? {
         let value = UserDefaults.standard.integer(forKey: QuickTimerPresetStorage.key(for: self))
-    // `integer(forKey:)` returns 0 when missing; treat 0 as "no override".
         return value > 0 ? value : nil
     }
 
@@ -99,7 +91,6 @@ enum TimerPreset: CaseIterable, Hashable {
     }
 }
 
-// Model for a running quick timer
 final class QuickTimer: ObservableObject, Identifiable, Equatable {
     static func == (lhs: QuickTimer, rhs: QuickTimer) -> Bool { lhs.id == rhs.id }
 
@@ -173,7 +164,6 @@ final class QuickTimer: ObservableObject, Identifiable, Equatable {
     }
 }
 
-// Manager for quick timers
 final class QuickTimerManager: ObservableObject {
     private enum SystemClockTimerState: Int {
         case stopped = 1
@@ -243,8 +233,6 @@ final class QuickTimerManager: ObservableObject {
             DispatchQueue.main.async {
                 if let existing = self.mirroredSystemQuickTimer {
                     let oldRemaining = existing.remainingSeconds
-                    // Keep a stable object identity while the same system timer is ticking.
-                    // Recreate only when we detect a fresh run/reset.
                     let looksLikeNewRun = remaining > oldRemaining + 2
 
                     if looksLikeNewRun {
@@ -450,7 +438,6 @@ final class QuickTimerManager: ObservableObject {
     }
 
     private func handleSystemScheduledTimersMessage(_ message: String) {
-        // Parse entries like <MTMutableTimer: ... TimerID: XXXX, state:running, Title:CURRENT_TIMER, duration:300 ...>
         guard let regex = try? NSRegularExpression(pattern: "<MT(?:Mutable)?Timer:[^>]+>") else { return }
         let range = NSRange(message.startIndex..<message.endIndex, in: message)
         let matches = regex.matches(in: message, options: [], range: range)
@@ -512,7 +499,6 @@ final class QuickTimerManager: ObservableObject {
         let plistSnapshot = fetchSystemClockTimerSnapshot()
         var snapshot = fetchSystemClockTimerSnapshotFromMenuBar(baseTotal: plistSnapshot?.totalSeconds) ?? plistSnapshot
 
-        // Atoll-like fallback: if data stream has active timer values but AX/plist is inconclusive.
         if snapshot == nil,
            let lastUpdate = systemTimerLogLastUpdateAt,
            Date().timeIntervalSince(lastUpdate) <= 4.0,
@@ -723,8 +709,6 @@ final class QuickTimerManager: ObservableObject {
             var didFinish = (state == .fired) || remaining <= 0
             let hasProgressFromDuration = remaining > 0 && remaining < total
 
-            // On some systems, MTTimerState in plist can remain "stopped" while the timer is active.
-            // Fallback to a launch-time based estimate for CURRENT_TIMER.
             if !state.isVisibleInLiveActivity, title == "CURRENT_TIMER", let start = lastTriggerDate {
                 let elapsed = now.timeIntervalSince(start)
                 let estimatedRemaining = max(0, Int(round(Double(total) - elapsed)))
@@ -739,13 +723,10 @@ final class QuickTimerManager: ObservableObject {
                 }
             }
 
-            // Extra fallback: if remaining has moved below the configured duration,
-            // consider the system timer active even when state flags are stale.
             if !state.isVisibleInLiveActivity, !isRunning, !didFinish, hasProgressFromDuration {
                 isRunning = true
             }
 
-            // If Clock exposes a CURRENT_TIMER entry, keep it visible while any progress exists.
             let inferVisibleFromCurrentEntry = (title == "CURRENT_TIMER") && (hasProgressFromDuration || didFinish)
             guard state.isVisibleInLiveActivity || isRunning || didFinish || inferVisibleFromCurrentEntry else { continue }
             return .init(
@@ -766,7 +747,6 @@ final class QuickTimerManager: ObservableObject {
 
         let fm = FileManager.default
 
-        // Already a full path.
         if value.hasPrefix("/") {
             let url = URL(fileURLWithPath: value)
             if fm.fileExists(atPath: url.path) { return url }
@@ -906,7 +886,6 @@ final class QuickTimerManager: ObservableObject {
     private func resolvePreferredAlertAudioURL() -> URL? {
         let selectedTone = Defaults[.quickTimerAlertToneID]
 
-        // Explicitly selected macOS global alert sound.
         if selectedTone == "globalAlert",
            let global = UserDefaults.standard.persistentDomain(forName: UserDefaults.globalDomain),
            let configured = global["com.apple.sound.beep.sound"] as? String,
@@ -915,24 +894,20 @@ final class QuickTimerManager: ObservableObject {
             return url
         }
 
-        // Explicitly selected tone from the picker.
         if selectedTone != "systemDefault",
            let selectedURL = resolveToneURL(from: selectedTone) {
             return selectedURL
         }
 
-        // 1) Timer ringtone selected by user in Clock.
         if let timerToneURL = resolveClockTimerToneURL() {
             return timerToneURL
         }
 
-        // 2) Dedicated alarm/timer tone.
         let alarmURL = URL(fileURLWithPath: toneLibraryRingtonesRoot).appendingPathComponent("Alarm.m4r")
         if FileManager.default.fileExists(atPath: alarmURL.path) {
             return alarmURL
         }
 
-        // 3) macOS global alert sound (if path resolvable).
         if let global = UserDefaults.standard.persistentDomain(forName: UserDefaults.globalDomain),
            let configured = global["com.apple.sound.beep.sound"] as? String,
            !configured.isEmpty,
@@ -1064,7 +1039,6 @@ final class QuickTimerManager: ObservableObject {
     }
 
     private func observeTimer(_ timer: QuickTimer) {
-    // Forward child timer changes so views observing only the manager still refresh.
         timer.onFinish = { [weak self] in
             DispatchQueue.main.async {
                 self?.markTimerFinished(timer)
@@ -1328,12 +1302,9 @@ final class SystemClockTimerBridge {
             self.setupMetadataTicker()
 
             let logStarted = self.startLogStream()
-            // Keep AX polling active whenever possible, even if log stream starts.
-            // Some systems provide unreliable log events for Clock timers.
             if hasAccessibility, self.ticker == nil {
                 self.setupTicker()
             } else if !logStarted {
-                // If both logs and AX are unavailable, clear mirror state.
                 self.lastClearReason = "no_log_and_no_ax"
                 self.publishDiagnostics()
             }
@@ -1922,7 +1893,6 @@ final class SystemClockTimerBridge {
             initialTotalDuration = metadata.duration
         }
 
-        // If state is not active, try runtime inference, otherwise clear stale mirrored state.
         if !metadata.state.isActive {
             if let inferred = inferSnapshotFromPreferences() {
                 emitSnapshot(inferred, source: .inferred)
@@ -1996,8 +1966,6 @@ final class SystemClockTimerBridge {
                 }
             }
 
-            // External mirror should only represent active system timers.
-            // Finished/stopped placeholders must not reappear as ghost timers.
             guard remaining > 0 else { continue }
 
             return Snapshot(

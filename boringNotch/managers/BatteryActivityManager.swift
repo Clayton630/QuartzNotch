@@ -18,8 +18,6 @@ class BatteryActivityManager {
     private var observers: [(BatteryEvent) -> Void] = []
     private var previousBatteryInfo: BatteryInfo?
 
-  // Coalesce rapid IOKit changes into a single, short burst of events.
-  // This keeps UI state fresh without introducing visible 1s-per-event lag.
     private var pendingEvents: [String: BatteryEvent] = [:]
     private var flushWorkItem: DispatchWorkItem?
     private let coalesceInterval: TimeInterval = 0.12
@@ -106,9 +104,7 @@ class BatteryActivityManager {
     private func notifyBatteryChanges() {
         let batteryInfo = getBatteryInfo()
         
-    // Check for changes
         if let previousInfo = previousBatteryInfo {
-      // Use the helper function for each property.
             checkAndNotify(
                 previous: previousInfo.isPluggedIn,
                 current: batteryInfo.isPluggedIn,
@@ -145,7 +141,6 @@ class BatteryActivityManager {
                 eventGenerator: { .maxCapacityChanged(capacity: $0) }
             )
         } else {
-      // First time notification
             enqueueNotification(.powerSourceChanged(isPluggedIn: batteryInfo.isPluggedIn))
             enqueueNotification(.batteryLevelChanged(level: batteryInfo.currentCapacity))
             enqueueNotification(.isChargingChanged(isCharging: batteryInfo.isCharging))
@@ -154,10 +149,8 @@ class BatteryActivityManager {
             enqueueNotification(.maxCapacityChanged(capacity: batteryInfo.maxCapacity))
         }
 
-    // Update previous battery info
         previousBatteryInfo = batteryInfo
 
-    // Trigger optional callbacks
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.onBatteryLevelChange?(batteryInfo.currentCapacity)
@@ -176,13 +169,11 @@ class BatteryActivityManager {
   ///
   /// We now coalesce events over a short window and then flush them in a deterministic order.
     private func enqueueNotification(_ event: BatteryEvent) {
-    // Power source changes should be delivered immediately (they drive the live activity trigger).
         if case .powerSourceChanged = event {
             notifyObservers(event: event)
             return
         }
 
-    // Errors should not be delayed/coalesced.
         if case .error = event {
             notifyObservers(event: event)
             return
@@ -209,7 +200,6 @@ class BatteryActivityManager {
         let events = pendingEvents
         pendingEvents.removeAll(keepingCapacity: true)
 
-    // Deterministic order: state first, then derived values.
         let order: [String] = [
             "isCharging",
             "batteryLevel",
@@ -273,7 +263,6 @@ class BatteryActivityManager {
   /// - Returns: The current battery information
     private func getBatteryInfo() -> BatteryInfo {
         do {
-      // Get power source information
             guard let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue() else {
                 throw BatteryError.powerSourceUnavailable
             }
@@ -289,7 +278,6 @@ class BatteryActivityManager {
                 throw BatteryError.batteryInfoUnavailable("Could not get power source description")
             }
             
-      // Extract required battery parameters with error handling
             guard let currentCapacity = description[kIOPSCurrentCapacityKey] as? Float else {
                 throw BatteryError.batteryParameterMissing("Current capacity")
             }
@@ -306,7 +294,6 @@ class BatteryActivityManager {
                 throw BatteryError.batteryParameterMissing("Power source state")
             }
             
-      // Create battery info with the extracted parameters
             var batteryInfo = BatteryInfo(
                 isPluggedIn: powerSource == kIOPSACPowerValue,
                 isCharging: isCharging,
@@ -316,7 +303,6 @@ class BatteryActivityManager {
                 timeToFullCharge: 0
             )
             
-      // Optional parameters
             if let timeToFullCharge = description[kIOPSTimeToFullChargeKey] as? Int {
                 batteryInfo.timeToFullCharge = timeToFullCharge
             }

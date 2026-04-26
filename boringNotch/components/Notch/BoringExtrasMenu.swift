@@ -1,9 +1,3 @@
-//
-// BoringExtrasMenu.swift
-// boringNotch
-//
-// Created by Harsh Vardhan Goswami on 04/08/24.
-//
 
 import SwiftUI
 
@@ -72,7 +66,6 @@ struct BoringExtrasMenu : View {
         BoringLargeButtons(
             action: {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-          //vm.openMusic()
                 }
             },
             icon: Image(systemName: "arrow.down.forward.and.arrow.up.backward"),

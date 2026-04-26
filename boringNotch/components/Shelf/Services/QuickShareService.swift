@@ -1,9 +1,3 @@
-//
-// QuickShareService.swift
-// boringNotch
-//
-// Created by Alexander on 2025-09-24.
-//
 
 import AppKit
 import Foundation
@@ -22,7 +16,6 @@ class QuickShareService: ObservableObject {
     @Published var availableProviders: [QuickShareProvider] = []
     @Published var isPickerOpen = false
     private var cachedServices: [String: NSSharingService] = [:]
-  // Hold security-scoped URLs during sharing
     private var sharingAccessingURLs: [URL] = []
     private var lifecycleDelegate: SharingLifecycleDelegate?
    
@@ -38,8 +31,6 @@ class QuickShareService: ObservableObject {
     func discoverAvailableProviders() async {
         let finder = ShareServiceFinder()
 
-    // Use simple test items without creating actual temp files
-    // This avoids issues with the Share Sheet retaining references to deleted files
         let testItems: [Any] = [
             URL(string:"http://example.com") ?? URL(fileURLWithPath: "/"),
             "Test Text" as NSString
@@ -112,12 +103,9 @@ class QuickShareService: ObservableObject {
     @MainActor
     func shareFilesOrText(_ items: [Any], using provider: QuickShareProvider, from view: NSView?) async {
         let fileURLs = items.compactMap { $0 as? URL }.filter { $0.isFileURL }
-    // Stop any previous sharing access
         stopSharingAccessingURLs()
-    // Start security-scoped access for all file URLs
         sharingAccessingURLs = fileURLs.filter { $0.startAccessingSecurityScopedResource() }
 
-    // Setup lifecycle delegate to keep notch open during picker/service
         let delegate = SharingStateManager.shared.makeDelegate { [weak self] in
             self?.lifecycleDelegate = nil
             self?.stopSharingAccessingURLs()
@@ -125,7 +113,6 @@ class QuickShareService: ObservableObject {
         lifecycleDelegate = delegate
 
         if let svc = cachedServices[provider.id], svc.canPerform(withItems: items) {
-      // For direct service path, explicitly mark service interaction start
             delegate.markServiceBegan()
             svc.delegate = delegate
             svc.perform(withItems: items)
@@ -165,7 +152,6 @@ private class SharingServiceDelegate: NSObject {}
             }
         }
 
-    // If text was found, prioritize sharing it.
         if let text = foundText {
             if shareProvider.supportsRawText {
                 await shareFilesOrText([text], using: shareProvider, from: view)

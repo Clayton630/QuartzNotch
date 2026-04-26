@@ -1,9 +1,3 @@
-//
-// VolumeManager.swift
-// boringNotch
-//
-// Created by JeanLouis on 22/08/2025.
-//
 
 import AppKit
 import Combine
@@ -21,7 +15,6 @@ final class VolumeManager: NSObject, ObservableObject {
 
     private var didInitialFetch = false
     private let step: Float32 = 1.0 / 16.0
-  // Fallback software if hardware mute is not supported
     private var previousVolumeBeforeMute: Float32 = 0.2
     private var softwareMuted: Bool = false
 
@@ -53,7 +46,6 @@ final class VolumeManager: NSObject, ObservableObject {
     }
 
     @MainActor func toggleMuteAction() {
-    // Determine expected resulting state immediately and show HUD with that value
         let deviceID = systemOutputDeviceID()
         var willBeMuted = false
         var resultingVolume: Float32 = rawVolume
@@ -208,7 +200,6 @@ final class VolumeManager: NSObject, ObservableObject {
             }
         }
 
-    // Mute
         var muteAddr = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyMute,
             mScope: kAudioDevicePropertyScopeOutput,
@@ -252,7 +243,6 @@ final class VolumeManager: NSObject, ObservableObject {
             written = any
         }
         if !written {
-      // silent fail
         }
     }
 

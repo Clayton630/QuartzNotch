@@ -1,12 +1,7 @@
-//
-// DragDetector.swift
-// boringNotch
-//
-// Created by Alexander on 2025-11-20.
-//
 
 import Cocoa
 import UniformTypeIdentifiers
+import QuartzCore
 
 final class DragDetector {
 
@@ -28,6 +23,8 @@ final class DragDetector {
     private var isDragging: Bool = false
     private var isContentDragging: Bool = false
     private var hasEnteredNotchRegion: Bool = false
+    private var lastProcessedDragTime: CFTimeInterval = 0
+    private let dragProcessingInterval: CFTimeInterval = 1.0 / 30.0
 
     private let notchRegion: CGRect
     private let dragPasteboard = NSPasteboard(name: .drag)
@@ -51,7 +48,6 @@ final class DragDetector {
     func startMonitoring() {
         stopMonitoring()
 
-  // Track pasteboard to detect content drag
         mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
             guard let self = self else { return }
             self.pasteboardChangeCount = self.dragPasteboard.changeCount
@@ -60,32 +56,35 @@ final class DragDetector {
             self.hasEnteredNotchRegion = false
         }
 
-  // Track drag movement and notch region intersection
-        mouseDraggedMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDragged]) { [weak self] event in
+        mouseDraggedMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDragged]) { [weak self] _ in
             guard let self = self else { return }
             guard self.isDragging else { return }
 
             let newContent = self.dragPasteboard.changeCount != self.pasteboardChangeCount
-            
-   // Detect if actual content is being dragged AND it's valid content
+            if newContent {
+                self.pasteboardChangeCount = self.dragPasteboard.changeCount
+            }
+
             if newContent && !self.isContentDragging && self.hasValidDragContent() {
                 self.isContentDragging = true
             }
 
-   // Only process position when content is being dragged
-            if self.isContentDragging {
-                let mouseLocation = NSEvent.mouseLocation
-                self.onDragMove?(mouseLocation)
-                
-    // Track notch region entry/exit
-                let containsMouse = self.notchRegion.contains(mouseLocation)
-                if containsMouse && !self.hasEnteredNotchRegion {
-                    self.hasEnteredNotchRegion = true
-                    self.onDragEntersNotchRegion?()
-                } else if !containsMouse && self.hasEnteredNotchRegion {
-                    self.hasEnteredNotchRegion = false
-                    self.onDragExitsNotchRegion?()
-                }
+            guard self.isContentDragging else { return }
+
+            let now = CACurrentMediaTime()
+            guard (now - self.lastProcessedDragTime) >= self.dragProcessingInterval else { return }
+            self.lastProcessedDragTime = now
+
+            let mouseLocation = NSEvent.mouseLocation
+            self.onDragMove?(mouseLocation)
+
+            let containsMouse = self.notchRegion.contains(mouseLocation)
+            if containsMouse && !self.hasEnteredNotchRegion {
+                self.hasEnteredNotchRegion = true
+                self.onDragEntersNotchRegion?()
+            } else if !containsMouse && self.hasEnteredNotchRegion {
+                self.hasEnteredNotchRegion = false
+                self.onDragExitsNotchRegion?()
             }
         }
 
@@ -97,6 +96,7 @@ final class DragDetector {
             self.isContentDragging = false
             self.hasEnteredNotchRegion = false
             self.pasteboardChangeCount = -1
+            self.lastProcessedDragTime = 0
         }
     }
 
@@ -112,6 +112,7 @@ final class DragDetector {
         isDragging = false
         isContentDragging = false
         hasEnteredNotchRegion = false
+        lastProcessedDragTime = 0
     }
 
     deinit {

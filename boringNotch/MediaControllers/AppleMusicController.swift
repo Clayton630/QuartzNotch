@@ -1,9 +1,3 @@
-//
-// AppleMusicController.swift
-// boringNotch
-//
-// Created by Alexander on 2025-03-29.
-//
 
 import Foundation
 import Combine
@@ -122,7 +116,7 @@ class AppleMusicController: MediaControllerProtocol {
         let script = """
         tell application \"Music\"
             try
-                set favorited of current track to " + (favorite ? "true" : "false") + "
+                set favorited of current track to \(favorite ? "true" : "false")
             end try
         end tell
         """
@@ -151,11 +145,9 @@ class AppleMusicController: MediaControllerProtocol {
         let lovedState = descriptor.atIndex(10)?.booleanValue ?? false
         updatedState.isFavorite = lovedState
 
-    // Track key/persistent identifier (used to avoid re-fetching huge artwork on every position tick).
         let trackID = descriptor.atIndex(11)?.stringValue ?? ""
         let trackKey = trackID.isEmpty ? "\(updatedState.title)|\(updatedState.artist)|\(updatedState.album)" : trackID
 
-    // Only clear artwork on track changes; otherwise keep the last good one.
         let didChangeTrack = trackKey != lastTrackKey
         if didChangeTrack {
             lastTrackKey = trackKey
@@ -174,7 +166,6 @@ class AppleMusicController: MediaControllerProtocol {
         artworkTask = Task { [weak self] in
             guard let self else { return }
 
-      // Retry because Music often publishes playerInfo before artwork bytes are ready.
             let delaysMs: [UInt64] = [120, 180, 260, 420, 700]
             for (i, delay) in delaysMs.enumerated() {
                 if Task.isCancelled { return }

@@ -1,13 +1,6 @@
-//
-// ShelfPersistenceService.swift
-// boringNotch
-//
-// Created by Alexander on 2025-09-24.
-//
 
 import Foundation
 
-// Access model types
 @_exported import struct Foundation.URL
 
 
@@ -32,14 +25,11 @@ final class ShelfPersistenceService {
     func load() -> [ShelfItem] {
         guard let data = try? Data(contentsOf: fileURL) else { return [] }
         
-    // Try to decode as array first (normal case)
         if let items = try? decoder.decode([ShelfItem].self, from: data) {
             return items
         }
         
-    // If array decoding fails, try to decode individual items
         do {
-      // Parse as JSON array to get individual item data
             guard let jsonArray = try JSONSerialization.jsonObject(with: data) as? [Any] else {
                 print("[WARN] Shelf persistence file is not a valid JSON array")
                 return []

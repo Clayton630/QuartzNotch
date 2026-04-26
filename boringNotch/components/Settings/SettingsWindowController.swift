@@ -1,9 +1,3 @@
-//
-// SettingsWindowController.swift
-// boringNotch
-//
-// Created by Alexander on 2025-06-14.
-//
 
 import AppKit
 import SwiftUI
@@ -13,6 +7,7 @@ import Sparkle
 class SettingsWindowController: NSWindowController {
     static let shared = SettingsWindowController()
     private var updaterController: SPUStandardUpdaterController?
+    private var hostingView: NSHostingView<SettingsView>?
     
     private init() {
         let window = NSWindow(
@@ -33,7 +28,6 @@ class SettingsWindowController: NSWindowController {
     
     func setUpdaterController(_ controller: SPUStandardUpdaterController) {
         self.updaterController = controller
-    // Recreate the content view with the proper updater controller
         setupWindow()
     }
     
@@ -46,31 +40,26 @@ class SettingsWindowController: NSWindowController {
         window.toolbarStyle = .unified
         window.isMovableByWindowBackground = true
         
-    // Make it behave like a regular app window with proper Spaces support
         window.collectionBehavior = [.managed, .participatesInCycle, .fullScreenAuxiliary]
         
-    // Ensure proper window behavior
         window.hidesOnDeactivate = false
         window.isExcludedFromWindowsMenu = false
         
-    // Configure window to be a standard document-style window
         window.isRestorable = true
         window.identifier = NSUserInterfaceItemIdentifier("BoringNotchSettingsWindow")
         
-    // Create the SwiftUI content
         let settingsView = SettingsView(updaterController: updaterController)
         let hostingView = NSHostingView(rootView: settingsView)
+        self.hostingView = hostingView
         window.contentView = hostingView
         
-    // Handle window closing
         window.delegate = self
     }
     
     func showWindow() {
-    // Set app to regular mode first
         NSApp.setActivationPolicy(.regular)
+        AppIconModeManager.applyCurrentAppIconOverride()
         
-    // If window is already visible, bring it to front properly
         if window?.isVisible == true {
             NSApp.activate(ignoringOtherApps: true)
             window?.orderFrontRegardless()
@@ -78,20 +67,26 @@ class SettingsWindowController: NSWindowController {
             return
         }
         
-    // Show the window with proper ordering
         window?.orderFrontRegardless()
         window?.makeKeyAndOrderFront(nil)
         window?.center()
         
-    // Activate the app and ensure window gets focus
         NSApp.activate(ignoringOtherApps: true)
         
-    // Force window to front after activation
         DispatchQueue.main.async { [weak self] in
             self?.window?.makeKeyAndOrderFront(nil)
         }
     }
     
+    func refreshWindowForAccentChange() {
+        guard let window, window.isVisible == true else { return }
+        hostingView?.needsLayout = true
+        hostingView?.layoutSubtreeIfNeeded()
+        hostingView?.display()
+        window.invalidateShadow()
+        window.displayIfNeeded()
+    }
+
     override func close() {
         super.close()
         relinquishFocus()
@@ -100,7 +95,6 @@ class SettingsWindowController: NSWindowController {
     private func relinquishFocus() {
         window?.orderOut(nil)
         
-    // Set app back to accessory mode immediately
         NSApp.setActivationPolicy(.accessory)
     }
 }
@@ -115,8 +109,8 @@ extension SettingsWindowController: NSWindowDelegate {
     }
     
     func windowDidBecomeKey(_ notification: Notification) {
-    // Ensure app is in regular mode when window becomes key
         NSApp.setActivationPolicy(.regular)
+        AppIconModeManager.applyCurrentAppIconOverride()
     }
     
     func windowDidResignKey(_ notification: Notification) {

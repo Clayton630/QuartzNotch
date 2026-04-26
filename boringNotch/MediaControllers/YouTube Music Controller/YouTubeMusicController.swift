@@ -1,11 +1,3 @@
-//
-// YouTubeMusicController.swift
-// boringNotch
-//
-// Created By Alexander on 2025-03-30.
-// Modified by Pranav on 2025-06-16.
-// Fixed by AI Assistant on 2026-02-04.
-//
 
 import Foundation
 import Combine
@@ -60,7 +52,6 @@ final class YouTubeMusicController: MediaControllerProtocol {
         self.httpClient = YouTubeMusicHTTPClient(baseURL: configuration.baseURL)
         self.authManager = YouTubeMusicAuthManager(httpClient: httpClient)
         
-    // Defer async setup to avoid init-time crashes
         DispatchQueue.main.async { [weak self] in
             self?.setupAppStateObserver()
             
@@ -71,7 +62,6 @@ final class YouTubeMusicController: MediaControllerProtocol {
     }
     
     deinit {
-    // Clean up resources
         updateTimer?.invalidate()
         appStateObserver?.cancel()
         artworkFetchTask?.cancel()
@@ -128,7 +118,6 @@ final class YouTubeMusicController: MediaControllerProtocol {
             let token = try await authManager.authenticate()
             let response = try await httpClient.getPlaybackInfo(token: token)
             await updatePlaybackState(with: response)
-      // Fetch like state if supported
             do {
                 let likeResp = try await httpClient.getLikeState(token: token)
                 var newState = playbackState
@@ -137,7 +126,6 @@ final class YouTubeMusicController: MediaControllerProtocol {
                     case "LIKE":
                         newState.isFavorite = true
                     case "DISLIKE":
-            // We don't have a separate dislike UI yet, treat as not favorited
                         newState.isFavorite = false
                     default:
                         newState.isFavorite = false
@@ -147,7 +135,6 @@ final class YouTubeMusicController: MediaControllerProtocol {
                 }
                 playbackState = newState
             } catch {
-        // Don't treat it as an error if the like endpoint doesn't exist — just skip
             }
         } catch YouTubeMusicError.authenticationRequired {
             await authManager.invalidateToken()
@@ -377,7 +364,6 @@ final class YouTubeMusicController: MediaControllerProtocol {
                 body: body,
                 token: token
             )
-      // Lightweight endpoint-specific parsing
             if endpoint == "/shuffle" {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let shuffleState = json["state"] as? Bool {
                     playbackState.isShuffled = shuffleState
@@ -389,7 +375,6 @@ final class YouTubeMusicController: MediaControllerProtocol {
                     if let mode = json["mode"] as? String { updateRepeatMode(mode) }
                 }
             } else if endpoint == "/switch-repeat" {
-        // Find next repeat mode
                 let nextMode: RepeatMode
                 switch playbackState.repeatMode {
                 case .off: nextMode = .all

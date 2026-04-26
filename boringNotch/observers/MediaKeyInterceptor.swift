@@ -1,8 +1,3 @@
-//
-// MediaKeyInterceptor.swift
-// boringNotch
-//
-// Created by Alexander on 2025-11-23.
 
 import Foundation
 import AppKit
@@ -21,12 +16,17 @@ final class MediaKeyInterceptor {
         case brightnessUp = 2
         case brightnessDown = 3
         case mute = 7
+        case play = 16
+        case next = 17
+        case previous = 18
         case keyboardBrightnessUp = 21
         case keyboardBrightnessDown = 22
     }
     
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private var globalTransportMonitor: Any?
+    private var localTransportMonitor: Any?
     private let step: Float = 1.0 / 16.0
     private var audioPlayer: AVAudioPlayer?
     
@@ -45,15 +45,6 @@ final class MediaKeyInterceptor {
  // MARK: - Event Tap
     
     func start(promptIfNeeded: Bool = false) async {
-        guard eventTap == nil else { return }
-        
-  // Ensure HUD replacement is enabled
-        guard Defaults[.hudReplacement] else {
-            stop()
-            return
-        }
-        
-  // Check accessibility authorization
         let authorized = await XPCHelperClient.shared.isAccessibilityAuthorized()
         if !authorized {
             if promptIfNeeded {
@@ -63,6 +54,9 @@ final class MediaKeyInterceptor {
                 return
             }
         }
+
+        installTransportMonitorsIfNeeded()
+        guard eventTap == nil else { return }
         
         let mask = CGEventMask(1 << kSystemDefinedEventType.rawValue)
         eventTap = CGEvent.tapCreate(
@@ -96,12 +90,20 @@ final class MediaKeyInterceptor {
         }
         runLoopSource = nil
         eventTap = nil
+
+        if let globalTransportMonitor {
+            NSEvent.removeMonitor(globalTransportMonitor)
+            self.globalTransportMonitor = nil
+        }
+        if let localTransportMonitor {
+            NSEvent.removeMonitor(localTransportMonitor)
+            self.localTransportMonitor = nil
+        }
     }
     
  // MARK: - Event Handling
     
     private func handleEvent(_ cgEvent: CGEvent) -> Unmanaged<CGEvent>? {
-  // Ensure the CGEvent has a valid type before converting to NSEvent
         guard cgEvent.type != .null else {
             return Unmanaged.passRetained(cgEvent)
         }
@@ -115,7 +117,6 @@ final class MediaKeyInterceptor {
         let keyCode = (data1 & 0xFFFF_0000) >> 16
         let stateByte = ((data1 & 0xFF00) >> 8)
         
-  // 0xA = key down, 0xB = key up. Only handle key down.
         guard stateByte == 0xA,
               let keyType = NXKeyType(rawValue: keyCode) else {
             return Unmanaged.passRetained(cgEvent)
@@ -125,17 +126,64 @@ final class MediaKeyInterceptor {
         let option = flags.contains(.option)
         let shift = flags.contains(.shift)
         let command = flags.contains(.command)
-        
-  // Handle option key action (without shift)
-        if option && !shift {
+        let isTransportKey = keyType == .play || keyType == .next || keyType == .previous
+
+        if !Defaults[.hudReplacement] && !isTransportKey {
+            return Unmanaged.passRetained(cgEvent)
+        }
+
+        if !isTransportKey && option && !shift {
             if handleOptionAction(for: keyType, command: command) {
                 return nil
             }
         }
         
-  // Handle normal key press
         handleKeyPress(keyType: keyType, option: option, shift: shift, command: command)
         return nil
+    }
+
+    private func installTransportMonitorsIfNeeded() {
+        if globalTransportMonitor == nil {
+            globalTransportMonitor = NSEvent.addGlobalMonitorForEvents(matching: .systemDefined) { [weak self] event in
+                self?.handleTransportMonitorEvent(event)
+            }
+        }
+
+        if localTransportMonitor == nil {
+            localTransportMonitor = NSEvent.addLocalMonitorForEvents(matching: .systemDefined) { [weak self] event in
+                self?.handleTransportMonitorEvent(event)
+                return event
+            }
+        }
+    }
+
+    private func handleTransportMonitorEvent(_ event: NSEvent) {
+        guard event.type == .systemDefined,
+              event.subtype.rawValue == 8 else {
+            return
+        }
+
+        let data1 = event.data1
+        let keyCode = (data1 & 0xFFFF_0000) >> 16
+        let stateByte = ((data1 & 0xFF00) >> 8)
+
+        guard stateByte == 0xA,
+              let keyType = NXKeyType(rawValue: keyCode) else {
+            return
+        }
+
+        switch keyType {
+        case .next:
+            Task { @MainActor in
+                MusicManager.shared.triggerNextButtonAnimation()
+            }
+        case .previous:
+            Task { @MainActor in
+                MusicManager.shared.triggerPreviousButtonAnimation()
+            }
+        default:
+            break
+        }
     }
     
     private func handleOptionAction(for keyType: NXKeyType, command: Bool) -> Bool {
@@ -214,6 +262,18 @@ final class MediaKeyInterceptor {
             Task { @MainActor in
                 VolumeManager.shared.toggleMuteAction()
             }
+        case .play:
+            Task { @MainActor in
+                MusicManager.shared.togglePlay()
+            }
+        case .next:
+            Task { @MainActor in
+                MusicManager.shared.nextTrack()
+            }
+        case .previous:
+            Task { @MainActor in
+                MusicManager.shared.previousTrack()
+            }
         case .brightnessUp, .keyboardBrightnessUp:
             let delta = step / stepDivisor
             adjustBrightness(delta: delta, keyboard: keyType == .keyboardBrightnessUp || command)
@@ -239,6 +299,8 @@ final class MediaKeyInterceptor {
             case .soundUp, .soundDown, .mute:
                 let v = VolumeManager.shared.rawVolume
                 BoringViewCoordinator.shared.toggleSneakPeek(status: true, type: .volume, value: CGFloat(v))
+            case .play, .next, .previous:
+                break
             case .brightnessUp, .brightnessDown:
                 if command {
                     let v = KeyboardBacklightManager.shared.rawBrightness
@@ -258,7 +320,7 @@ final class MediaKeyInterceptor {
         let urlString: String
         
         switch keyType {
-        case .soundUp, .soundDown, .mute:
+        case .soundUp, .soundDown, .mute, .play, .next, .previous:
             urlString = "x-apple.systempreferences:com.apple.preference.sound"
         case .brightnessUp, .brightnessDown:
             if command {

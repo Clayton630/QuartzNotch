@@ -1,38 +1,40 @@
-//
-// LockScreenLiveActivity.swift
-// boringNotch
-//
-// Created by Clayton on 22/01/2026.
-//
 
 import SwiftUI
+import AppKit
 
 struct LockScreenLiveActivity: View {
   /// true = screen locked ; false = unlocked
     let isLocked: Bool
     let contentWidth: CGFloat
     let height: CGFloat
+    @ObservedObject private var musicManager = MusicManager.shared
 
     private var iconSize: CGFloat { max(0, height - 12) }
+    private var shouldShowMediaPanel: Bool {
+        isLocked && (musicManager.isPlaying || !musicManager.isPlayerIdle || !musicManager.isUsingIdleMetadata)
+    }
 
-  // "Blur to focus" effect on appearance (lock) only.
     @State private var iconBlur: CGFloat = 0
     @State private var blurTask: Task<Void, Never>?
     private let blurMax: CGFloat = 18
 
     var body: some View {
         ZStack {
-      // Keep exactly the same footprint as other closed activities
             Rectangle()
                 .fill(Color.clear)
                 .frame(width: contentWidth, height: height)
 
-            LockIconAnimatedBlurView(
-                isLocked: isLocked,
-                size: iconSize,
-                iconColor: .white,
-                blurRadius: iconBlur
-            )
+            if shouldShowMediaPanel {
+                lockScreenMediaPanel
+                    .frame(width: contentWidth, height: height)
+            } else {
+                LockIconAnimatedBlurView(
+                    isLocked: isLocked,
+                    size: iconSize,
+                    iconColor: .white,
+                    blurRadius: iconBlur
+                )
+            }
         }
         .frame(width: contentWidth, height: height)
         .onAppear { applyBlurTransition(isLocked: isLocked, initial: true) }
@@ -44,13 +46,9 @@ struct LockScreenLiveActivity: View {
     private func applyBlurTransition(isLocked: Bool, initial: Bool) {
         blurTask?.cancel()
         if isLocked {
-      // Apparition (verrouillage) : flou -> net.
-      // Important: the notch expands horizontally; during the first ~200 ms,
-      // the icon is compressed and blur is almost invisible, so sharpening is delayed.
             iconBlur = blurMax
             let startDelayMs = initial ? 360 : 300
 
-      // Progressive focus in multiple stages for better readability on a small icon.
             blurTask = Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(startDelayMs))
                 guard !Task.isCancelled else { return }
@@ -66,8 +64,49 @@ struct LockScreenLiveActivity: View {
                 withAnimation(NotchMotion.liveActivityOut) { iconBlur = 0 }
             }
         } else {
-      // No blur on dismissal.
             iconBlur = 0
         }
+    }
+
+    @ViewBuilder
+    private var lockScreenMediaPanel: some View {
+        HStack(spacing: 7) {
+            Group {
+                if let albumImage = musicManager.albumArt.copy() as? NSImage {
+                    Image(nsImage: albumImage)
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fill)
+                } else {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(Color.white.opacity(0.10))
+                        Image(systemName: "music.note")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
+                }
+            }
+            .frame(width: 18, height: 18)
+            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(musicManager.songTitle)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.98))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Text(musicManager.artistName)
+                    .font(.system(size: 8.5, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.72))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }

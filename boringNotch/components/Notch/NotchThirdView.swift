@@ -1,9 +1,3 @@
-//
-// NotchThirdView.swift
-// boringNotch
-//
-// Modified by AI Assistant on 2026-02-02.
-//
 
 import SwiftUI
 import AppKit
@@ -12,31 +6,71 @@ import Defaults
 // MARK: - Layout
 
 private enum NotchThirdLayout {
-  // Tuned to visually match the Clipboard card height.
-    static let timerCardHeight: CGFloat = 38
-    static let timerStackSpacing: CGFloat = 8
-
-  /// Total height of the quick-timers column (all presets + spacing).
-    static var quickTimersTotalHeight: CGFloat {
-        let count = CGFloat(TimerPreset.allCases.count)
-        guard count > 0 else { return 0 }
-        return (count * timerCardHeight) + ((count - 1) * timerStackSpacing)
+    static func timerCardHeight(for compression: CGFloat) -> CGFloat {
+        38 - (3 * compression)
     }
 
-  /// Keep clipboard card perfectly aligned with the quick timers stack.
+    static func timerStackSpacing(for compression: CGFloat) -> CGFloat {
+        8 - (2 * compression)
+    }
+
+    /// Total height of the quick-timers column (all presets + spacing).
+    static func quickTimersTotalHeight(for compression: CGFloat) -> CGFloat {
+        let count = CGFloat(TimerPreset.allCases.count)
+        guard count > 0 else { return 0 }
+        return (count * timerCardHeight(for: compression)) + ((count - 1) * timerStackSpacing(for: compression))
+    }
+
+    /// Keep clipboard card perfectly aligned with the quick timers stack.
     static let clipboardVerticalOverhang: CGFloat = 0
 
-  /// Fixed width for the duration label/editor so the timer row doesn't resize when entering edit mode.
-  /// Must fit within the quick-timer card alongside the play button.
-    static let durationEditorWidth: CGFloat = 78
+    /// Fixed width for the duration label/editor so the timer row doesn't resize when entering edit mode.
+    /// Must fit within the quick-timer card alongside the play button.
+    static func durationEditorWidth(for compression: CGFloat) -> CGFloat {
+        78 - (2 * compression)
+    }
 
-  /// Fixed card width for each quick timer to prevent expansion when switching states.
-    static let quickTimerCardWidth: CGFloat = 140
+    /// Fixed card width for each quick timer to prevent expansion when switching states.
+    static func quickTimerCardWidth(for compression: CGFloat) -> CGFloat {
+        140 - (6 * compression)
+    }
 
+    static func sectionHorizontalPadding(for compression: CGFloat) -> CGFloat {
+        17 - (2 * compression)
+    }
+
+    static func sectionTopPadding(for compression: CGFloat) -> CGFloat {
+        4 - (2 * compression)
+    }
+
+    static func sectionBottomPadding(for compression: CGFloat) -> CGFloat {
+        10 - (4 * compression)
+    }
+
+    static func rowHorizontalPadding(for compression: CGFloat) -> CGFloat {
+        10 - (1.5 * compression)
+    }
+
+    static func rowVerticalPadding(for compression: CGFloat) -> CGFloat {
+        5 - compression
+    }
+
+    static func controlSize(for compression: CGFloat) -> CGFloat {
+        26 - (2 * compression)
+    }
+
+    static func readoutFontSize(for compression: CGFloat) -> CGFloat {
+        12 - (0.6 * compression)
+    }
+
+    static func readoutHeight(for compression: CGFloat) -> CGFloat {
+        16 - compression
+    }
 }
 
 struct NotchThirdView: View {
     @EnvironmentObject var vm: BoringViewModel
+    @Environment(\.openNotchLayoutCompression) private var openLayoutCompression
     @ObservedObject var webcamManager = WebcamManager.shared
     @Default(.showMirror) private var showMirror
     @StateObject private var timerManager = QuickTimerManager.shared
@@ -44,73 +78,116 @@ struct NotchThirdView: View {
 
   /// In multi-page mode, the notch uses a swipeable pager that captures horizontal scroll gestures.
   /// While the user interacts with the clipboard list (two-finger scrolling), we disable pager scrolling
-  /// to avoid accidental page switches/closures.
+    /// to avoid accidental page switches/closures.
     @Binding var isPagerScrollEnabled: Bool
-    private let cameraReservedWidth: CGFloat = 132
 
     init(isPagerScrollEnabled: Binding<Bool> = .constant(true)) {
         self._isPagerScrollEnabled = isPagerScrollEnabled
     }
 
-    private var shouldShowCamera: Bool {
-        showMirror
-            && webcamManager.cameraAvailable
-            && vm.isCameraExpanded
-            && !vm.suppressCameraLayoutInOpenContent
-    }
-    
     var body: some View {
-    // Top-align columns so visual height differences are immediately visible (and avoid center-align drift).
+        let timerStackHeight = NotchThirdLayout.quickTimersTotalHeight(for: openLayoutCompression)
         HStack(alignment: .top, spacing: 10) {
-      // Left side: Quick Timers (3 vertical presets)
             VStack(spacing: 0) {
                 QuickTimersSection()
                 Spacer(minLength: 0)
             }
             .frame(width: 140)
-            .frame(height: NotchThirdLayout.quickTimersTotalHeight, alignment: .top)
+            .frame(height: timerStackHeight, alignment: .top)
             
-      // Right side: Clipboard Manager
             ClipboardCard(isPagerScrollEnabled: $isPagerScrollEnabled)
                 .frame(maxWidth: .infinity)
                 .frame(
-                    height: NotchThirdLayout.quickTimersTotalHeight + (2 * NotchThirdLayout.clipboardVerticalOverhang),
+                    height: timerStackHeight + (2 * NotchThirdLayout.clipboardVerticalOverhang),
                     alignment: .top
                 )
-        // Keep exact top/bottom alignment with the timers column.
                 .offset(y: -NotchThirdLayout.clipboardVerticalOverhang)
 
-            if shouldShowCamera {
-                Spacer(minLength: 0)
-                    .frame(width: cameraReservedWidth, height: 0)
-            }
         }
-        .padding(.horizontal, 17)
-        .padding(.top, 4)
-        .padding(.bottom, 10)
+        .padding(.horizontal, NotchThirdLayout.sectionHorizontalPadding(for: openLayoutCompression))
+        .padding(.top, NotchThirdLayout.sectionTopPadding(for: openLayoutCompression))
+        .padding(.bottom, NotchThirdLayout.sectionBottomPadding(for: openLayoutCompression))
     }
 }
 
 // MARK: - Quick Timers Section
 
 struct QuickTimersSection: View {
+    @Environment(\.openNotchLayoutCompression) private var openLayoutCompression
     @StateObject private var timerManager = QuickTimerManager.shared
+    @Default(.pageUseLiquidGlassBackground) private var pageUseLiquidGlassBackground
     
     var body: some View {
-    // Give the presets more breathing room vertically.
-        VStack(spacing: NotchThirdLayout.timerStackSpacing) {
-            ForEach(TimerPreset.allCases, id: \.self) { preset in
-                QuickTimerButton(preset: preset)
+        VStack(spacing: NotchThirdLayout.timerStackSpacing(for: openLayoutCompression)) {
+            ForEach(Array(TimerPreset.allCases.enumerated()), id: \.element) { index, preset in
+                QuickTimerButton(
+                    preset: preset,
+                    ambientShadowOpacity: timerShadowOpacity(for: index),
+                    ambientShadowBlur: timerShadowBlur(for: index),
+                    ambientShadowYOffset: timerShadowYOffset(for: index)
+                )
             }
         }
+        .overlay {
+            if pageUseLiquidGlassBackground {
+                VStack(spacing: NotchThirdLayout.timerStackSpacing(for: openLayoutCompression)) {
+                    ForEach(Array(TimerPreset.allCases.enumerated()), id: \.offset) { _ in
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.31), lineWidth: 1.0)
+                            .frame(
+                                width: NotchThirdLayout.quickTimerCardWidth(for: openLayoutCompression),
+                                height: NotchThirdLayout.timerCardHeight(for: openLayoutCompression)
+                            )
+                    }
+                }
+                .blendMode(.screen)
+                .mask {
+                    LinearGradient(
+                        stops: [
+                            .init(color: .white.opacity(0.00), location: 0.00),
+                            .init(color: .white.opacity(0.22), location: 0.40),
+                            .init(color: .white.opacity(0.56), location: 0.72),
+                            .init(color: .white.opacity(1.00), location: 1.00),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
+                .allowsHitTesting(false)
+            }
+        }
+    }
+
+    private func timerShadowOpacity(for index: Int) -> Double {
+        guard pageUseLiquidGlassBackground else { return 0 }
+        if index == 1 { return 0.14 }
+        if index == TimerPreset.allCases.count - 1 { return 0.24 }
+        return 0
+    }
+
+    private func timerShadowBlur(for index: Int) -> CGFloat {
+        if index == 1 { return 12 }
+        if index == TimerPreset.allCases.count - 1 { return 15 }
+        return 0
+    }
+
+    private func timerShadowYOffset(for index: Int) -> CGFloat {
+        if index == 1 { return 5 }
+        if index == TimerPreset.allCases.count - 1 { return 7 }
+        return 0
     }
 }
 
 struct QuickTimerButton: View {
+    @Environment(\.openNotchLayoutCompression) private var openLayoutCompression
     let preset: TimerPreset
+    let ambientShadowOpacity: Double
+    let ambientShadowBlur: CGFloat
+    let ambientShadowYOffset: CGFloat
     @StateObject private var timerManager = QuickTimerManager.shared
     @State private var isHovering = false
     @State private var isEditingDuration = false
+    @Default(.pageUseLiquidGlassBackground) private var pageUseLiquidGlassBackground
 
     private var activeTimer: QuickTimer? {
         timerManager.timers.first(where: { $0.preset == preset })
@@ -125,11 +202,14 @@ struct QuickTimerButton: View {
 
     var body: some View {
         ZStack {
-            NotchCardBackground(cornerRadius: 10, isHovering: isHovering)
+            NotchCardBackground(
+                cornerRadius: 10,
+                isHovering: isHovering,
+                ambientShadowOpacity: ambientShadowOpacity,
+                ambientShadowBlur: ambientShadowBlur,
+                ambientShadowYOffset: ambientShadowYOffset
+            )
 
-      // IMPORTANT:
-      // We must observe an active timer directly; otherwise SwiftUI will not refresh
-      // when `remainingSeconds` changes (because only the manager is a StateObject here).
             if let timer = activeTimer {
                 ActiveQuickTimerContent(
                     timer: timer,
@@ -142,6 +222,8 @@ struct QuickTimerButton: View {
                         }
                     }
                 )
+                .shadow(color: Color.black.opacity(pageUseLiquidGlassBackground ? 0.10 : 0.0), radius: 2.0, x: 0, y: 1)
+                .shadow(color: Color.black.opacity(pageUseLiquidGlassBackground ? 0.035 : 0.0), radius: 4.6, x: 0, y: 2)
             } else {
                 InactiveQuickTimerContent(
                     preset: preset,
@@ -151,9 +233,14 @@ struct QuickTimerButton: View {
                         timerManager.startTimer(duration: preset.effectiveDurationSeconds, preset: preset)
                     }
                 )
+                .shadow(color: Color.black.opacity(pageUseLiquidGlassBackground ? 0.10 : 0.0), radius: 2.0, x: 0, y: 1)
+                .shadow(color: Color.black.opacity(pageUseLiquidGlassBackground ? 0.035 : 0.0), radius: 4.6, x: 0, y: 2)
             }
         }
-        .frame(width: NotchThirdLayout.quickTimerCardWidth, height: NotchThirdLayout.timerCardHeight)
+        .frame(
+            width: NotchThirdLayout.quickTimerCardWidth(for: openLayoutCompression),
+            height: NotchThirdLayout.timerCardHeight(for: openLayoutCompression)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .compositingGroup()
@@ -188,16 +275,17 @@ struct QuickTimerButton: View {
 }
 
 private struct ActiveQuickTimerContent: View {
+    @Environment(\.openNotchLayoutCompression) private var openLayoutCompression
     @ObservedObject var timer: QuickTimer
     let onToggle: () -> Void
     let onStop: () -> Void
 
     private let runningTint = Color(nsColor: .systemOrange)
     private let neutralTint = Color.white.opacity(0.85)
-    private let controlSize: CGFloat = 26
     private let stopToRingOffset: CGFloat = 32
 
     var body: some View {
+        let controlSize = NotchThirdLayout.controlSize(for: openLayoutCompression)
         HStack(spacing: 8) {
             ZStack(alignment: .leading) {
                 TimerReadout(
@@ -206,12 +294,10 @@ private struct ActiveQuickTimerContent: View {
                     opacity: 1.0
                 )
             }
-            .frame(width: NotchThirdLayout.durationEditorWidth, alignment: .leading)
+            .frame(width: NotchThirdLayout.durationEditorWidth(for: openLayoutCompression), alignment: .leading)
 
             Spacer(minLength: 0)
 
-      // Keep the ring anchored like the inactive play button.
-      // Render stop in overlay, shifted left into spacer space.
             ZStack {
                 ProgressRingControl(
                     progress: timer.progress,
@@ -235,21 +321,21 @@ private struct ActiveQuickTimerContent: View {
             }
             .frame(width: controlSize, height: controlSize, alignment: .trailing)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+        .padding(.horizontal, NotchThirdLayout.rowHorizontalPadding(for: openLayoutCompression))
+        .padding(.vertical, NotchThirdLayout.rowVerticalPadding(for: openLayoutCompression))
     }
 }
 
 private struct InactiveQuickTimerContent: View {
+    @Environment(\.openNotchLayoutCompression) private var openLayoutCompression
     let preset: TimerPreset
     @Binding var durationSeconds: Int
     @Binding var isEditingDuration: Bool
     let onStart: () -> Void
 
     private let readyTint = Color(nsColor: .systemGreen)
-    private let controlSize: CGFloat = 26
-
     var body: some View {
+        let controlSize = NotchThirdLayout.controlSize(for: openLayoutCompression)
         HStack(spacing: 8) {
             ZStack(alignment: .leading) {
                 if isEditingDuration {
@@ -257,7 +343,6 @@ private struct InactiveQuickTimerContent: View {
                         isEditingDuration = false
                     }
                 } else {
-          // Click the time label to toggle inline editing.
                     TimerReadout(
                         text: TimerPreset.formatHMS(durationSeconds),
                         value: durationSeconds,
@@ -266,12 +351,10 @@ private struct InactiveQuickTimerContent: View {
                     )
                 }
             }
-      // Keep layout + typography stable when switching between display and edit mode.
-            .frame(width: NotchThirdLayout.durationEditorWidth, alignment: .leading)
+            .frame(width: NotchThirdLayout.durationEditorWidth(for: openLayoutCompression), alignment: .leading)
 
             Spacer(minLength: 0)
 
-      // Play button on the right, green, like Apple's Timer.
             Button(action: onStart) {
                 ZStack {
                     Circle()
@@ -284,12 +367,13 @@ private struct InactiveQuickTimerContent: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+        .padding(.horizontal, NotchThirdLayout.rowHorizontalPadding(for: openLayoutCompression))
+        .padding(.vertical, NotchThirdLayout.rowVerticalPadding(for: openLayoutCompression))
     }
 }
 
 private struct TimerReadout: View {
+    @Environment(\.openNotchLayoutCompression) private var openLayoutCompression
     let text: String
     let value: Int
     let opacity: Double
@@ -300,9 +384,9 @@ private struct TimerReadout: View {
             text: text,
             value: value
         )
-        .font(.system(size: 12, weight: .semibold))
+        .font(.system(size: NotchThirdLayout.readoutFontSize(for: openLayoutCompression), weight: .semibold))
         .opacity(opacity)
-        .frame(width: NotchThirdLayout.durationEditorWidth, alignment: .leading)
+        .frame(width: NotchThirdLayout.durationEditorWidth(for: openLayoutCompression), alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture { onTap?() }
     }
@@ -320,6 +404,7 @@ private struct TimerReadout: View {
 ///  - Option: ±10s
 ///  - Shift: ±10m
 private struct InlineDurationEditor: View {
+    @Environment(\.openNotchLayoutCompression) private var openLayoutCompression
     @Binding var durationSeconds: Int
     let onDone: () -> Void
 
@@ -339,7 +424,7 @@ private struct InlineDurationEditor: View {
             colon
             field($sText, field: .s, width: 20, maxDigits: 2)
         }
-        .frame(width: NotchThirdLayout.durationEditorWidth, alignment: .leading)
+        .frame(width: NotchThirdLayout.durationEditorWidth(for: openLayoutCompression), alignment: .leading)
         .onAppear {
             originalSeconds = durationSeconds
             let (h, m, s) = splitHMS(durationSeconds)
@@ -390,7 +475,6 @@ private struct InlineDurationEditor: View {
         let m = min(59, max(0, Int(mText) ?? 0))
         let s = min(59, max(0, Int(sText) ?? 0))
 
-    // Keep a minimum of 1 second to avoid zero-length timers.
         let total = max(1, (h * 3600) + (m * 60) + s)
         durationSeconds = total
 
@@ -419,22 +503,17 @@ private struct ProgressRingControl: View {
 
   /// Render the ring as *remaining* time: full at start → empty at the end.
     private var displayedProgress: Double {
-    // `progress` is elapsed/total in [0, 1]. Remaining is (1 - progress).
         1.0 - progress
     }
 
     var body: some View {
         Button(action: action) {
             ZStack {
-        // No tinted background fill: keep the control clean and consistent.
-        // Hit-testing is ensured by the explicit frame + contentShape.
 
-        // Track
                 Circle()
                     .stroke(tint.opacity(0.25), lineWidth: ringLineWidth)
                     .padding(ringLineWidth / 2)
 
-        // Progress
                 Circle()
                     .trim(from: 0, to: displayedProgress)
                     .stroke(
@@ -462,54 +541,104 @@ private struct ProgressRingControl: View {
 private struct NotchCardBackground: View {
     let cornerRadius: CGFloat
     let isHovering: Bool
+    var usesBottomWeightedStroke: Bool = false
+    var ambientShadowOpacity: Double = 0
+    var ambientShadowBlur: CGFloat = 0
+    var ambientShadowYOffset: CGFloat = 0
+    @Default(.pageUseLiquidGlassBackground) private var pageUseLiquidGlassBackground
 
     private var baseFill: Color { Color(nsColor: .secondarySystemFill) }
 
-  // Keep this value in sync with header pills (dots + toolbar) for a unified UI.
     private let unifiedBaseOpacity: Double = 0.985
     private let unifiedHoverOpacity: Double = 1.00
     private let unifiedDoubleFillOpacity: Double = 0.24
 
     var body: some View {
-        RoundedRectangle(cornerRadius: cornerRadius)
-      // Match the pill/dots system fill style.
-            .fill(baseFill)
-      // Add a very subtle "double fill" to make the material feel slightly more opaque
-      // without changing the overall color language.
-            .overlay {
+        ZStack {
+            if pageUseLiquidGlassBackground {
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(baseFill)
-                    .opacity(unifiedDoubleFillOpacity)
-            }
-      // Slight hover lift, without making the card feel heavy.
-            .opacity(isHovering ? unifiedHoverOpacity : unifiedBaseOpacity)
-      // Uniform background (no gradient). Keep a very subtle stroke for definition.
-            .overlay {
+                    .fill(.ultraThinMaterial)
+                    .opacity(isHovering ? 0.31 : 0.27)
+
                 RoundedRectangle(cornerRadius: cornerRadius)
-          // Keep the border strictly inside the bounds so it doesn't change perceived sizing.
-                    .strokeBorder(Color.white.opacity(0.025), lineWidth: 1)
+                    .fill(Color.white.opacity(isHovering ? 0.066 : 0.050))
+
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(Color.black.opacity(isHovering ? 0.010 : 0.007))
             }
+
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(baseFill)
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(baseFill)
+                        .opacity(pageUseLiquidGlassBackground ? 0.13 : unifiedDoubleFillOpacity)
+                }
+                .opacity(isHovering ? unifiedHoverOpacity : (pageUseLiquidGlassBackground ? 0.87 : unifiedBaseOpacity))
+                .overlay {
+                    if pageUseLiquidGlassBackground && ambientShadowOpacity > 0 {
+                        BottomAmbientShadow(
+                            cornerRadius: cornerRadius,
+                            opacity: ambientShadowOpacity,
+                            blur: ambientShadowBlur,
+                            y: ambientShadowYOffset
+                        )
+                    }
+                }
+                .overlay {
+                    if pageUseLiquidGlassBackground {
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .strokeBorder(Color.black.opacity(0.05), lineWidth: 1.0)
+                            .blendMode(.multiply)
+                    }
+                }
+                .overlay {
+                    if pageUseLiquidGlassBackground && usesBottomWeightedStroke {
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .strokeBorder(
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: Color.white.opacity(0.11), location: 0.00),
+                                        .init(color: Color.white.opacity(0.11), location: 0.54),
+                                        .init(color: Color.white.opacity(0.18), location: 0.76),
+                                        .init(color: Color.white.opacity(0.34), location: 1.00),
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 1
+                            )
+                            .blendMode(.screen)
+                    } else {
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .strokeBorder(
+                                Color.white.opacity(pageUseLiquidGlassBackground ? 0.11 : 0.025),
+                                lineWidth: 1
+                            )
+                    }
+                }
+                .shadow(
+                    color: Color.black.opacity(pageUseLiquidGlassBackground ? 0.18 : 0.0),
+                    radius: pageUseLiquidGlassBackground ? 8 : 0,
+                    x: 0,
+                    y: pageUseLiquidGlassBackground ? 2 : 0
+                )
+        }
     }
 }
 
 private struct AnimatedCountdownText: View {
+    @Environment(\.openNotchLayoutCompression) private var openLayoutCompression
     let text: String
     let value: Int
 
     var body: some View {
-    // The core issue: .contentTransition(.numericText()) uses internal transforms
-    // that combine badly with the parent HStack's .offset() during page swipes.
-    // 
-    // Solution: Render the text into an offscreen buffer BEFORE the page transform
-    // is applied. This isolates the numeric animation from parent transformations.
         ZStack(alignment: .leading) {
-      // Hidden placeholder to reserve stable layout space
             Text("00:00")
                 .monospacedDigit()
                 .opacity(0)
                 .accessibilityHidden(true)
 
-      // Actual animated text rendered to an independent layer
             Text(text)
                 .monospacedDigit()
                 .lineLimit(1)
@@ -520,7 +649,39 @@ private struct AnimatedCountdownText: View {
                 .animation(.easeInOut(duration: 0.22), value: value)
         }
         .drawingGroup() // Render to an offscreen texture to isolate from parent transforms.
-        .frame(height: 16, alignment: .center)
+        .frame(height: NotchThirdLayout.readoutHeight(for: openLayoutCompression), alignment: .center)
+    }
+}
+
+private struct BottomAmbientShadow: View {
+    let cornerRadius: CGFloat
+    let opacity: Double
+    let blur: CGFloat
+    let y: CGFloat
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(Color.black.opacity(opacity))
+            .scaleEffect(x: 0.99, y: 0.95)
+            .blur(radius: blur)
+            .offset(y: y)
+            .mask {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .clear, location: 0.00),
+                                .init(color: .clear, location: 0.52),
+                                .init(color: .white.opacity(0.72), location: 0.82),
+                                .init(color: .white, location: 1.00),
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
+            .blendMode(.multiply)
+            .allowsHitTesting(false)
     }
 }
 
@@ -532,11 +693,21 @@ private struct AnimatedCountdownText: View {
 private struct ClipboardCard: View {
     @Binding var isPagerScrollEnabled: Bool
     @State private var isHovering = false
+    @Default(.pageUseLiquidGlassBackground) private var pageUseLiquidGlassBackground
 
     var body: some View {
         ZStack {
-            NotchCardBackground(cornerRadius: 10, isHovering: isHovering)
+            NotchCardBackground(
+                cornerRadius: 10,
+                isHovering: isHovering,
+                usesBottomWeightedStroke: true,
+                ambientShadowOpacity: pageUseLiquidGlassBackground ? 0.22 : 0,
+                ambientShadowBlur: pageUseLiquidGlassBackground ? 15 : 0,
+                ambientShadowYOffset: pageUseLiquidGlassBackground ? 7 : 0
+            )
             ClipboardSection(isPagerScrollEnabled: $isPagerScrollEnabled)
+                .shadow(color: Color.black.opacity(pageUseLiquidGlassBackground ? 0.10 : 0.0), radius: 2.0, x: 0, y: 1)
+                .shadow(color: Color.black.opacity(pageUseLiquidGlassBackground ? 0.035 : 0.0), radius: 4.6, x: 0, y: 2)
         }
         .onHover { isHovering = $0 }
     }
@@ -555,7 +726,6 @@ struct ClipboardSection: View {
     
     var body: some View {
         VStack(spacing: 0) {
-      // Header
             HStack {
                 Image(systemName: "doc.on.clipboard")
                     .font(.system(size: 12, weight: .semibold))
@@ -583,7 +753,6 @@ struct ClipboardSection: View {
             Divider()
                 .background(Color.white.opacity(0.1))
             
-      // Clipboard items
             if clipboardManager.items.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "clipboard")
@@ -612,8 +781,6 @@ struct ClipboardSection: View {
                 }
             }
         }
-    // Fill the height imposed by the parent. The card background is applied by the parent
-    // *after* the explicit height, so it truly matches the timers column.
         .frame(maxHeight: .infinity, alignment: .top)
         .onAppear {
             isPagerScrollEnabled = true
@@ -625,8 +792,6 @@ struct ClipboardSection: View {
                 let threshold: CGFloat = 0.8
 
                 if dy > (dx + threshold) {
-                    // Vertical interaction inside clipboard: temporarily block pager
-                    // so the notch open/close gestures do not steal the scroll.
                     isPagerScrollEnabled = false
                     pagerReenableTask?.cancel()
                     pagerReenableTask = Task { @MainActor in
@@ -635,7 +800,6 @@ struct ClipboardSection: View {
                         if isHoveringList { isPagerScrollEnabled = true }
                     }
                 } else if dx > (dy + threshold) {
-                    // Horizontal interaction should always route to page switching.
                     isPagerScrollEnabled = true
                 }
 
@@ -663,13 +827,11 @@ struct ClipboardItemRow: View {
     
     var body: some View {
         HStack(spacing: 8) {
-        // Icon
             Image(systemName: item.icon)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.white.opacity(0.6))
                 .frame(width: 16)
                 
-        // Preview
             if item.type == .image, let image = item.content as? NSImage {
                 Image(nsImage: image)
                     .resizable()
@@ -686,7 +848,6 @@ struct ClipboardItemRow: View {
                 
             Spacer(minLength: 0)
                 
-        // Delete button
             Button {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                     clipboardManager.deleteItem(item)

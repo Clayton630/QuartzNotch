@@ -1,9 +1,3 @@
-//
-// YouTubeMusicNetworking.swift
-// boringNotch
-//
-// Created by Alexander on 2025-09-14.
-//
 
 import Foundation
 

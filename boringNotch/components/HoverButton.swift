@@ -1,15 +1,19 @@
-//
-// HoverButton.swift
-// boringNotch
-//
-// Created by Kraigo on 04.09.2024.
-//
 
 import SwiftUI
 
 private enum SkipTriangleDirection {
     case forward
     case backward
+}
+
+enum HoverButtonAnimationEvent {
+    case previousTrackSkip
+    case nextTrackSkip
+}
+
+enum HoverButtonSymbolRotateDirection {
+    case clockwise
+    case counterClockwise
 }
 
 private struct SkipTriangleShape: Shape {
@@ -41,15 +45,11 @@ private struct SkipDoubleTriangleGlyph: View {
         let secondX = (triangleW + triangleGap) * 0.5
         let spawnOffset = triangleW + triangleGap
 
-        // Slower shrink curve (fade unchanged): starts gently, compresses later.
         let firstScale = max(0.0, 1.0 - (pow(pc, 1.55) * 0.55))
-        // Make the disappearing glyph fade out much earlier so the fade itself is barely noticeable.
         let firstOpacity = max(0.0, 1.0 - (pc * 2.4))
-        // Push the disappearing glyph much further so it exits cleanly without being overtaken.
         let disappearingFirstX = firstX - (spawnOffset * (1.85 * p))
         let secondToFirstX = secondX + (firstX - secondX) * p
         let newSecondX = secondX + spawnOffset * (1 - p)
-        // No bounce: simple integrated scale evolution for the entering glyph.
         let newSecondScale: CGFloat = {
             let arriveT = max(0.0, min(1.0, pc / 0.82))
             return 0.90 + (0.10 * arriveT)
@@ -160,50 +160,32 @@ struct HoverButton: View {
     var customSize: CGFloat? = nil
     var customIconFontSize: CGFloat? = nil
     var animateOnTap: Bool = false
+    var tapRotationDegrees: Double = 0
+    var tapSymbolRotateDirection: HoverButtonSymbolRotateDirection? = nil
+    var externalAnimationTrigger: UUID? = nil
+    var externalAnimationEvent: HoverButtonAnimationEvent? = nil
     var tapNudgeX: CGFloat = 0
+    var contentTransitionID: AnyHashable? = nil
     var action: () -> Void
     var contentTransition: ContentTransition = .symbolEffect;
-    
+
     @State private var isHovering = false
     @State private var tapTransitionProgress: CGFloat = 0
     @State private var isTapTransitionActive = false
+    @State private var symbolRotateTrigger = 0
+    @State private var isPressPrimed = false
 
     var body: some View {
         let size = customSize ?? CGFloat(scale == .large ? 40 : 30)
         let slideDuration: Double = 0.66
         let slideAnimation: Animation = .interpolatingSpring(stiffness: 235, damping: 20)
         let isSkipIcon = (icon == "forward.fill" || icon == "backward.fill")
-        // Invert animation direction mapping to match requested behavior.
         let skipDirection: SkipTriangleDirection = (icon == "backward.fill") ? .forward : .backward
         let iconPointSize: CGFloat = customIconFontSize ?? (scale == .large ? 28 : 17)
-        
+
         Button(action: {
             if animateOnTap {
-                if tapNudgeX != 0 {
-                    isTapTransitionActive = true
-                    tapTransitionProgress = 0
-                    withAnimation(slideAnimation) {
-                        tapTransitionProgress = 1
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + slideDuration) {
-                        // Snap back to the idle single-icon state after the transition frame.
-                        tapTransitionProgress = 0
-                        isTapTransitionActive = false
-                    }
-                } else {
-                    // Legacy tap animation for call sites that don't provide a slide direction.
-                    isTapTransitionActive = true
-                    tapTransitionProgress = 0
-                    withAnimation(.easeOut(duration: 0.08)) {
-                        tapTransitionProgress = 1
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-                        withAnimation(.interpolatingSpring(stiffness: 230, damping: 20)) {
-                            tapTransitionProgress = 0
-                        }
-                        isTapTransitionActive = false
-                    }
-                }
+                runTapAnimation(slideAnimation: slideAnimation, slideDuration: slideDuration)
             }
             action()
         }) {
@@ -223,25 +205,108 @@ struct HoverButton: View {
                                         pointSize: iconPointSize,
                                         direction: skipDirection,
                                         progress: tapTransitionProgress,
-                                        isAnimating: animateOnTap && tapNudgeX != 0 && isTapTransitionActive
+                                        isAnimating: tapNudgeX != 0 && isTapTransitionActive
                                     )
+                                    .rotationEffect(.degrees(tapTransitionProgress * tapRotationDegrees))
                                 } else {
-                                    Image(systemName: icon)
-                                        .foregroundColor(iconColor)
-                                        .contentTransition(contentTransition)
-                                        .font(customIconFontSize != nil
-                                              ? .system(size: customIconFontSize!)
-                                              : (scale == .large ? .largeTitle : .body))
+                                    symbolImage(pointSize: customIconFontSize != nil
+                                                ? .system(size: customIconFontSize!)
+                                                : (scale == .large ? .largeTitle : .body))
                                 }
                             }
                         }
                 }
         }
         .buttonStyle(PlainButtonStyle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    guard tapSymbolRotateDirection != nil else { return }
+                    guard !isPressPrimed else { return }
+                    isPressPrimed = true
+                    symbolRotateTrigger += 1
+                }
+                .onEnded { _ in
+                    isPressPrimed = false
+                }
+        )
         .onHover { hovering in
             withAnimation(.smooth(duration: 0.3)) {
                 isHovering = hovering
             }
+        }
+        .onChange(of: externalAnimationTrigger) { _, newValue in
+            guard newValue != nil else { return }
+            runTapAnimation(slideAnimation: slideAnimation, slideDuration: slideDuration)
+        }
+        .onReceive(animationEventPublisher) { _ in
+            guard externalAnimationEvent != nil else { return }
+            runTapAnimation(slideAnimation: slideAnimation, slideDuration: slideDuration)
+        }
+    }
+
+    private func runTapAnimation(slideAnimation: Animation, slideDuration: Double) {
+        guard !isTapTransitionActive else { return }
+
+        if tapNudgeX != 0 {
+            isTapTransitionActive = true
+            tapTransitionProgress = 0
+            withAnimation(slideAnimation) {
+                tapTransitionProgress = 1
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + slideDuration) {
+                tapTransitionProgress = 0
+                isTapTransitionActive = false
+            }
+        } else {
+            isTapTransitionActive = true
+            tapTransitionProgress = 0
+            withAnimation(.easeOut(duration: 0.08)) {
+                tapTransitionProgress = 1
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                withAnimation(.interpolatingSpring(stiffness: 230, damping: 20)) {
+                    tapTransitionProgress = 0
+                }
+                isTapTransitionActive = false
+            }
+        }
+    }
+
+    private var animationEventPublisher: NotificationCenter.Publisher {
+        switch externalAnimationEvent {
+        case .previousTrackSkip:
+            return NotificationCenter.default.publisher(for: .musicPreviousButtonAnimationTriggered)
+        case .nextTrackSkip:
+            return NotificationCenter.default.publisher(for: .musicNextButtonAnimationTriggered)
+        case .none:
+            return NotificationCenter.default.publisher(for: .hoverButtonAnimationNoop)
+        }
+    }
+
+    @ViewBuilder
+    private func symbolImage(pointSize: Font) -> some View {
+        let base = Image(systemName: icon)
+            .id(contentTransitionID)
+            .foregroundColor(iconColor)
+            .contentTransition(contentTransition)
+            .rotationEffect(.degrees(tapTransitionProgress * tapRotationDegrees))
+            .font(pointSize)
+
+        if let direction = tapSymbolRotateDirection {
+            if #available(macOS 15.0, *) {
+                let rotateOptions = SymbolEffectOptions.nonRepeating.speed(3.2)
+                switch direction {
+                case .clockwise:
+                    base.symbolEffect(.rotate.clockwise, options: rotateOptions, value: symbolRotateTrigger)
+                case .counterClockwise:
+                    base.symbolEffect(.rotate.counterClockwise, options: rotateOptions, value: symbolRotateTrigger)
+                }
+            } else {
+                base
+            }
+        } else {
+            base
         }
     }
 }

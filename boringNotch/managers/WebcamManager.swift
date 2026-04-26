@@ -1,39 +1,21 @@
-//
-// WebcamManager.swift
-// boringNotch
-//
-// Created by Harsh Vardhan Goswami on 19/08/24.
-//
 import AVFoundation
 import SwiftUI
+import ImageIO
+import UniformTypeIdentifiers
 
 class WebcamManager: NSObject, ObservableObject {
     static let shared = WebcamManager()
     
-    @Published var previewLayer: AVCaptureVideoPreviewLayer? {
-        didSet {
-            objectWillChange.send()
-        }
-    }
+    @Published var previewLayer: AVCaptureVideoPreviewLayer?
     
     private var captureSession: AVCaptureSession?
-    @Published var isSessionRunning: Bool = false {
-        didSet {
-            objectWillChange.send()
-        }
-    }
+    private var photoOutput: AVCapturePhotoOutput?
+    private var photoCaptureDelegates: [PhotoCaptureDelegate] = []
+    @Published var isSessionRunning: Bool = false
     
-    @Published var authorizationStatus: AVAuthorizationStatus = .notDetermined {
-        didSet {
-            objectWillChange.send()
-        }
-    }
+    @Published var authorizationStatus: AVAuthorizationStatus = .notDetermined
     
-    @Published var cameraAvailable: Bool = false {
-        didSet {
-            objectWillChange.send()
-        }
-    }
+    @Published var cameraAvailable: Bool = false
 
     private let sessionQueue = DispatchQueue(label: "BoringNotch.WebcamManager.SessionQueue", qos: .userInitiated)
     
@@ -140,13 +122,11 @@ class WebcamManager: NSObject, ObservableObject {
                 return 
             }
             
-      // Clean up any existing session before creating a new one
             self.cleanupExistingSession()
             
             let session = AVCaptureSession()
             
             do {
-        // Get available devices and prefer external camera if available
                 let discoverySession = AVCaptureDevice.DiscoverySession(
                     deviceTypes: [.external, .builtInWideAngleCamera],
                     mediaType: .video,
@@ -165,7 +145,6 @@ class WebcamManager: NSObject, ObservableObject {
                 
                 NSLog("Using camera: \(videoDevice.localizedName)")
                 
-        // Lock device for configuration
                 try videoDevice.lockForConfiguration()
                 defer { videoDevice.unlockForConfiguration() }
                 
@@ -183,18 +162,25 @@ class WebcamManager: NSObject, ObservableObject {
                 if session.canAddOutput(videoOutput) {
                     session.addOutput(videoOutput)
                 }
+
+                let photoOutput = AVCapturePhotoOutput()
+                if session.canAddOutput(photoOutput) {
+                    session.addOutput(photoOutput)
+                    self.photoOutput = photoOutput
+                } else {
+                    self.photoOutput = nil
+                }
+
                 session.commitConfiguration()
                 
                 self.captureSession = session
                 
-        // Create and set up preview layer on main thread
                 DispatchQueue.main.async {
                     self.cameraAvailable = true
                     let previewLayer = AVCaptureVideoPreviewLayer(session: session)
                     previewLayer.videoGravity = .resizeAspectFill
                     self.previewLayer = previewLayer
                     
-          // Setup is complete, let the caller know
                     completion(true)
                 }
                 
@@ -214,15 +200,12 @@ class WebcamManager: NSObject, ObservableObject {
   /// Cleans up an existing capture session, removing all inputs and outputs
     private func cleanupExistingSession() {
         if let existingSession = self.captureSession {
-      // First stop the session if running
             if existingSession.isRunning {
                 existingSession.stopRunning()
             }
             
-      // Then perform configuration cleanup
             existingSession.beginConfiguration()
             
-      // Remove all inputs and outputs
             for input in existingSession.inputs {
                 existingSession.removeInput(input)
             }
@@ -232,8 +215,9 @@ class WebcamManager: NSObject, ObservableObject {
             
             existingSession.commitConfiguration()
             self.captureSession = nil
+            self.photoOutput = nil
+            self.photoCaptureDelegates.removeAll()
             
-      // Clear preview layer on main thread
             DispatchQueue.main.async {
                 self.previewLayer = nil
             }
@@ -270,16 +254,13 @@ class WebcamManager: NSObject, ObservableObject {
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
             
-      // If no session exists, create new session
             if self.captureSession == nil {
                 self.setupCaptureSession { success in
                     if success {
-            // Only start the session if setup was successful
                         self.startRunningCaptureSession()
                     }
                 }
             } else {
-        // Session already exists, just start it
                 self.startRunningCaptureSession()
             }
         }
@@ -293,7 +274,6 @@ class WebcamManager: NSObject, ObservableObject {
             
             session.startRunning()
             
-      // Update state on main thread
             self.updateSessionState()
             
             NSLog("Capture session started successfully")
@@ -304,7 +284,6 @@ class WebcamManager: NSObject, ObservableObject {
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
             
-      // Update state to indicate we're stopping
             DispatchQueue.main.async {
                 self.isSessionRunning = false
             }
@@ -314,4 +293,108 @@ class WebcamManager: NSObject, ObservableObject {
             NSLog("Capture session stopped and cleaned up")
         }
     }
+
+
+    func capturePhotoToDesktop(completion: ((Result<URL, Error>) -> Void)? = nil) {
+        sessionQueue.async { [weak self] in
+            guard let self = self else { return }
+            guard let photoOutput = self.photoOutput else {
+                DispatchQueue.main.async {
+                    completion?(.failure(NSError(domain: "BoringNotch.WebcamManager", code: -2, userInfo: [NSLocalizedDescriptionKey: "Photo capture output unavailable"])))
+                }
+                return
+            }
+
+            let settings = AVCapturePhotoSettings()
+
+            var delegate: PhotoCaptureDelegate?
+            delegate = PhotoCaptureDelegate { [weak self] result in
+                DispatchQueue.main.async {
+                    completion?(result)
+                }
+                guard let delegate else { return }
+                self?.sessionQueue.async {
+                    self?.photoCaptureDelegates.removeAll { $0 === delegate }
+                }
+            }
+
+            if let delegate {
+                self.photoCaptureDelegates.append(delegate)
+                photoOutput.capturePhoto(with: settings, delegate: delegate)
+            }
+        }
+    }
+}
+
+    private func mirroredJPEGData(from data: Data) throws -> Data? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            return nil
+        }
+
+        let width = cgImage.width
+        let height = cgImage.height
+        guard let colorSpace = cgImage.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(
+                data: nil,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ) else {
+            return nil
+        }
+
+        context.translateBy(x: CGFloat(width), y: 0)
+        context.scaleBy(x: -1, y: 1)
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        guard let mirrored = context.makeImage(),
+              let mutableData = CFDataCreateMutable(nil, 0),
+              let destination = CGImageDestinationCreateWithData(mutableData, UTType.jpeg.identifier as CFString, 1, nil) else {
+            return nil
+        }
+
+        CGImageDestinationAddImage(destination, mirrored, nil)
+        guard CGImageDestinationFinalize(destination) else {
+            return nil
+        }
+
+        return mutableData as Data
+    }
+
+private final class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
+    private let completion: (Result<URL, Error>) -> Void
+
+    init(completion: @escaping (Result<URL, Error>) -> Void) {
+        self.completion = completion
+    }
+
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        if let error {
+            completion(.failure(error))
+            return
+        }
+
+        guard let data = photo.fileDataRepresentation() else {
+            completion(.failure(NSError(domain: "BoringNotch.WebcamManager", code: -3, userInfo: [NSLocalizedDescriptionKey: "Unable to generate photo data"])))
+            return
+        }
+
+        let desktopURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first ?? FileManager.default.homeDirectoryForCurrentUser
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd 'at' HH.mm.ss"
+        let fileURL = desktopURL.appendingPathComponent("QuartzNotch Capture \(formatter.string(from: Date())).jpg")
+
+        do {
+            let outputData = try mirroredJPEGData(from: data) ?? data
+            try outputData.write(to: fileURL, options: .atomic)
+            completion(.success(fileURL))
+        } catch {
+            completion(.failure(error))
+        }
+    }
+
 }

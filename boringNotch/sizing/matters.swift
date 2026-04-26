@@ -1,9 +1,3 @@
-//
-// sizeMatters.swift
-// boringNotch
-//
-// Created by Harsh Vardhan Goswami on 05/08/24.
-//
 
 import Defaults
 import Foundation
@@ -13,13 +7,55 @@ let downloadSneakSize: CGSize = .init(width: 65, height: 1)
 let batterySneakSize: CGSize = .init(width: 160, height: 1)
 
 let shadowPadding: CGFloat = 20
-let openNotchSize: CGSize = .init(width: 640, height: 190)
-// Keep extra horizontal headroom for open-state shoulder overhangs so they never clip at window bounds.
-let openNotchHorizontalOverhang: CGFloat = 30
-let windowSize: CGSize = .init(
-    width: openNotchSize.width + openNotchHorizontalOverhang * 2,
-    height: openNotchSize.height + shadowPadding
-)
+
+/// Canonical metrics for the opened notch.
+///
+/// These values deliberately do not read `NSScreen`, `safeAreaInsets`,
+/// menu-bar height, calendar state, camera state, or debug preview state.
+/// Physical screen measurements are valid for the closed notch only. The
+/// opened notch is a fixed designed surface; side overlays may extend width,
+/// but they must never mutate page height, page scale, or page origin.
+enum OpenNotchLayoutMetrics {
+    static let shellSize: CGSize = .init(width: 640, height: 190)
+    static let horizontalWindowOverhang: CGFloat = 30
+    static let headerCenterWidth: CGFloat = 190
+    static let headerHeight: CGFloat = 32
+    static let headerTopPadding: CGFloat = 6
+    static let contentTopLift: CGFloat = 8
+    static let contentBottomPadding: CGFloat = 12
+    static let contentBottomBleed: CGFloat = 12
+    static let contentViewportHeight: CGFloat = shellSize.height
+        - headerHeight
+        - headerTopPadding
+        - contentBottomPadding
+    static let contentScale: CGFloat = 1
+    static let contentCompression: CGFloat = 0
+    static let headerShoulderSafetyInset: CGFloat = 0
+}
+
+let openNotchSize: CGSize = OpenNotchLayoutMetrics.shellSize
+let openNotchHorizontalOverhang: CGFloat = OpenNotchLayoutMetrics.horizontalWindowOverhang
+
+private struct OpenNotchContentUsableHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat? = nil
+}
+
+private struct OpenNotchLayoutCompressionKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    var openNotchContentUsableHeight: CGFloat? {
+        get { self[OpenNotchContentUsableHeightKey.self] }
+        set { self[OpenNotchContentUsableHeightKey.self] = newValue }
+    }
+
+    var openNotchLayoutCompression: CGFloat {
+        get { self[OpenNotchLayoutCompressionKey.self] }
+        set { self[OpenNotchLayoutCompressionKey.self] = newValue }
+    }
+}
+
 let cornerRadiusInsets: (opened: (top: CGFloat, bottom: CGFloat), closed: (top: CGFloat, bottom: CGFloat)) = (opened: (top: 19, bottom: 34), closed: (top: 6, bottom: 14))
 
 enum MusicPlayerImageSizes {
@@ -28,42 +64,34 @@ enum MusicPlayerImageSizes {
 }
 
 @MainActor func getScreenFrame(_ screenUUID: String? = nil) -> CGRect? {
-    var selectedScreen = NSScreen.main
-
-    if let uuid = screenUUID {
-        selectedScreen = NSScreen.screen(withUUID: uuid)
-    }
-    
-    if let screen = selectedScreen {
-        return screen.frame
-    }
-    
-    return nil
+    selectedScreen(for: screenUUID)?.frame
 }
 
-@MainActor func getClosedNotchSize(screenUUID: String? = nil) -> CGSize {
-  // Default notch size, to avoid using optionals
-    var notchHeight: CGFloat = Defaults[.nonNotchHeight]
+@MainActor private func selectedScreen(for screenUUID: String? = nil) -> NSScreen? {
+    if let uuid = screenUUID {
+        return NSScreen.screen(withUUID: uuid)
+    }
+    return NSScreen.main
+}
+
+@MainActor private func measuredClosedNotchWidth(for screenUUID: String? = nil) -> CGFloat {
     var notchWidth: CGFloat = 185
 
-    var selectedScreen = NSScreen.main
-
-    if let uuid = screenUUID {
-        selectedScreen = NSScreen.screen(withUUID: uuid)
+    if let screen = selectedScreen(for: screenUUID),
+       let topLeftNotchpadding = screen.auxiliaryTopLeftArea?.width,
+       let topRightNotchpadding = screen.auxiliaryTopRightArea?.width
+    {
+        notchWidth = screen.frame.width - topLeftNotchpadding - topRightNotchpadding + 4
     }
 
-  // Check if the screen is available
-    if let screen = selectedScreen {
-    // Calculate and set the exact width of the notch
-        if let topLeftNotchpadding: CGFloat = screen.auxiliaryTopLeftArea?.width,
-           let topRightNotchpadding: CGFloat = screen.auxiliaryTopRightArea?.width
-        {
-            notchWidth = screen.frame.width - topLeftNotchpadding - topRightNotchpadding + 4
-        }
+    return notchWidth
+}
 
-    // Check if the Mac has a notch
+@MainActor private func measuredClosedNotchHeight(for screenUUID: String? = nil) -> CGFloat {
+    var notchHeight: CGFloat = Defaults[.nonNotchHeight]
+
+    if let screen = selectedScreen(for: screenUUID) {
         if screen.safeAreaInsets.top > 0 {
-      // This is a display WITH a notch - use notch height settings
             notchHeight = Defaults[.notchHeight]
             if Defaults[.notchHeightMode] == .matchRealNotchSize {
                 notchHeight = screen.safeAreaInsets.top
@@ -71,7 +99,6 @@ enum MusicPlayerImageSizes {
                 notchHeight = screen.frame.maxY - screen.visibleFrame.maxY
             }
         } else {
-      // This is a display WITHOUT a notch - use non-notch height settings
             notchHeight = Defaults[.nonNotchHeight]
             if Defaults[.nonNotchHeightMode] == .matchMenuBar {
                 notchHeight = screen.frame.maxY - screen.visibleFrame.maxY
@@ -79,5 +106,80 @@ enum MusicPlayerImageSizes {
         }
     }
 
-    return .init(width: notchWidth, height: notchHeight)
+    return notchHeight
+}
+
+@MainActor func getEffectiveClosedNotchHeight(screenUUID: String? = nil) -> CGFloat {
+    return measuredClosedNotchHeight(for: screenUUID)
+}
+
+@MainActor func getOpenHeaderCenterWidth(screenUUID: String? = nil) -> CGFloat {
+    OpenNotchLayoutMetrics.headerCenterWidth
+}
+
+@MainActor func getOpenLayoutReferenceHeight(screenUUID: String? = nil) -> CGFloat {
+    OpenNotchLayoutMetrics.headerHeight
+}
+
+@MainActor func getOpenNotchSize(screenUUID: String? = nil) -> CGSize {
+    OpenNotchLayoutMetrics.shellSize
+}
+
+@MainActor func getWindowSize(screenUUID: String? = nil) -> CGSize {
+    let openSize = getOpenNotchSize(screenUUID: screenUUID)
+    return .init(
+        width: openSize.width + openNotchHorizontalOverhang * 2,
+        height: openSize.height + shadowPadding
+    )
+}
+
+@MainActor func getOpenContentVerticalLift(screenUUID: String? = nil) -> CGFloat {
+    0
+}
+
+@MainActor func getOpenContentLayoutScale(screenUUID: String? = nil) -> CGFloat {
+    OpenNotchLayoutMetrics.contentScale
+}
+
+@MainActor func getOpenLayoutCompression(screenUUID: String? = nil) -> CGFloat {
+    OpenNotchLayoutMetrics.contentCompression
+}
+
+@MainActor func getOpenHeaderShoulderSafetyInset(screenUUID: String? = nil) -> CGFloat {
+    OpenNotchLayoutMetrics.headerShoulderSafetyInset
+}
+
+/// Fixed spacer height reserved for the open-notch header overlay.
+/// Keeping this at the 13" reference height prevents the open content
+/// from being pushed downward on taller 15"/16" built-in displays.
+@MainActor func getOpenHeaderLayoutSpacerHeight() -> CGFloat {
+    OpenNotchLayoutMetrics.headerHeight
+}
+
+@MainActor func getOpenContentViewportHeight() -> CGFloat {
+    OpenNotchLayoutMetrics.contentViewportHeight
+}
+
+@MainActor func getOpenContentTopLift() -> CGFloat {
+    OpenNotchLayoutMetrics.contentTopLift
+}
+
+@MainActor func getOpenContentBottomPadding() -> CGFloat {
+    OpenNotchLayoutMetrics.contentBottomPadding
+}
+
+@MainActor func getOpenContentBottomBleed() -> CGFloat {
+    OpenNotchLayoutMetrics.contentBottomBleed
+}
+
+let windowSize: CGSize = .init(
+    width: openNotchSize.width + openNotchHorizontalOverhang * 2,
+    height: openNotchSize.height + shadowPadding
+)
+
+@MainActor func getClosedNotchSize(screenUUID: String? = nil) -> CGSize {
+    .init(
+        width: measuredClosedNotchWidth(for: screenUUID),
+        height: getEffectiveClosedNotchHeight(screenUUID: screenUUID)
+    )
 }

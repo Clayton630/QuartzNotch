@@ -1,9 +1,3 @@
-//
-// ShareServiceFinder.swift
-// boringNotch
-//
-// Created by Alexander on 2025-10-06.
-//
 
 import Cocoa
 
@@ -23,7 +17,6 @@ class ShareServiceFinder: NSObject, NSSharingServicePickerDelegate {
         return await withCheckedContinuation { continuation in
             var didResume = false
 
-      // Capture services callback
             Task { @MainActor in
                 self.onServicesCaptured = { services in
                     guard !didResume else { return }
@@ -35,7 +28,6 @@ class ShareServiceFinder: NSObject, NSSharingServicePickerDelegate {
             picker.show(relativeTo: dummyView.bounds, of: dummyView, preferredEdge: .minY)
 
 
-      // Timeout task
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(timeout))
                 guard !didResume else { return }

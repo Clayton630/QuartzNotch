@@ -1,9 +1,3 @@
-//
-// SparkleView.swift
-// boringNotch
-//
-// Created by Richard Kunkli on 2024. 09. 26..
-//
 
 import SwiftUI
 import AppKit
@@ -54,7 +48,6 @@ class SparkleNSView: NSView {
         emitterLayer.emitterSize = self.bounds.size
         emitterLayer.emitterPosition = CGPoint(x: bounds.width / 2, y: bounds.height / 2)
         
-  // Adjust birth rate based on view size
         let area = bounds.width * bounds.height
         let baseBirthRate: Float = 50
         let adjustedBirthRate = 20 // Assuming 200x200 as base size

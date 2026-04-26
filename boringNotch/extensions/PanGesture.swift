@@ -1,9 +1,3 @@
-//
-// PanGesture.swift
-// boringNotch
-//
-// Created by Richard Kunkli on 21/08/2024.
-//
 
 import AppKit
 import SwiftUI
@@ -68,10 +62,8 @@ private struct ScrollMonitor: NSViewRepresentable {
         }
 
         private func scheduleEndTimeout() {
-      // Cancel any existing scheduled end and schedule a new one.
             endTask?.cancel()
             endTask = Task { @MainActor in
-        // If no new scroll event arrives within this window, consider the gesture ended.
                 try? await Task.sleep(for: .milliseconds(300))
                 guard !Task.isCancelled else { return }
                 if active {
@@ -116,16 +108,12 @@ private struct ScrollMonitor: NSViewRepresentable {
                 return
             }
 
-      // Only consider scroll events that are primarily along the configured axis.
             let absDX = abs(event.scrollingDeltaX)
             let absDY = abs(event.scrollingDeltaY)
-      // Require the movement along the gesture axis to be at least 1.5x the orthogonal axis.
             let axisDominanceFactor: CGFloat = 1.5
             let isAxisDominant: Bool = direction.isHorizontal ? (absDX >= axisDominanceFactor * absDY) : (absDY >= axisDominanceFactor * absDX)
             guard isAxisDominant else { return }
 
-      // Scale non-precise (mouse wheel) scrolling deltas so they feel similar to
-      // trackpad gestures.
             let raw = direction.signed(deltaX: event.scrollingDeltaX, deltaY: event.scrollingDeltaY)
             let scale: CGFloat = event.hasPreciseScrollingDeltas ? 1 : 8
             let s = raw * scale
@@ -138,7 +126,6 @@ private struct ScrollMonitor: NSViewRepresentable {
             } else if active {
                 action(accumulated.magnitude, .changed)
             }
-      // Schedule a timeout to end the gesture if no further scroll events arrive.
             scheduleEndTimeout()
         }
     }

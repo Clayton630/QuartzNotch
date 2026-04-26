@@ -1,9 +1,3 @@
-  //
-  // ProgressIndicator.swift
-  // boringNotch
-  //
-  // Created by Harsh Vardhan Goswami on 11/08/24.
-  //
 
 import Foundation
 import SwiftUI
@@ -23,7 +17,6 @@ struct CircularProgressView: View {
                 .trim(from: 0, to: progress)
                 .stroke(
                     color,
-          // 1
                     style: StrokeStyle(
                         lineWidth: 6,
                         lineCap: .round
@@ -40,7 +33,6 @@ enum ProgressIndicatorType {
 }
 
 
-  // based on type .circle or .text
 struct ProgressIndicator: View {
     var type: ProgressIndicatorType
     var progress: Double

@@ -1,9 +1,3 @@
-//
-// ShelfItemViewModel.swift
-// boringNotch
-//
-// Created by Alexander on 2025-09-24.
-//
 
 import Foundation
 import AppKit
@@ -107,7 +101,6 @@ final class ShelfItemViewModel: ObservableObject {
         } else if flags.contains(.control) {
             handleRightClick(event: event, view: view)
         } else {
-            // Finder-like behavior: a plain click always collapses to a single selection.
             selection.selectSingle(item)
         }
         if event.clickCount == 2 { handleDoubleClick() }
@@ -134,7 +127,6 @@ final class ShelfItemViewModel: ObservableObject {
                 for item in ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items) {
                     switch item.kind {
                     case .file:
-            // Use immediate update for user-initiated share action
                         if let url = ShelfStateViewModel.shared.resolveAndUpdateBookmark(for: item) {
                             itemsToShare.append(url)
                             fileURLs.append(url)
@@ -150,10 +142,8 @@ final class ShelfItemViewModel: ObservableObject {
             guard !itemsToShare.isEmpty else { return }
              
             stopSharingAccessingURLs()
-      // Start security-scoped access for all file URLs and keep it active during sharing
             sharingAccessingURLs = fileURLs.filter { $0.startAccessingSecurityScopedResource() }
             
-      // Create and retain lifecycle delegate for the entire share operation
             let lifecycle = SharingStateManager.shared.makeDelegate { [weak self] in
                 self?.sharingLifecycle = nil
                 self?.stopSharingAccessingURLs()
@@ -181,7 +171,6 @@ final class ShelfItemViewModel: ObservableObject {
 
   // MARK: - Context Menu helpers (extracted from view)
     func loadOpenWithApps() -> [URL] {
-    // Support both files and link items. For link items we ask NSWorkspace for apps that can open the URL (browsers).
         if let fileURL = item.fileURL {
             var results: [URL] = NSWorkspace.shared.urlsForApplications(toOpen: fileURL)
             if results.isEmpty {
@@ -226,7 +215,6 @@ final class ShelfItemViewModel: ObservableObject {
             return nil
         }
         let selectedFolderURLs = selectedFileURLs.filter { isDirectory($0) }
-    // URLs valid for Open/Open With (exclude folders)
         let selectedOpenableURLs = selectedItems.compactMap { itm -> URL? in
             if let u = itm.fileURL { return isDirectory(u) ? nil : u }
             if case .link(let url) = itm.kind { return url }
@@ -241,7 +229,6 @@ final class ShelfItemViewModel: ObservableObject {
             let openWith = NSMenuItem(title: "Open With", action: nil, keyEquivalent: "")
             let submenu = NSMenu()
 
-      // Choose a representative URL to compute apps (prefer current item if not a folder)
             let baseURLForApps: URL? = {
                 if let u = item.fileURL, !isDirectory(u) { return u }
                 if case .link(let u) = item.kind { return u }
@@ -307,13 +294,10 @@ final class ShelfItemViewModel: ObservableObject {
         }
 
         if !selectedFileURLs.isEmpty { addMenuItem(title: "Show in Finder") }
-    // Allow Quick Look for files and link URLs
         if !selectedFileURLs.isEmpty || !selectedLinkURLs.isEmpty {
-      // Add Quick Look menu item
             let quickLookItem = NSMenuItem(title: "Quick Look", action: nil, keyEquivalent: "")
             menu.addItem(quickLookItem)
             
-      // Add Slideshow as alternate menu item (shown when Option key is held)
             let slideshowItem = NSMenuItem(title: "Quick Look", action: nil, keyEquivalent: "")
             slideshowItem.isAlternate = true
             slideshowItem.keyEquivalentModifierMask = [.option]
@@ -323,7 +307,6 @@ final class ShelfItemViewModel: ObservableObject {
         menu.addItem(NSMenuItem.separator())
         addMenuItem(title: "Share…")
         
-    // Add image processing options for image files grouped under "Image Actions"
         let imageURLs = selectedFileURLs.filter { ImageProcessingService.shared.isImageFile($0) }
         if !imageURLs.isEmpty {
             menu.addItem(NSMenuItem.separator())
@@ -331,19 +314,16 @@ final class ShelfItemViewModel: ObservableObject {
             let imageActions = NSMenuItem(title: "Image Actions", action: nil, keyEquivalent: "")
             let imageSubmenu = NSMenu()
 
-      // Remove Background - only for single images
             if imageURLs.count == 1 {
                 let removeBg = NSMenuItem(title: "Remove Background", action: nil, keyEquivalent: "")
                 imageSubmenu.addItem(removeBg)
             }
 
-      // Convert Image - only for single images
             if imageURLs.count == 1 {
                 let convertItem = NSMenuItem(title: "Convert Image…", action: nil, keyEquivalent: "")
                 imageSubmenu.addItem(convertItem)
             }
 
-      // Create PDF - for one or more images
             let createPDF = NSMenuItem(title: "Create PDF", action: nil, keyEquivalent: "")
             imageSubmenu.addItem(createPDF)
 
@@ -352,7 +332,6 @@ final class ShelfItemViewModel: ObservableObject {
             menu.addItem(NSMenuItem.separator())
         }
 
-    // Add compression option for files/folders (single or multiple)
         if !selectedFileURLs.isEmpty {
             let compressItem = NSMenuItem(title: "Compress", action: nil, keyEquivalent: "")
             menu.addItem(compressItem)
@@ -360,9 +339,7 @@ final class ShelfItemViewModel: ObservableObject {
 
         if selectedItems.count == 1, case .file(_) = item.kind { addMenuItem(title: "Rename") }
 
-    // Always show "Copy" for all item types
         addMenuItem(title: "Copy")
-    // If there are file URLs, add "Copy Path" as an alternate menu item (Option key)
         if !selectedFileURLs.isEmpty {
             let copyPathItem = NSMenuItem(title: "Copy Path", action: nil, keyEquivalent: "")
             copyPathItem.isAlternate = true
@@ -406,7 +383,6 @@ final class ShelfItemViewModel: ObservableObject {
         weak var view: NSView?
         unowned let viewModel: ShelfItemViewModel
 
-    // Keep associated objects (like accessory view handlers) without magic keys
         private static var sliderHandlerAssoc = AssociatedObject<AnyObject>()
 
         init(item: ShelfItem, view: NSView, viewModel: ShelfItemViewModel) {
@@ -459,7 +435,6 @@ final class ShelfItemViewModel: ObservableObject {
 
             switch title {
             case "Quick Look":
-        // Handle all selected items for Quick Look, not just the clicked item
                 let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
                 let urls: [URL] = selected.compactMap { item in
                     if let fileURL = item.fileURL {
@@ -490,7 +465,6 @@ final class ShelfItemViewModel: ObservableObject {
                 Task {
                     let urls = await selected.asyncCompactMap { item -> URL? in
                         if case .file = item.kind {
-              // Use immediate update for user-initiated menu action
                             return await ShelfStateViewModel.shared.resolveAndUpdateBookmark(for: item)
                         }
                         return nil
@@ -514,7 +488,6 @@ final class ShelfItemViewModel: ObservableObject {
                 let selected = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
                 let pb = NSPasteboard.general
                 
-        // Stop accessing previously copied URLs
                 for url in ShelfItemViewModel.copiedURLs {
                     url.stopAccessingSecurityScopedResource()
                 }
@@ -529,11 +502,9 @@ final class ShelfItemViewModel: ObservableObject {
                         return nil
                     }
                     if !fileURLs.isEmpty {
-            // Start security-scoped access for all URLs and keep them active
                         ShelfItemViewModel.copiedURLs = fileURLs.filter { $0.startAccessingSecurityScopedResource() }
                         NSLog("🔐 Started security-scoped access for \(ShelfItemViewModel.copiedURLs.count) copied files")
                         
-            // Write to pasteboard
                         pb.writeObjects(fileURLs as [NSURL])
                     } else {
                         let strings = selected.map { $0.displayName }
@@ -563,7 +534,6 @@ final class ShelfItemViewModel: ObservableObject {
 
                 Task {
                     do {
-            // Create ZIP in a temporary location while holding access to selected resources
                         if let zipTempURL = try await fileURLs.accessSecurityScopedResources(accessor: { urls in
                             await TemporaryFileStorageService.shared.createZip(from: urls)
                         }) {
@@ -571,7 +541,6 @@ final class ShelfItemViewModel: ObservableObject {
                                 let newItem = ShelfItem(kind: .file(bookmark: bookmark.data), isTemporary: true)
                                 ShelfStateViewModel.shared.add([newItem])
                             } else {
-                // Fallback: reveal the temporary file in Finder
                                 NSWorkspace.shared.activateFileViewerSelecting([zipTempURL])
                             }
                         }
@@ -587,7 +556,6 @@ final class ShelfItemViewModel: ObservableObject {
 
         @MainActor
         private func openWithPanel() {
-      // Support both file items and link items
             let targetURL: URL?
             let needsSecurityScope: Bool
             
@@ -616,7 +584,6 @@ final class ShelfItemViewModel: ObservableObject {
             }
             panel.directoryURL = URL(fileURLWithPath: "/Applications")
 
-      // Compute recommended applications for the selected target
             let recommendedApps: Set<URL> = {
                 let apps: [URL]
                 if let uti = (try? fileURL.resourceValues(forKeys: [.contentTypeKey]))?.contentType {
@@ -627,7 +594,6 @@ final class ShelfItemViewModel: ObservableObject {
                 return Set(apps.map { $0.standardizedFileURL })
             }()
 
-      // Delegate to filter entries when in "Recommended Applications" mode
             final class AppChooserDelegate: NSObject, NSOpenSavePanelDelegate {
                 enum Mode { case recommended, all }
                 var mode: Mode = .recommended
@@ -641,7 +607,6 @@ final class ShelfItemViewModel: ObservableObject {
                         case .all:
                             return true
                         case .recommended:
-              // Standardize URLs for reliable comparison
                             let std = url.standardizedFileURL
                             return recommended.contains(std)
                         }
@@ -692,7 +657,6 @@ final class ShelfItemViewModel: ObservableObject {
             panel.accessoryView = column
             panel.isAccessoryViewDisclosed = true
 
-      // Wire up popup to switch filter mode
             class PopupBinder: NSObject {
                 weak var popup: NSPopUpButton?
                 weak var chooserDelegate: AppChooserDelegate?
@@ -746,7 +710,6 @@ final class ShelfItemViewModel: ObservableObject {
                         }
                     }
                 }
-        // Keep binder/delegate alive until panel finishes
                 _ = binder
                 _ = chooserDelegate
             }
@@ -758,7 +721,6 @@ final class ShelfItemViewModel: ObservableObject {
             Task {
                 let bookmark = Bookmark(data: bookmarkData)
                 if let fileURL = bookmark.resolveURL() {
-          // Start security-scoped access and keep it active until rename completes.
                     let didStart = fileURL.startAccessingSecurityScopedResource()
 
                     let savePanel = NSSavePanel()
@@ -804,7 +766,6 @@ final class ShelfItemViewModel: ObservableObject {
                     }
                     
                     if let resultURL = resultURL {
-            // Create bookmark and add to shelf as temporary item
                         if let bookmark = try? Bookmark(url: resultURL) {
                             let newItem = ShelfItem(
                                 kind: .file(bookmark: bookmark.data),
@@ -834,7 +795,6 @@ final class ShelfItemViewModel: ObservableObject {
                     }
                     
                     if let resultURL = resultURL {
-            // Create bookmark and add to shelf as temporary item
                         if let bookmark = try? Bookmark(url: resultURL) {
                             let newItem = ShelfItem(
                                 kind: .file(bookmark: bookmark.data),
@@ -857,14 +817,12 @@ final class ShelfItemViewModel: ObservableObject {
             
             guard let imageURL = imageURLs.first else { return }
             
-      // Create and show conversion options dialog with better layout
             let alert = NSAlert()
             alert.messageText = "Convert Image"
             alert.alertStyle = .informational
             alert.addButton(withTitle: "Convert")
             alert.addButton(withTitle: "Cancel")
             
-      // Create accessory view with better spacing and organization
             let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: 380, height: 180))
             accessoryView.wantsLayer = true
             
@@ -892,7 +850,6 @@ final class ShelfItemViewModel: ObservableObject {
             imageSizePopup.font = .systemFont(ofSize: 12)
             accessoryView.addSubview(imageSizePopup)
             
-      // Custom size field (initially hidden)
             let customSizeField = NSTextField(frame: NSRect(x: 285, y: 103, width: 85, height: 22))
             customSizeField.placeholderString = "e.g., 1920"
             customSizeField.font = .systemFont(ofSize: 12)
@@ -933,7 +890,6 @@ final class ShelfItemViewModel: ObservableObject {
             qualityValueLabel.alignment = .left
             accessoryView.addSubview(qualityValueLabel)
             
-      // Update quality label and hide/show compression row based on format
             let updateQualityLabel = {
                 let value = Int(qualitySlider.doubleValue * 100)
                 qualityValueLabel.stringValue = "\(value)%"
@@ -952,7 +908,6 @@ final class ShelfItemViewModel: ObservableObject {
                 customSizeField.isHidden = sizeIndex != 4 // Show only for "Custom..."
             }
             
-      // Create a target object to handle slider value changes
             class SliderHandler: NSObject {
                 let updateLabel: () -> Void
                 let updateVisibility: () -> Void
@@ -988,7 +943,6 @@ final class ShelfItemViewModel: ObservableObject {
             updateQualityLabel()
             updateCustomSizeVisibility()
             
-      // Keep the handler alive using the `AssociatedObject` helper instead of a magic string key
             MenuActionTarget.sliderHandlerAssoc[accessoryView] = handler
             
             alert.accessoryView = accessoryView
@@ -996,7 +950,6 @@ final class ShelfItemViewModel: ObservableObject {
             let response = alert.runModal()
             
             if response == .alertFirstButtonReturn {
-        // Get selected options
                 let formatIndex = formatPopup.indexOfSelectedItem
                 let format: ImageConversionOptions.ImageFormat
                 switch formatIndex {
@@ -1010,7 +963,6 @@ final class ShelfItemViewModel: ObservableObject {
                 
                 let quality = qualitySlider.doubleValue
                 
-        // Get max dimension based on image size selection
                 let maxDimension: CGFloat? = {
                     let sizeIndex = imageSizePopup.indexOfSelectedItem
                     switch sizeIndex {
@@ -1042,7 +994,6 @@ final class ShelfItemViewModel: ObservableObject {
                         }
                         
                         if let resultURL = resultURL {
-              // Create bookmark and add to shelf as temporary item
                             if let bookmark = try? Bookmark(url: resultURL) {
                                 let newItem = ShelfItem(
                                     kind: .file(bookmark: bookmark.data),

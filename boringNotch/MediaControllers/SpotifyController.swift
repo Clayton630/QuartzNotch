@@ -1,9 +1,3 @@
-//
-// SpotifyController.swift
-// boringNotch
-//
-// Created by Alexander on 2025-03-29.
-//
 
 import Foundation
 import Combine
@@ -11,7 +5,6 @@ import SwiftUI
 
 class SpotifyController: MediaControllerProtocol {
     func setFavorite(_ favorite: Bool) async {
-    //Placeholder
     }
     
   // MARK: - Properties
@@ -31,7 +24,6 @@ class SpotifyController: MediaControllerProtocol {
 
     private var notificationTask: Task<Void, Never>?
     
-  // Constant for time between command and update
     private let commandUpdateDelay: Duration = .milliseconds(25)
 
     private var lastArtworkURL: String?

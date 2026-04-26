@@ -1,9 +1,3 @@
-//
-// AudioPlayer.swift
-// boringNotch
-//
-// Created by Harsh Vardhan Goswami on 09/08/24.
-//
 
 import Foundation
 import AppKit

@@ -11,7 +11,6 @@ STAGING_ROOT="$ROOT_DIR/.release_staging"
 
 APP_BUNDLE_NAME="QuartzNotch.app"
 VOLUME_NAME="QuartzNotch"
-SPARKLE_SIGN_TOOL="$ROOT_DIR/.build/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
 DMG_SCRIPT="$ROOT_DIR/Configuration/dmg/create_dmg.sh"
 
 VERSION=""
@@ -62,11 +61,41 @@ die() {
   exit 1
 }
 
+resolve_sparkle_sign_tool() {
+  local candidates=(
+    "$DERIVED_DATA_PATH/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
+    "$ROOT_DIR/.build/DerivedDataRelease/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
+    "$ROOT_DIR/.build/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
+  )
+
+  local candidate
+  for candidate in "${candidates[@]}"; do
+    if [[ -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  local discovered
+  discovered="$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update' -type f 2>/dev/null | head -n 1)"
+  if [[ -n "$discovered" && -x "$discovered" ]]; then
+    printf '%s\n' "$discovered"
+    return 0
+  fi
+
+  return 1
+}
+
 resign_adhoc_bundle() {
   local app_path="$1"
   [[ -d "$app_path" ]] || die "App not found for ad-hoc signing: $app_path"
 
-  # 1) Framework binaries, then framework bundles.
+  # 1) Nested app bundles / XPC services first (inside app and frameworks).
+  while IFS= read -r nested_bundle; do
+    codesign --force --sign - "$nested_bundle"
+  done < <(find "$app_path/Contents" -type d \( -name '*.app' -o -name '*.xpc' \) | sort)
+
+  # 2) Framework binaries + dylibs.
   if [[ -d "$app_path/Contents/Frameworks" ]]; then
     while IFS= read -r fw; do
       local fw_name fw_bin
@@ -81,12 +110,16 @@ resign_adhoc_bundle() {
     while IFS= read -r dylib; do
       codesign --force --sign - "$dylib"
     done < <(find "$app_path/Contents/Frameworks" -type f -name '*.dylib' | sort)
-  fi
 
-  # 2) Nested app bundles / XPC services.
-  while IFS= read -r nested_bundle; do
-    codesign --force --sign - "$nested_bundle"
-  done < <(find "$app_path/Contents" -type d \( -name '*.app' -o -name '*.xpc' \) | sort)
+    # Re-sign each framework bundle AFTER nested code has been updated.
+    while IFS= read -r fw; do
+      if [[ "$(basename "$fw")" == "MediaRemoteAdapter.framework" ]]; then
+        # Non-standard framework layout; binary was already signed above.
+        continue
+      fi
+      codesign --force --sign - "$fw"
+    done < <(find "$app_path/Contents/Frameworks" -maxdepth 1 -type d -name '*.framework' | sort)
+  fi
 
   # 3) Main executable.
   local main_exec
@@ -235,7 +268,7 @@ else
 fi
 
 if [[ "$SKIP_SPARKLE" != "1" ]]; then
-  [[ -x "$SPARKLE_SIGN_TOOL" ]] || die "Sparkle sign_update tool missing or not executable at: $SPARKLE_SIGN_TOOL"
+  SPARKLE_SIGN_TOOL="$(resolve_sparkle_sign_tool)" || die "Sparkle sign_update tool not found. Rebuild the app once in Xcode or rerun the release build to restore Sparkle artifacts."
   echo "[8/8] Generating Sparkle signature..."
   SPARKLE_SIGNATURE="$($SPARKLE_SIGN_TOOL --account "$SPARKLE_ACCOUNT" -p "$OUTPUT_DMG")"
   DMG_LENGTH="$(stat -f%z "$OUTPUT_DMG")"

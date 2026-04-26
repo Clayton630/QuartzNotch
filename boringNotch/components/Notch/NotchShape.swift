@@ -1,10 +1,3 @@
-//
-//  NotchShape.swift
-//  boringNotch
-//
-// Created by Kai Azim on 2023-08-24.
-// Original source: https://github.com/MrKai77/DynamicNotchKit
-// Modified by Alexander on 2025-05-18.
 
 import SwiftUI
 
@@ -32,8 +25,6 @@ struct NotchShape: InsettableShape {
             )
         }
         set {
-            // In exact-bounds mode (used by the deployed notch), keep top corners
-            // non-animated to avoid the transient inward rounding at open start.
             if !useExactBounds {
                 topCornerRadius = newValue.first
             }

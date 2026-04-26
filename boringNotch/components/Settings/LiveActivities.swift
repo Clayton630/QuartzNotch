@@ -1,9 +1,3 @@
-//
-// LiveActivities.swift
-// boringNotch
-//
-// Created by Clayton on 26/01/2026.
-//
 
 import SwiftUI
 import Defaults
@@ -11,11 +5,6 @@ import AppKit
 import Foundation
 
 struct LiveActivities: View {
-  // Wiring:
-  // - Charging state -> Battery: showPowerStatusNotifications
-  // - Shelf content -> controls the closed-notch tray counter popup
-  // - Lock screen  -> controls the lock/unlock popup shown on the lock screen
-  // - Now playing  -> uses the existing AppStorage toggle used by the coordinator
     @AppStorage("musicLiveActivityEnabled") private var musicLiveActivityEnabled: Bool = true
     @Default(.quickTimerAlertToneID) private var quickTimerAlertToneID
     @ObservedObject private var fullDiskAccess = FullDiskAccessPermissionStore.shared
@@ -48,6 +37,8 @@ struct LiveActivities: View {
                         Button("Request Full Disk Access") {
                             fullDiskAccess.requestAccessPrompt()
                         }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.controlAccent)
                     }
                     .padding(.vertical, 4)
                 }
@@ -55,64 +46,68 @@ struct LiveActivities: View {
                 Defaults.Toggle(key: .showPowerStatusNotifications) {
                     Text("Charging state")
                 }
-                .tint(.effectiveAccent)
+                .liveAccentToggleTint()
+                .tint(.controlAccent)
 
                 Defaults.Toggle(key: .liveActivityShelfContent) {
                     Text("Shelf content")
                 }
-                .tint(.effectiveAccent)
-
-                Defaults.Toggle(key: .liveActivityLockScreen) {
-                    Text("Lock screen")
-                }
-                .tint(.effectiveAccent)
+                .liveAccentToggleTint()
+                .tint(.controlAccent)
 
                 Defaults.Toggle(key: .bluetoothLiveActivityEnabled) {
                     Text("Bluetooth")
                 }
-                .tint(.effectiveAccent)
+                .liveAccentToggleTint()
+                .tint(.controlAccent)
 
                 Defaults.Toggle(key: .focusLiveActivityEnabled) {
                     Text("Focus mode")
                 }
-                .tint(.effectiveAccent)
+                .liveAccentToggleTint()
+                .tint(.controlAccent)
 
+                Toggle("Now playing", isOn: $musicLiveActivityEnabled)
+                    .liveAccentToggleTint()
+                    .tint(.controlAccent)
+
+            } header: {
+                Text("Activity Types")
+            }
+
+            Section {
                 Defaults.Toggle(key: .liveActivityTimerEnabled) {
                     Text("Timer")
                 }
-                .tint(.effectiveAccent)
+                .liveAccentToggleTint()
+                .tint(.controlAccent)
 
                 Defaults.Toggle(key: .mirrorSystemClockTimer) {
                     Text("Mirror Clock app timer")
                 }
-                .tint(.effectiveAccent)
+                .liveAccentToggleTint()
+                .tint(.controlAccent)
 
-                Picker("Timer ringtone", selection: $quickTimerAlertToneID) {
-                    ForEach(timerToneOptions, id: \.id) { option in
-                        Text(option.label).tag(option.id)
-                    }
+                LabeledContent("Timer ringtone") {
+                    AccentMenuPicker(
+                        selection: $quickTimerAlertToneID,
+                        options: timerToneOptions.map(\.id),
+                        title: { id in
+                            timerToneOptions.first(where: { $0.id == id })?.label ?? id
+                        },
+                        menuWidth: 220
+                    )
                 }
-                .pickerStyle(.menu)
-
-                Toggle("Now playing", isOn: $musicLiveActivityEnabled)
-                    .tint(.effectiveAccent)
-            } footer: {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("“Shelf content” shows or hides the closed-notch tray counter popup.")
-                    Text("“Lock screen” shows or hides the lock/unlock popup. (The notch visibility on lock screen is controlled in Advanced → Show notch on lock screen.)")
-                    Text("“Bluetooth” shows or hides the device-connected popup.")
-                    Text("“Focus mode” shows or hides the concentration live activity in the closed notch.")
-                    Text("“Timer” shows or hides the closed-notch timer indicator for Quick Timers (page 3).")
-                }
-                .foregroundStyle(.secondary)
-                .font(.caption)
+            } header: {
+                Text("Timers")
             }
 
             Section {
                 Defaults.Toggle(key: .showNotHumanFace) {
                     Text("Show cool face animation while inactive")
                 }
-                .tint(.effectiveAccent)
+                .liveAccentToggleTint()
+                .tint(.controlAccent)
             } header: {
                 Text("Inactive")
             }
@@ -152,7 +147,13 @@ private final class FullDiskAccessPermissionStore: ObservableObject {
     }
 
     func requestAccessPrompt() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+
         let alert = NSAlert()
+        let appIcon = NSWorkspace.shared.icon(forFile: Bundle.main.bundleURL.path)
+        appIcon.size = NSSize(width: 64, height: 64)
+        alert.icon = appIcon
         alert.messageText = "Full Disk Access Required"
         alert.informativeText = "QuartzNotch needs Full Disk Access to read Focus metadata (custom icon and color). Click Continue, then add QuartzNotch in Privacy & Security > Full Disk Access."
         alert.alertStyle = .informational
@@ -163,6 +164,9 @@ private final class FullDiskAccessPermissionStore: ObservableObject {
             openSystemSettings()
             revealAppBundleInFinder()
         }
+
+        NSApp.setActivationPolicy(.accessory)
+        NSApp.deactivate()
 
         beginPollingForStatusChanges()
     }

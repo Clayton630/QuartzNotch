@@ -1,11 +1,6 @@
-//
-// BluetoothStatusViewModel.swift
-// boringNotch
-//
-// Created by Clayton on 29/01/2026.
-//
 
 import Foundation
+import OSLog
 import SwiftUI
 import Defaults
 import Combine
@@ -21,9 +16,9 @@ final class BluetoothStatusViewModel: ObservableObject {
     @Published private(set) var lastConnectedBatteryPercent: Int? = nil
     @Published var lastConnectedAliasName: String?
 
-  // Battery cache to make the UI feel instant when reconnecting the same device.
     private var batteryCache: [String: (percent: Int, ts: Date)] = [:]
     private let batteryCacheTTL: TimeInterval = 20 * 60
+    private var batteryResolveTask: Task<Void, Never>?
 
     private let coordinator = BoringViewCoordinator.shared
     private let manager = BluetoothActivityManager.shared
@@ -36,8 +31,8 @@ final class BluetoothStatusViewModel: ObservableObject {
             self.lastConnectedDeviceName = info.name
             self.lastConnectedDeviceKind = info.kind
             self.lastConnectedBatteryPercent = nil
+            self.batteryResolveTask?.cancel()
 
-      // Instant feel: show cached value (if fresh), then refresh.
             let cacheKey = self.cacheKey(address: info.address, name: info.name)
             if let entry = self.batteryCache[cacheKey], Date().timeIntervalSince(entry.ts) < self.batteryCacheTTL {
                 self.lastConnectedBatteryPercent = entry.percent
@@ -60,22 +55,23 @@ final class BluetoothStatusViewModel: ObservableObject {
         let addr = address
         let nm = name
         let key = cacheKey(address: addr, name: nm)
-
-        for delay in delays {
-            Task.detached { [weak self] in
-                guard let self else { return }
+        batteryResolveTask = Task.detached(priority: .utility) { [weak self] in
+            guard let self else { return }
+            for delay in delays {
+                guard !Task.isCancelled else { return }
                 guard Defaults[.bluetoothLiveActivityEnabled] else { return }
                 if delay > 0 {
                     try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 }
+                guard !Task.isCancelled else { return }
                 if let p = await self.xpc.bluetoothBatteryPercent(forDeviceAddress: addr, deviceName: nm) {
                     await MainActor.run {
-            // Don't bounce the UI if already set to the same value.
                         if self.lastConnectedBatteryPercent != p {
                             self.lastConnectedBatteryPercent = p
                         }
                         self.batteryCache[key] = (p, Date())
                     }
+                    return
                 }
             }
         }
@@ -84,6 +80,7 @@ final class BluetoothStatusViewModel: ObservableObject {
 
 final class FocusModeLiveActivityManager: NSObject, ObservableObject {
     static let shared = FocusModeLiveActivityManager()
+    private let logger = Logger(subsystem: "theboringteam.boringnotch", category: "Focus")
 
     @Published private(set) var isMonitoring = false
     @Published private(set) var isFocusModeActive = false
@@ -98,10 +95,18 @@ final class FocusModeLiveActivityManager: NSObject, ObservableObject {
 
     private let notificationCenter = DistributedNotificationCenter.default()
     private let metadataExtractionQueue = DispatchQueue(label: "quartznotch.focus.metadata", qos: .userInitiated)
+    private let pollingQueue = DispatchQueue(label: "quartznotch.focus.assertions", qos: .utility)
     private let focusLogStream = FocusLogStream()
+    private let assertionsURL = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/DoNotDisturb/DB/Assertions.json")
     private var enabledCancellable: AnyCancellable?
     private var hideToastTask: Task<Void, Never>?
+    private var immediateAssertionsTask: Task<Void, Never>?
+    private var pollingSource: DispatchSourceTimer?
+    private var lastAssertionsModificationDate: Date?
+    private var lastNotificationTimestamp: Date = .distantPast
     private var lastModeSignature: String = ""
+    private static let notificationCooldown: TimeInterval = 4.0
 
     private override init() {
         super.init()
@@ -166,6 +171,7 @@ final class FocusModeLiveActivityManager: NSObject, ObservableObject {
         )
 
         focusLogStream.start()
+        startAssertionsPolling()
         isMonitoring = true
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
@@ -177,8 +183,11 @@ final class FocusModeLiveActivityManager: NSObject, ObservableObject {
         notificationCenter.removeObserver(self, name: .focusModeEnabled, object: nil)
         notificationCenter.removeObserver(self, name: .focusModeDisabled, object: nil)
         focusLogStream.stop()
+        stopAssertionsPolling()
         hideToastTask?.cancel()
         hideToastTask = nil
+        immediateAssertionsTask?.cancel()
+        immediateAssertionsTask = nil
 
         isMonitoring = false
 
@@ -196,10 +205,16 @@ final class FocusModeLiveActivityManager: NSObject, ObservableObject {
     }
 
     @objc private func handleFocusEnabled(_ notification: Notification) {
+        lastNotificationTimestamp = Date()
+        logger.notice("Focus enabled notification received")
         handleFocusNotification(notification, isActive: true)
     }
 
     @objc private func handleFocusDisabled(_ notification: Notification) {
+        lastNotificationTimestamp = Date()
+        immediateAssertionsTask?.cancel()
+        immediateAssertionsTask = nil
+        logger.notice("Focus disabled notification received")
         handleFocusNotification(notification, isActive: false)
     }
 
@@ -212,18 +227,14 @@ final class FocusModeLiveActivityManager: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 let fallbackMetadata = self.focusLogStream.latestMetadata()
                 let resolvedIdentifier = metadata.identifier ?? fallbackMetadata?.identifier
-                let resolvedName = metadata.name
-                    ?? fallbackMetadata?.name
-                    ?? self.inferName(from: resolvedIdentifier)
-
-                if let id = resolvedIdentifier, !id.isEmpty {
-                    self.currentFocusModeIdentifier = id
-                }
-
-                if let name = resolvedName, !name.isEmpty {
-                    self.currentFocusModeName = name
-                }
-                self.refreshModeSignatureIfNeeded()
+                let resolvedName = metadata.name ?? fallbackMetadata?.name
+                self.logger.notice(
+                    "Notification payload -> active: \(isActive, privacy: .public), identifier: \(resolvedIdentifier ?? "<nil>", privacy: .public), name: \(resolvedName ?? "<nil>", privacy: .public)"
+                )
+                self.applyResolvedFocusMetadata(
+                    identifier: resolvedIdentifier,
+                    name: resolvedName
+                )
                 if let symbol = visual.symbolName ?? fallbackMetadata?.symbolName, !symbol.isEmpty {
                     self.rawFocusSymbolName = symbol
                 }
@@ -238,6 +249,10 @@ final class FocusModeLiveActivityManager: NSObject, ObservableObject {
                     self.isFocusToastVisible = true
                 }
                 self.scheduleFocusToastHide(isActive: isActive)
+
+                if isActive, resolvedIdentifier == nil, resolvedName == nil {
+                    self.scheduleImmediateAssertionsRefresh()
+                }
             }
         }
     }
@@ -252,6 +267,195 @@ final class FocusModeLiveActivityManager: NSObject, ObservableObject {
                 self.isFocusToastVisible = false
             }
         }
+    }
+
+    private func scheduleImmediateAssertionsRefresh() {
+        immediateAssertionsTask?.cancel()
+        immediateAssertionsTask = Task { [weak self] in
+            guard let self else { return }
+            let delays: [UInt64] = [150, 350, 700, 1200, 1800, 2600]
+            for delay in delays {
+                try? await Task.sleep(nanoseconds: delay * 1_000_000)
+                guard !Task.isCancelled else { return }
+                self.pollAssertionsState(force: true)
+                await MainActor.run {
+                    let id = self.currentFocusModeIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !id.isEmpty {
+                        self.immediateAssertionsTask?.cancel()
+                        self.immediateAssertionsTask = nil
+                    }
+                }
+            }
+            await MainActor.run {
+                self.immediateAssertionsTask = nil
+            }
+        }
+    }
+
+    private func startAssertionsPolling() {
+        stopAssertionsPolling()
+        lastAssertionsModificationDate = nil
+
+        let timer = DispatchSource.makeTimerSource(queue: pollingQueue)
+        timer.schedule(deadline: .now() + .seconds(1), repeating: .seconds(2), leeway: .milliseconds(250))
+        timer.setEventHandler { [weak self] in
+            self?.pollAssertionsState()
+        }
+        timer.resume()
+        pollingSource = timer
+    }
+
+    private func stopAssertionsPolling() {
+        pollingSource?.cancel()
+        pollingSource = nil
+        lastAssertionsModificationDate = nil
+    }
+
+    private func pollAssertionsState(force: Bool = false) {
+        guard FullDiskAccessAuthorization.hasPermission() else { return }
+
+        if !force, Date().timeIntervalSince(lastNotificationTimestamp) < Self.notificationCooldown {
+            return
+        }
+
+        if !force,
+           let attributes = try? FileManager.default.attributesOfItem(atPath: assertionsURL.path),
+           let modifiedAt = attributes[.modificationDate] as? Date,
+           let lastObservedModificationDate = lastAssertionsModificationDate,
+           modifiedAt <= lastObservedModificationDate {
+            return
+        }
+
+        if let attributes = try? FileManager.default.attributesOfItem(atPath: assertionsURL.path),
+           let modifiedAt = attributes[.modificationDate] as? Date {
+            lastAssertionsModificationDate = modifiedAt
+        }
+
+        var isActive = false
+        var identifier: String?
+        var name: String?
+
+        if let data = try? Data(contentsOf: assertionsURL),
+           !data.isEmpty,
+           let root = (try? JSONSerialization.jsonObject(with: data, options: [])) as? [String: Any],
+           let dataArray = root["data"] as? [[String: Any]],
+           let firstItem = dataArray.first {
+            let assertions = (firstItem["storeAssertionRecords"] as? [Any]) ?? []
+            isActive = !assertions.isEmpty
+
+            if isActive {
+                let identifierKeys = [
+                    "assertionDetailsModeIdentifier",
+                    "modeIdentifier",
+                    "modeIdentifier",
+                    "FocusModeIdentifier",
+                    "focusModeIdentifier",
+                    "identifier",
+                    "Identifier",
+                    "assertionDetailsIdentifier",
+                    "focusModeUUID",
+                    "UUID",
+                    "uuid"
+                ]
+
+                let nameKeys = [
+                    "activityDisplayName",
+                    "displayName",
+                    "activityDisplayName",
+                    "displayName",
+                    "FocusModeName",
+                    "focusModeName",
+                    "focusMode",
+                    "name",
+                    "Name"
+                ]
+
+                identifier = firstMatch(for: identifierKeys, in: assertions)
+                name = firstMatch(for: nameKeys, in: assertions)
+            }
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            self?.applyAssertionsSnapshot(identifier: identifier, name: name, isActive: isActive)
+        }
+    }
+
+    private func applyAssertionsSnapshot(identifier: String?, name: String?, isActive: Bool) {
+        if isActive {
+            let fallbackMetadata = focusLogStream.latestMetadata()
+            let resolvedIdentifier = identifier ?? fallbackMetadata?.identifier
+            let resolvedName = name ?? fallbackMetadata?.name
+            logger.notice(
+                "Assertions snapshot -> active: true, identifier: \(resolvedIdentifier ?? "<nil>", privacy: .public), name: \(resolvedName ?? "<nil>", privacy: .public)"
+            )
+            applyResolvedFocusMetadata(identifier: resolvedIdentifier, name: resolvedName)
+            applyDerivedVisualFallbackIfNeeded()
+        }
+
+        guard isFocusModeActive != isActive else { return }
+
+        latestTransitionIsActive = isActive
+        withAnimation(.smooth(duration: 0.3)) {
+            isFocusModeActive = isActive
+            isFocusToastVisible = true
+        }
+        scheduleFocusToastHide(isActive: isActive)
+    }
+
+    private func applyResolvedFocusMetadata(identifier: String?, name: String?) {
+        let trimmedIdentifier = identifier?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let isGenericFocusIdentifier = (trimmedIdentifier?.lowercased() == "com.apple.focus")
+        let usableIdentifier = (trimmedIdentifier?.isEmpty == false && !isGenericFocusIdentifier) ? trimmedIdentifier : nil
+        let usableName = (trimmedName?.isEmpty == false) ? trimmedName : nil
+
+        let resolvedMode = FocusModeType.resolve(identifier: usableIdentifier, name: usableName)
+        let finalIdentifier = usableIdentifier ?? resolvedMode.rawValue
+
+        let finalName: String
+        if resolvedMode == .custom, FullDiskAccessAuthorization.hasPermission() {
+            let lookedUp = FocusMetadataReader.shared.getDisplayName(
+                for: usableName ?? "",
+                identifier: finalIdentifier
+            )
+            finalName = lookedUp.isEmpty ? (usableName ?? inferName(from: finalIdentifier) ?? "Focus") : lookedUp
+        } else if let name = usableName, !name.isEmpty {
+            let lower = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            switch lower {
+            case "work":
+                finalName = "Work"
+            case "personal", "personal-time":
+                finalName = "Personal"
+            case "reduce-interruptions":
+                finalName = "Reduce Interruptions"
+            case "sleep", "sleep-mode":
+                finalName = "Sleep"
+            case "driving":
+                finalName = "Driving"
+            case "default", "dnd", "do-not-disturb", "do not disturb", "donotdisturb":
+                finalName = "Do Not Disturb"
+            default:
+                finalName = name
+            }
+        } else if !resolvedMode.displayName.isEmpty {
+            finalName = resolvedMode.displayName
+        } else {
+            finalName = inferName(from: finalIdentifier) ?? "Focus"
+        }
+
+        if !finalIdentifier.isEmpty {
+            currentFocusModeIdentifier = finalIdentifier
+        }
+
+        if !finalName.isEmpty {
+            currentFocusModeName = finalName.localizedCaseInsensitiveContains("Reduce Interruptions") ? "Reduce Interr." : finalName
+        }
+
+        refreshModeSignatureIfNeeded()
+        logger.notice(
+            "Resolved focus metadata -> mode: \(resolvedMode.rawValue, privacy: .public), identifier: \(self.currentFocusModeIdentifier, privacy: .public), name: \(self.currentFocusModeName, privacy: .public)"
+        )
     }
 
     private func extractMetadata(from notification: Notification) -> (identifier: String?, name: String?) {
@@ -558,6 +762,14 @@ final class FocusModeLiveActivityManager: NSObject, ObservableObject {
         let rawSymbol = rawFocusSymbolName.trimmingCharacters(in: .whitespacesAndNewlines)
         let rawTint = rawFocusTintName.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        // macOS 26.4 stores Reduce Interruptions as a standard moon in the DND DB,
+        // but we want to preserve the dedicated Apple Intelligence visual treatment.
+        if mode == .reduceInterruptions {
+            currentFocusSymbolName = mode.sfSymbol
+            currentFocusTintName = mode.accentColorName
+            return
+        }
+
         if !dbSymbol.isEmpty {
             currentFocusSymbolName = dbSymbol
         } else if !rawSymbol.isEmpty {
@@ -601,6 +813,7 @@ private final class FocusLogStream {
     private var lastName: String?
     private var lastSymbolName: String?
     private var lastTintColorName: String?
+    private let logger = Logger(subsystem: "theboringteam.boringnotch", category: "FocusLog")
 
     var onMetadataUpdate: ((String?, String?) -> Void)?
 
@@ -612,9 +825,11 @@ private final class FocusLogStream {
             process.executableURL = URL(fileURLWithPath: "/usr/bin/log")
             process.arguments = [
                 "stream",
+                "--no-backtrace",
                 "--style", "compact",
                 "--level", "info",
-                "--predicate", "subsystem == \"com.apple.focus\""
+                "--predicate",
+                "process == \"duetexpertd\" AND eventMessage CONTAINS \"semanticModeIdentifier\""
             ]
 
             let pipe = Pipe()
@@ -696,7 +911,10 @@ private final class FocusLogStream {
     }
 
     private func processLine(_ line: String) {
-        if line.contains("active mode assertion: (null)") || line.contains("active activity: (null)") {
+        if line.contains("starting: 0")
+            || line.contains("active mode assertion: (null)")
+            || line.contains("active activity: (null)") {
+            logger.notice("Log stream clear event")
             clearMetadata()
             return
         }
@@ -707,6 +925,9 @@ private final class FocusLogStream {
         let tint = extractTintName(from: line)
 
         guard identifier != nil || name != nil || symbol != nil || tint != nil else { return }
+        logger.notice(
+            "Log stream metadata -> identifier: \(identifier ?? "<nil>", privacy: .public), name: \(name ?? "<nil>", privacy: .public), symbol: \(symbol ?? "<nil>", privacy: .public), tint: \(tint ?? "<nil>", privacy: .public)"
+        )
 
         metadataLock.lock()
         if let identifier, !identifier.isEmpty { lastIdentifier = identifier }
@@ -1011,6 +1232,19 @@ enum FocusModeType: String, CaseIterable {
             return
         }
 
+        if normalizedLowercased == "com.apple.sleep.sleep-mode" {
+            self = .sleep
+            return
+        }
+
+        if normalizedLowercased.hasPrefix("com.apple.donotdisturb.mode.") {
+            let suffix = String(normalizedLowercased.dropFirst("com.apple.donotdisturb.mode.".count))
+            if !suffix.isEmpty && suffix != "default" {
+                self = .custom
+                return
+            }
+        }
+
         if let resolved = FocusModeType.allCases.first(where: {
             guard !$0.rawValue.isEmpty else { return false }
             return normalized.hasPrefix($0.rawValue) || normalizedLowercased.hasPrefix($0.rawValue)
@@ -1029,23 +1263,29 @@ enum FocusModeType: String, CaseIterable {
 
     static func resolve(identifier: String?, name: String?) -> FocusModeType {
         if let name, !name.isEmpty {
-            let normalizedName = name
-                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-
-            if normalizedName.contains("ne pas deranger")
-                || normalizedName.contains("do not disturb")
-                || normalizedName.contains("not disturb") {
-                return .doNotDisturb
+            if let match = FocusModeType.allCases.first(where: {
+                guard !$0.displayName.isEmpty else { return false }
+                return $0.displayName.compare(name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+            }) {
+                return match
             }
 
-            if normalizedName.contains("reduire les interruptions")
-                || normalizedName.contains("reduce interruptions")
-                || normalizedName.contains("reduce-interruptions")
-                || normalizedName.contains("apple intelligence")
-                || normalizedName.contains("intelligence") {
+            let lower = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            switch lower {
+            case "work": return .work
+            case "personal", "personal-time": return .personal
+            case "sleep", "sleep-mode": return .sleep
+            case "driving": return .driving
+            case "fitness": return .fitness
+            case "gaming": return .gaming
+            case "mindfulness": return .mindfulness
+            case "reading": return .reading
+            case "reduce-interruptions", "reduce interruptions", "apple intelligence", "intelligence":
                 return .reduceInterruptions
+            case "do not disturb", "dnd", "donotdisturb", "do-not-disturb", "default", "ne pas deranger":
+                return .doNotDisturb
+            default:
+                break
             }
         }
 
@@ -1061,11 +1301,17 @@ enum FocusModeType: String, CaseIterable {
     }
 
     func getCustomIconFromFile() -> String {
-        FocusMetadataReader.shared.getIcon(for: FocusModeLiveActivityManager.shared.currentFocusModeName)
+        FocusMetadataReader.shared.getIcon(
+            for: FocusModeLiveActivityManager.shared.currentFocusModeName,
+            identifier: FocusModeLiveActivityManager.shared.currentFocusModeIdentifier
+        )
     }
 
     func getCustomAccentColorFromFile() -> Color {
-        FocusMetadataReader.shared.getAccentColor(for: FocusModeLiveActivityManager.shared.currentFocusModeName)
+        FocusMetadataReader.shared.getAccentColor(
+            for: FocusModeLiveActivityManager.shared.currentFocusModeName,
+            identifier: FocusModeLiveActivityManager.shared.currentFocusModeIdentifier
+        )
     }
 }
 
@@ -1116,7 +1362,6 @@ private final class FocusMetadataReader {
         return queue.sync {
             guard let root = loadRoot() else { return nil }
 
-            // 1) Name match first: more reliable than generic identifiers like "com.apple.focus".
             if !normalizedFocus.isEmpty {
                 for entry in root.data {
                     for (modeId, wrapper) in entry.modeConfigurations {
@@ -1129,7 +1374,6 @@ private final class FocusMetadataReader {
 
             guard shouldUseIdentifier else { return nil }
 
-            // 2) Identifier match (exact / canonicalized), only for specific identifiers.
             for entry in root.data {
                 for (modeId, wrapper) in entry.modeConfigurations {
                     let modeIdLower = modeId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -1162,8 +1406,8 @@ private final class FocusMetadataReader {
         }
     }
 
-    func getIcon(for focus: String) -> String {
-        guard let mode = getModeMatch(for: focus)?.mode else { return "app.badge" }
+    func getIcon(for focus: String, identifier: String? = nil) -> String {
+        guard let mode = getModeMatch(for: focus, identifier: identifier)?.mode else { return "app.badge" }
         return mode.symbolImageName ?? "app.badge"
     }
 
@@ -1172,16 +1416,21 @@ private final class FocusMetadataReader {
         return (mode.symbolImageName, mode.tintColorName)
     }
 
-    func getAccentColor(for focus: String) -> Color {
-        guard let mode = getModeMatch(for: focus)?.mode,
+    func getAccentColor(for focus: String, identifier: String? = nil) -> Color {
+        guard let mode = getModeMatch(for: focus, identifier: identifier)?.mode,
               let colorName = mode.tintColorName else { return .indigo }
         return Color.stringToColor(for: colorName)
     }
 
-    func getTintName(for focus: String) -> String {
-        guard let mode = getModeMatch(for: focus)?.mode,
+    func getTintName(for focus: String, identifier: String? = nil) -> String {
+        guard let mode = getModeMatch(for: focus, identifier: identifier)?.mode,
               let colorName = mode.tintColorName else { return "systemIndigoColor" }
         return colorName
+    }
+
+    func getDisplayName(for focus: String, identifier: String? = nil) -> String {
+        guard let mode = getModeMatch(for: focus, identifier: identifier)?.mode else { return "" }
+        return mode.name
     }
 
     private func normalizeForMatching(_ value: String) -> String {

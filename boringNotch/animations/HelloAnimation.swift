@@ -1,9 +1,3 @@
-//
-// HelloAnimation.swift
-// boringNotch
-//
-// Created by Harsh Vardhan Goswami on 08/08/24.
-//
 
 import SwiftUI
 
@@ -110,7 +104,6 @@ struct HelloAnimation: View {
             shape: { HelloShape() }
         )
         .task {
-   // Wait for the "opening" animation (notch expansion) to complete before starting the snake
             try? await Task.sleep(for: .seconds(0.6))
             
             withAnimation(
@@ -119,7 +112,6 @@ struct HelloAnimation: View {
                 progress = 1.0
             }
             
-   // Wait for the animation to complete
             try? await Task.sleep(for: .seconds(4.0))
             
             onFinish()

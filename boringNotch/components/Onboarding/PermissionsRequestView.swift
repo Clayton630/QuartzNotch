@@ -1,9 +1,3 @@
-//
-// PermissionsRequestView.swift
-// boringNotch
-//
-// Created by Alexander on 2025-06-23.
-//
 
 import SwiftUI
 
@@ -50,6 +44,7 @@ struct PermissionRequestView: View {
                     .buttonStyle(.bordered)
                 Button("Allow Access") { onAllow() }
                     .buttonStyle(.borderedProminent)
+                    .tint(.controlAccent)
             }
             .padding(.top, 10)
         }

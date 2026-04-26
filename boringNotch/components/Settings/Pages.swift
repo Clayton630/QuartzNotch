@@ -1,9 +1,3 @@
-//
-// Pages.swift
-// boringNotch
-//
-// Created by Richard Kunkli on 07/08/2024.
-//
 
 import Defaults
 import SwiftUI
@@ -40,7 +34,6 @@ struct Pages: View {
                 Toggle(isOn: Binding(
                     get: { pageHomeEnabled },
                     set: { newValue in
-            // Never allow both pages to be disabled.
                         if !newValue && !pageShelfEnabled {
                             pageShelfEnabled = true
                         }
@@ -53,7 +46,6 @@ struct Pages: View {
                 Toggle(isOn: Binding(
                     get: { pageShelfEnabled },
                     set: { newValue in
-            // Never allow both pages to be disabled.
                         if !newValue && !pageHomeEnabled {
                             pageHomeEnabled = true
                         }
@@ -67,7 +59,6 @@ struct Pages: View {
                 Toggle(isOn: Binding(
                     get: { pageThirdEnabled },
                     set: { newValue in
-                    // Never allow 0 active pages.
                         if !newValue && !pageHomeEnabled && !pageShelfEnabled {
                             pageHomeEnabled = true
                         }
@@ -78,17 +69,18 @@ struct Pages: View {
                 }
 
                 Toggle("Show page dots", isOn: $coordinator.alwaysShowTabs)
-                Picker("Background style", selection: backgroundStyleBinding) {
-                    ForEach(BackgroundStyle.allCases) { style in
-                        Text(style.rawValue).tag(style)
-                    }
+                LabeledContent("Background style") {
+                    AccentMenuPicker(
+                        selection: backgroundStyleBinding,
+                        options: BackgroundStyle.allCases,
+                        title: { $0.rawValue }
+                    )
                 }
-                .pickerStyle(.menu)
             } header: {
                 Text("Pages")
             } footer: {
                 if pageUseLiquidGlassBackground {
-                    Text("⚠ Semi liquid glass mode is still experimental and may occasionally present visual bugs or slight stutters")
+                    Text("⚠ Semi liquid glass mode is still experimental and may occasionally present visual bugs or slight stutters. On systems without native liquid glass, QuartzNotch now uses a compatibility fallback automatically.")
                 }
             }
         }

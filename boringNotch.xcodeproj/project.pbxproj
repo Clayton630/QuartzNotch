@@ -66,6 +66,7 @@
 		1194E8852EA57D23009C82D6 /* SkyLightWindow in Frameworks */ = {isa = PBXBuildFile; productRef = 1194E8842EA57D23009C82D6 /* SkyLightWindow */; };
 		1194E8872EA6DDA7009C82D6 /* BoringNotchSkyLightWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1194E8862EA6DDA7009C82D6 /* BoringNotchSkyLightWindow.swift */; };
 		1194E9402EACC652009C82D6 /* Color+AccentColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1194E93F2EACC652009C82D6 /* Color+AccentColor.swift */; };
+		11F74B002F40C00100F84201 /* Toggle+LiveAccentTint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F74AFF2F40C00100F84201 /* Toggle+LiveAccentTint.swift */; };
 		11A45C792E34E63100CEB175 /* MediaChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11A45C782E34E63100CEB175 /* MediaChecker.swift */; };
 		11C5E3132DFE85970065821E /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11C5E3112DFE85970065821E /* SettingsWindowController.swift */; };
 		11C5E3162DFE88510065821E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11C5E3152DFE88510065821E /* SettingsView.swift */; };
@@ -130,6 +131,8 @@
 		9A987A0D2C73CA66005CA465 /* ShelfView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A987A032C73CA66005CA465 /* ShelfView.swift */; };
 		9A987A102C73CA8D005CA465 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 9A987A0F2C73CA8D005CA465 /* Collections */; };
 		9AB0C6BD2C73C9CB00F7CD30 /* NotchHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB0C6BB2C73C9CB00F7CD30 /* NotchHomeView.swift */; };
+		A00100012F60000100ABC001 /* ScreenSaver.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A00100032F60000100ABC001 /* ScreenSaver.framework */; };
+		A001000C2F60000100ABC001 /* QuartzNotchBackdrop.saver in Embed Screen Savers */ = {isa = PBXBuildFile; fileRef = A00100022F60000100ABC001 /* QuartzNotchBackdrop.saver */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A1B2C3D42F40000100AA11BB /* NotchMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D52F40000100AA11BB /* NotchMotion.swift */; };
 		B10348D92C74E56000475897 /* ConditionalModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10348D82C74E56000475897 /* ConditionalModifier.swift */; };
 		B10F84A32C6C9596009F3026 /* TestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10F84A22C6C9596009F3026 /* TestView.swift */; };
@@ -151,6 +154,9 @@
 		B1C448982C972CC4001F0858 /* ListItemPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C448972C972CC4001F0858 /* ListItemPopover.swift */; };
 		B1C4489B2C97376A001F0858 /* TipStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C4489A2C97376A001F0858 /* TipStore.swift */; };
 		B1C974342C642B6D0000E707 /* MarqueeTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C974332C642B6D0000E707 /* MarqueeTextView.swift */; };
+		E1A1A1A12F22000100ABCD01 /* LockScreenMediaPlayerViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A1A1A02F22000100ABCD01 /* LockScreenMediaPlayerViews.swift */; };
+		E1A1A1A32F22000200ABCD01 /* LockScreenPanelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A1A1A22F22000200ABCD01 /* LockScreenPanelManager.swift */; };
+		E1A1A1A52F22000300ABCD01 /* LockScreenDesktopOverrideCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A1A1A42F22000300ABCD01 /* LockScreenDesktopOverrideCoordinator.swift */; };
 		B1CE8CFE2C6F659400DD9871 /* KeyboardShortcutsHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1CE8CFD2C6F659400DD9871 /* KeyboardShortcutsHelper.swift */; };
 		B1D365CE2C6A979C0047BDBC /* LiveActivityModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1D365CD2C6A979C0047BDBC /* LiveActivityModifier.swift */; };
 		B1D365D02C6A9A6C0047BDBC /* SystemEventIndicatorModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1D365CF2C6A9A6C0047BDBC /* SystemEventIndicatorModifier.swift */; };
@@ -159,7 +165,10 @@
 		B1F747F92EC7E94000F841DB /* LottieView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1F747F82EC7E94000F841DB /* LottieView.swift */; };
 		B1FEB4992C7686630066EBBC /* PanGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FEB4982C7686630066EBBC /* PanGesture.swift */; };
 		D4223AF301834EEEACBB1D66 /* AlbumArtFlipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5150602167D46718888189A /* AlbumArtFlipView.swift */; };
-		F24AA0012F51000100A0A001 /* QuartzNotch.icon in Resources */ = {isa = PBXBuildFile; fileRef = F24AA0002F51000100A0A001 /* QuartzNotch.icon */; };
+		F24AA0012F51000100A0A001 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = F24AA0002F51000100A0A001 /* AppIcon.icon */; };
+		F24AA0032F51000200A0A001 /* QuartzNewIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = F24AA0022F51000200A0A001 /* QuartzNewIcon.icon */; };
+		F24AA0072F51000400A0A001 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = F24AA0062F51000400A0A001 /* AppIcon.icns */; };
+		F24AA0052F51000300A0A001 /* QuartzNewIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = F24AA0042F51000300A0A001 /* QuartzNewIcon.icns */; };
 		F38DE6482D8243E7008B5C6D /* BatteryActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38DE6472D8243E2008B5C6D /* BatteryActivityManager.swift */; };
 		F9D41D3327DE06697381B466 /* NotchThirdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFAE099C2AFABCE954EFC5E /* NotchThirdView.swift */; };
 /* End PBXBuildFile section */
@@ -171,6 +180,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 11F7484E2EC9AABA00F841DB;
 			remoteInfo = BoringNotchXPCHelper;
+		};
+		A001000D2F60000100ABC001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 14CEF40A2C5CAED200855D72 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A00100062F60000100ABC001;
+			remoteInfo = QuartzNotchBackdrop;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -184,6 +200,17 @@
 				11F7485B2EC9AABA00F841DB /* BoringNotchXPCHelper.xpc in Embed XPC Services */,
 			);
 			name = "Embed XPC Services";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A001000E2F60000100ABC001 /* Embed Screen Savers */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "Screen Savers";
+			dstSubfolderSpec = 7;
+			files = (
+				A001000C2F60000100ABC001 /* QuartzNotchBackdrop.saver in Embed Screen Savers */,
+			);
+			name = "Embed Screen Savers";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		B1ECFA062C6FE58A002ACD87 /* Embed Frameworks */ = {
@@ -253,6 +280,7 @@
 		1194E87B2EA19E09009C82D6 /* ImageProcessingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageProcessingService.swift; sourceTree = "<group>"; };
 		1194E8862EA6DDA7009C82D6 /* BoringNotchSkyLightWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoringNotchSkyLightWindow.swift; sourceTree = "<group>"; };
 		1194E93F2EACC652009C82D6 /* Color+AccentColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+AccentColor.swift"; sourceTree = "<group>"; };
+		11F74AFF2F40C00100F84201 /* Toggle+LiveAccentTint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Toggle+LiveAccentTint.swift"; sourceTree = "<group>"; };
 		11A45C782E34E63100CEB175 /* MediaChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaChecker.swift; sourceTree = "<group>"; };
 		11C5E3112DFE85970065821E /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 		11C5E3152DFE88510065821E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -315,6 +343,8 @@
 		9A987A032C73CA66005CA465 /* ShelfView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ShelfView.swift; sourceTree = "<group>"; };
 		9AB0C6BB2C73C9CB00F7CD30 /* NotchHomeView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NotchHomeView.swift; sourceTree = "<group>"; };
 		9E3F910B9FE3AACED9207905 /* AirPods_Pro3.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = AirPods_Pro3.mov; sourceTree = "<group>"; };
+		A00100022F60000100ABC001 /* QuartzNotchBackdrop.saver */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QuartzNotchBackdrop.saver; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00100032F60000100ABC001 /* ScreenSaver.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScreenSaver.framework; path = System/Library/Frameworks/ScreenSaver.framework; sourceTree = SDKROOT; };
 		A1B2C3D52F40000100AA11BB /* NotchMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchMotion.swift; sourceTree = "<group>"; };
 		B10348D82C74E56000475897 /* ConditionalModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConditionalModifier.swift; sourceTree = "<group>"; };
 		B10F84A22C6C9596009F3026 /* TestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestView.swift; sourceTree = "<group>"; };
@@ -333,6 +363,9 @@
 		B1C448972C972CC4001F0858 /* ListItemPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListItemPopover.swift; sourceTree = "<group>"; };
 		B1C4489A2C97376A001F0858 /* TipStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TipStore.swift; sourceTree = "<group>"; };
 		B1C974332C642B6D0000E707 /* MarqueeTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarqueeTextView.swift; sourceTree = "<group>"; };
+		E1A1A1A02F22000100ABCD01 /* LockScreenMediaPlayerViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockScreenMediaPlayerViews.swift; sourceTree = "<group>"; };
+		E1A1A1A22F22000200ABCD01 /* LockScreenPanelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockScreenPanelManager.swift; sourceTree = "<group>"; };
+		E1A1A1A42F22000300ABCD01 /* LockScreenDesktopOverrideCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockScreenDesktopOverrideCoordinator.swift; sourceTree = "<group>"; };
 		B1CE8CFD2C6F659400DD9871 /* KeyboardShortcutsHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsHelper.swift; sourceTree = "<group>"; };
 		B1D365CD2C6A979C0047BDBC /* LiveActivityModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityModifier.swift; sourceTree = "<group>"; };
 		B1D365CF2C6A9A6C0047BDBC /* SystemEventIndicatorModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemEventIndicatorModifier.swift; sourceTree = "<group>"; };
@@ -345,13 +378,17 @@
 		D5150602167D46718888189A /* AlbumArtFlipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumArtFlipView.swift; sourceTree = "<group>"; };
 		DCFAE099C2AFABCE954EFC5E /* NotchThirdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchThirdView.swift; sourceTree = "<group>"; };
 		DD7A94A5D5DB39F7D0D329EF /* LiveActivities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivities.swift; sourceTree = "<group>"; };
-		F24AA0002F51000100A0A001 /* QuartzNotch.icon */ = {isa = PBXFileReference; lastKnownFileType = folder; path = QuartzNotch.icon; sourceTree = "<group>"; };
+		F24AA0002F51000100A0A001 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder; path = AppIcon.icon; sourceTree = "<group>"; };
+		F24AA0022F51000200A0A001 /* QuartzNewIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder; path = QuartzNewIcon.icon; sourceTree = "<group>"; };
+		F24AA0062F51000400A0A001 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
+		F24AA0042F51000300A0A001 /* QuartzNewIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = QuartzNewIcon.icns; sourceTree = "<group>"; };
 		F38DE6472D8243E2008B5C6D /* BatteryActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryActivityManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		112FB72F2CCF12CC0015238C /* private */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = private; sourceTree = "<group>"; };
 		11F748502EC9AABA00F841DB /* BoringNotchXPCHelper */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = BoringNotchXPCHelper; sourceTree = "<group>"; };
+		A00100042F60000100ABC001 /* QuartzNotchScreenSaver */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = QuartzNotchScreenSaver; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -379,6 +416,14 @@
 				B19016222CC15B3D00E3F12E /* Defaults in Frameworks */,
 				111BE95D2ECD71E10079DD4E /* AsyncXPCConnection in Frameworks */,
 				B1628B922CC260C0003D8DF3 /* SwiftUIIntrospect in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00100052F60000100ABC001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00100012F60000100ABC001 /* ScreenSaver.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -559,6 +604,7 @@
 				B37883ED95354D771877F15B /* ClipboardManager.swift */,
 				01CCBB832F2B5E490040E101 /* BluetoothActivityManager.swift */,
 				012A5EF92F21B2370036D3EE /* LockScreenState.swift */,
+				E1A1A1A42F22000300ABCD01 /* LockScreenDesktopOverrideCoordinator.swift */,
 				11D58EA12E760AE100FA8377 /* ImageService.swift */,
 				F38DE6472D8243E2008B5C6D /* BatteryActivityManager.swift */,
 				112FB7342CCF16F70015238C /* NotchSpaceManager.swift */,
@@ -593,6 +639,7 @@
 			children = (
 				112B0EB62E30DD0F00562D6C /* mediaremote-adapter */,
 				14CEF4142C5CAED300855D72 /* boringNotch */,
+				A00100042F60000100ABC001 /* QuartzNotchScreenSaver */,
 				11F748502EC9AABA00F841DB /* BoringNotchXPCHelper */,
 				14CEF4132C5CAED300855D72 /* Products */,
 				14D031EC2C689DB70096E6A1 /* Frameworks */,
@@ -603,6 +650,7 @@
 			isa = PBXGroup;
 			children = (
 				14CEF4122C5CAED300855D72 /* boringNotch.app */,
+				A00100022F60000100ABC001 /* QuartzNotchBackdrop.saver */,
 				11F7484F2EC9AABA00F841DB /* BoringNotchXPCHelper.xpc */,
 			);
 			name = Products;
@@ -632,7 +680,10 @@
 				14A7E5962C65FD31008C1BE9 /* boring.m4a */,
 				1443E7F42C609E650027C1FC /* Info.plist */,
 				14CEF41E2C5CAED400855D72 /* boringNotch.entitlements */,
-				F24AA0002F51000100A0A001 /* QuartzNotch.icon */,
+				F24AA0002F51000100A0A001 /* AppIcon.icon */,
+				F24AA0022F51000200A0A001 /* QuartzNewIcon.icon */,
+				F24AA0062F51000400A0A001 /* AppIcon.icns */,
+				F24AA0042F51000300A0A001 /* QuartzNewIcon.icns */,
 				14CEF41B2C5CAED400855D72 /* Preview Content */,
 				112FB72F2CCF12CC0015238C /* private */,
 				11CC44A12CEE614100C7244B /* BoringViewCoordinator.swift */,
@@ -652,6 +703,7 @@
 		14D031EC2C689DB70096E6A1 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				A00100032F60000100ABC001 /* ScreenSaver.framework */,
 				14D031EF2C689DC00096E6A1 /* ApplicationServices.framework */,
 				14D031ED2C689DB70096E6A1 /* IOKit.framework */,
 				112B0EBA2E30DD5000562D6C /* MediaRemoteAdapter.framework */,
@@ -731,6 +783,7 @@
 			children = (
 				111BEA602ED09B1B0079DD4E /* NSScreen+UUID.swift */,
 				1194E93F2EACC652009C82D6 /* Color+AccentColor.swift */,
+				11F74AFF2F40C00100F84201 /* Toggle+LiveAccentTint.swift */,
 				118EBE302E9717DB00D54B5A /* URL+SecurityScoped.swift */,
 				118EBE262E92DE7400D54B5A /* NSMenu+AssociatedObject.swift */,
 				1100290B2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift */,
@@ -791,6 +844,8 @@
 			isa = PBXGroup;
 			children = (
 				012A5EFB2F21B2630036D3EE /* LockScreenLiveActivity.swift */,
+				E1A1A1A02F22000100ABCD01 /* LockScreenMediaPlayerViews.swift */,
+				E1A1A1A22F22000200ABCD01 /* LockScreenPanelManager.swift */,
 				115C12EB2ED3D003009754CA /* OpenNotchHUD.swift */,
 				14D570CC2C5F4BB70011E668 /* BoringBattery.swift */,
 				B1C974332C642B6D0000E707 /* MarqueeTextView.swift */,
@@ -854,11 +909,13 @@
 				14CEF4102C5CAED300855D72 /* Resources */,
 				B1ECFA062C6FE58A002ACD87 /* Embed Frameworks */,
 				11F748412EC8051E00F841DB /* Embed XPC Services */,
+				A001000E2F60000100ABC001 /* Embed Screen Savers */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				11F7485A2EC9AABA00F841DB /* PBXTargetDependency */,
+				A00100102F60000100ABC001 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				112FB72F2CCF12CC0015238C /* private */,
@@ -882,6 +939,28 @@
 			productReference = 14CEF4122C5CAED300855D72 /* boringNotch.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A00100062F60000100ABC001 /* QuartzNotchBackdrop */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00100092F60000100ABC001 /* Build configuration list for PBXNativeTarget "QuartzNotchBackdrop" */;
+			buildPhases = (
+				A001000B2F60000100ABC001 /* Sources */,
+				A00100052F60000100ABC001 /* Frameworks */,
+				A001000A2F60000100ABC001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A00100042F60000100ABC001 /* QuartzNotchScreenSaver */,
+			);
+			name = QuartzNotchBackdrop;
+			packageProductDependencies = (
+			);
+			productName = QuartzNotchBackdrop;
+			productReference = A00100022F60000100ABC001 /* QuartzNotchBackdrop.saver */;
+			productType = "com.apple.product-type.bundle";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -898,6 +977,9 @@
 					14CEF4112C5CAED300855D72 = {
 						CreatedOnToolsVersion = 15.4;
 						LastSwiftMigration = 1540;
+					};
+					A00100062F60000100ABC001 = {
+						CreatedOnToolsVersion = 16.4;
 					};
 				};
 			};
@@ -929,6 +1011,7 @@
 			targets = (
 				14CEF4112C5CAED300855D72 /* boringNotch */,
 				11F7484E2EC9AABA00F841DB /* BoringNotchXPCHelper */,
+				A00100062F60000100ABC001 /* QuartzNotchBackdrop */,
 			);
 		};
 /* End PBXProject section */
@@ -948,13 +1031,23 @@
 				14CEF41D2C5CAED400855D72 /* Preview Assets.xcassets in Resources */,
 				012A5EF72F21B1E80036D3EE /* lock_icon_animation.json in Resources */,
 				14CEF41A2C5CAED400855D72 /* Assets.xcassets in Resources */,
-				F24AA0012F51000100A0A001 /* QuartzNotch.icon in Resources */,
+				F24AA0012F51000100A0A001 /* AppIcon.icon in Resources */,
+				F24AA0032F51000200A0A001 /* QuartzNewIcon.icon in Resources */,
+				F24AA0072F51000400A0A001 /* AppIcon.icns in Resources */,
+				F24AA0052F51000300A0A001 /* QuartzNewIcon.icns in Resources */,
 				112B0EB82E30DD0F00562D6C /* MediaRemoteAdapterTestClient in Resources */,
 				112B0EB92E30DD0F00562D6C /* mediaremote-adapter.pl in Resources */,
 				B17266E12C6532560031BA0D /* Localizable.xcstrings in Resources */,
 				14A7E5972C65FD31008C1BE9 /* boring.m4a in Resources */,
 				7E103F8B8F5777121AC27193 /* AirPods_Pro3.mov in Resources */,
 				7E0CF16265A58FF681A2EF04 /* AnimationApple_PS5Controller-HEVC.mov in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A001000A2F60000100ABC001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -998,6 +1091,7 @@
 				9A0887322C7A693000C160EA /* TabButton.swift in Sources */,
 				1153BD9C2D98853B00979FB0 /* NowPlayingController.swift in Sources */,
 				1194E9402EACC652009C82D6 /* Color+AccentColor.swift in Sources */,
+				11F74B002F40C00100F84201 /* Toggle+LiveAccentTint.swift in Sources */,
 				B141C2412CA5F53F00AC8CC8 /* SparkleView.swift in Sources */,
 				116398962DF5D6C00052E6AF /* CalendarServiceProviding.swift in Sources */,
 				59D8C23C2E589FAA00147B33 /* VolumeManager.swift in Sources */,
@@ -1007,6 +1101,9 @@
 				11EFCD702E8E92D600D0B974 /* ShelfItemViewModel.swift in Sources */,
 				1153BDA72D99B22200979FB0 /* YouTubeMusicController.swift in Sources */,
 				012A5EFC2F21B2710036D3EE /* LockScreenLiveActivity.swift in Sources */,
+				E1A1A1A12F22000100ABCD01 /* LockScreenMediaPlayerViews.swift in Sources */,
+				E1A1A1A32F22000200ABCD01 /* LockScreenPanelManager.swift in Sources */,
+				E1A1A1A52F22000300ABCD01 /* LockScreenDesktopOverrideCoordinator.swift in Sources */,
 				1163988F2DF5CC870052E6AF /* CalendarModel.swift in Sources */,
 				1153BD9A2D98824300979FB0 /* SpotifyController.swift in Sources */,
 				118EBE292E946B3F00D54B5A /* ShareServiceFinder.swift in Sources */,
@@ -1105,6 +1202,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A001000B2F60000100ABC001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1112,6 +1216,11 @@
 			isa = PBXTargetDependency;
 			target = 11F7484E2EC9AABA00F841DB /* BoringNotchXPCHelper */;
 			targetProxy = 11F748592EC9AABA00F841DB /* PBXContainerItemProxy */;
+		};
+		A00100102F60000100ABC001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A00100062F60000100ABC001 /* QuartzNotchBackdrop */;
+			targetProxy = A001000D2F60000100ABC001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1124,14 +1233,14 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1020;
+				CURRENT_PROJECT_VERSION = 1032;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BoringNotchXPCHelper/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = BoringNotchXPCHelper;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.2;
+				MARKETING_VERSION = 0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch.BoringNotchXPCHelper;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -1149,14 +1258,14 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1020;
+				CURRENT_PROJECT_VERSION = 1032;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BoringNotchXPCHelper/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = BoringNotchXPCHelper;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.2;
+				MARKETING_VERSION = 0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch.BoringNotchXPCHelper;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -1294,6 +1403,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
@@ -1303,7 +1413,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1020;
+				CURRENT_PROJECT_VERSION = 1032;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"boringNotch/Preview Content\"";
 				DEVELOPMENT_TEAM = "";
@@ -1342,7 +1452,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.2;
+				MARKETING_VERSION = 0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch;
 				PRODUCT_NAME = QuartzNotch;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1360,6 +1470,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
@@ -1369,7 +1480,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1020;
+				CURRENT_PROJECT_VERSION = 1032;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"boringNotch/Preview Content\"";
 				DEVELOPMENT_TEAM = "";
@@ -1407,7 +1518,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.2;
+				MARKETING_VERSION = 0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch;
 				PRODUCT_NAME = QuartzNotch;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1418,6 +1529,54 @@
 					"$(inherited)",
 					"$(SDKROOT)/System/Library/PrivateFrameworks",
 				);
+			};
+			name = Release;
+		};
+		A00100072F60000100ABC001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1032;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Configuration/QuartzNotchBackdrop-Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				MACH_O_TYPE = mh_bundle;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.3;
+				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch.QuartzNotchBackdrop;
+				PRODUCT_NAME = QuartzNotchBackdrop;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				WRAPPER_EXTENSION = saver;
+			};
+			name = Debug;
+		};
+		A00100082F60000100ABC001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1032;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Configuration/QuartzNotchBackdrop-Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				MACH_O_TYPE = mh_bundle;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.3;
+				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch.QuartzNotchBackdrop;
+				PRODUCT_NAME = QuartzNotchBackdrop;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				WRAPPER_EXTENSION = saver;
 			};
 			name = Release;
 		};
@@ -1447,6 +1606,15 @@
 			buildConfigurations = (
 				14CEF4222C5CAED400855D72 /* Debug */,
 				14CEF4232C5CAED400855D72 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00100092F60000100ABC001 /* Build configuration list for PBXNativeTarget "QuartzNotchBackdrop" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00100072F60000100ABC001 /* Debug */,
+				A00100082F60000100ABC001 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

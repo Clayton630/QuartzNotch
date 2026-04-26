@@ -1,9 +1,3 @@
-//
-// NSScreen+UUID.swift
-// boringNotch
-//
-// Created by Alexander on 2025-11-21.
-//
 
 import AppKit
 import CoreGraphics

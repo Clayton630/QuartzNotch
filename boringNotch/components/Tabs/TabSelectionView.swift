@@ -1,7 +1,3 @@
-//
-// TabSelectionView.swift
-// boringNotch
-//
 
 import SwiftUI
 import Defaults
@@ -9,34 +5,80 @@ import Defaults
 struct TabSelectionView: View {
     @EnvironmentObject var vm: BoringViewModel
     @ObservedObject var coordinator = BoringViewCoordinator.shared
+    let availableWidth: CGFloat
 
-    @Default(.pageHomeEnabled) private var pageHomeEnabled
-    @Default(.pageShelfEnabled) private var pageShelfEnabled
-
-@Default(.pageThirdEnabled) private var pageThirdEnabled
     private var selectedIndex: Int {
         availableViews.firstIndex(of: coordinator.currentView) ?? 0
     }
 
-    private var availableViews: [NotchViews] {
-        var v: [NotchViews] = []
-        if pageHomeEnabled { v.append(.home) }
-        if pageShelfEnabled { v.append(.shelf) }
-        if pageThirdEnabled { v.append(.third) }
-    // Safety: never return empty.
-        return v.isEmpty ? [.home] : v
+    private func mix(_ from: CGFloat, _ to: CGFloat, _ progress: CGFloat) -> CGFloat {
+        from + (to - from) * progress
     }
 
-  // MARK: - Unified metrics (IMPORTANT)
-    private let dotSize: CGFloat = 6
+    private var availableViews: [NotchViews] {
+        presentableNotchViewsInConfiguredOrder(currentView: coordinator.currentView)
+    }
 
-  // Tighten spacing inside the pill
-    private let hitPadding: CGFloat = 4
-    private let unifiedSpacing: CGFloat = 1
+    private var compression: CGFloat {
+        let baseDotSize: CGFloat = 6
+        let baseHitPadding: CGFloat = 4
+        let baseSpacing: CGFloat = 1
+        let baseHInset: CGFloat = 6
 
-  // Tighten the pill around its content
-    private let pillHInset: CGFloat = 6
-    private let pillVInset: CGFloat = 3
+        let compactDotSize: CGFloat = 5.2
+        let compactHitPadding: CGFloat = 3
+        let compactSpacing: CGFloat = 0.5
+        let compactHInset: CGFloat = 4
+
+        let baseFootprint = baseDotSize + (baseHitPadding * 2)
+        let compactFootprint = compactDotSize + (compactHitPadding * 2)
+
+        let baseWidth =
+            CGFloat(availableViews.count) * baseFootprint
+            + CGFloat(max(0, availableViews.count - 1)) * baseSpacing
+            + (baseHInset * 2)
+
+        let compactWidth =
+            CGFloat(availableViews.count) * compactFootprint
+            + CGFloat(max(0, availableViews.count - 1)) * compactSpacing
+            + (compactHInset * 2)
+        let clampedWidth = max(52, availableWidth)
+
+        guard baseWidth > clampedWidth else { return 0 }
+        guard baseWidth > compactWidth else { return 1 }
+        return min(1, max(0, (baseWidth - clampedWidth) / (baseWidth - compactWidth)))
+    }
+
+    private var dotSize: CGFloat {
+        mix(6, 5.2, compression)
+    }
+
+    private var hitPadding: CGFloat {
+        mix(4, 3, compression)
+    }
+
+    private var unifiedSpacing: CGFloat {
+        mix(1, 0.5, compression)
+    }
+
+    private var pillHInset: CGFloat {
+        mix(6, 4, compression)
+    }
+
+    private var pillVInset: CGFloat {
+        mix(3, 2.5, compression)
+    }
+
+    private var fitScale: CGFloat {
+        let dotFootprint = dotSize + (hitPadding * 2)
+        let estimatedPillWidth =
+            CGFloat(availableViews.count) * dotFootprint
+            + CGFloat(max(0, availableViews.count - 1)) * unifiedSpacing
+            + (pillHInset * 2)
+
+        let clampedWidth = max(52, availableWidth)
+        return min(1, max(0.8, clampedWidth / max(estimatedPillWidth, 1)))
+    }
 
     var body: some View {
         let baseFill = Color(nsColor: .secondarySystemFill)
@@ -48,13 +90,7 @@ struct TabSelectionView: View {
                 dot(
                     index: idx,
                     view: view,
-                    accessibility: {
-                        switch view {
-                        case .home: return "Home"
-                        case .shelf: return "Shelf"
-                        case .third: return "Third"
-                        }
-                    }()
+                    accessibility: view.accessibilityTitle
                 )
             }
         }
@@ -63,7 +99,6 @@ struct TabSelectionView: View {
         .background(
             Capsule()
                 .fill(baseFill)
-        // Unified background opacity (match NotchCardBackground).
                 .overlay {
                     Capsule()
                         .fill(baseFill)
@@ -76,6 +111,8 @@ struct TabSelectionView: View {
                 }
                 .allowsHitTesting(false)
         )
+        .fixedSize(horizontal: true, vertical: false)
+        .scaleEffect(fitScale, anchor: .leading)
         .contentShape(Rectangle())
     }
 
@@ -98,6 +135,6 @@ struct TabSelectionView: View {
 }
 
 #Preview {
-    TabSelectionView()
+    TabSelectionView(availableWidth: 120)
         .environmentObject(BoringViewModel())
 }

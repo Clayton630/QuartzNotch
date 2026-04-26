@@ -1,9 +1,3 @@
-//
-// ShelfSelectionModel.swift
-// boringNotch
-//
-// Created by Alexander on 2025-09-26.
-//
 
 import Foundation
 import Combine
@@ -20,7 +14,6 @@ final class ShelfSelectionModel: ObservableObject {
     @Published private(set) var selectedIDs: Set<UUID> = []
     private var suppressClearUntil: Date = .distantPast
 
-  // Anchor for shift-range selection
     private var lastAnchorID: UUID? = nil
 
     func isSelected(_ id: UUID) -> Bool { selectedIDs.contains(id) }
@@ -51,11 +44,9 @@ final class ShelfSelectionModel: ObservableObject {
     }
 
     func shiftSelect(to item: ShelfItem, in allItems: [ShelfItem]) {
-    // Determine anchor
         let anchorID = lastAnchorID ?? selectedIDs.first ?? item.id
         guard let startIndex = allItems.firstIndex(where: { $0.id == anchorID }),
               let endIndex = allItems.firstIndex(where: { $0.id == item.id }) else {
-      // Fallback to single select if indices not found
             return selectSingle(item)
         }
         let lower = min(startIndex, endIndex)
@@ -85,7 +76,6 @@ final class ShelfSelectionModel: ObservableObject {
         }
     }
 
-  // Keep anchor sane if items array changed drastically (optional helper)
     func ensureValidAnchor(in allItems: [ShelfItem]) {
         if let anchor = lastAnchorID, !allItems.contains(where: { $0.id == anchor }) {
             lastAnchorID = selectedIDs.first

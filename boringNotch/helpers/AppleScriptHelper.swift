@@ -1,9 +1,3 @@
-//
-// AppleScriptHelper.swift
-// boringNotch
-//
-// Created by Alexander on 2025-03-29.
-//
 
 import Foundation
 

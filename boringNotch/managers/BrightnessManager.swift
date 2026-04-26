@@ -1,7 +1,3 @@
-// BrightnessManager.swift
-// boringNotch
-//
-// Created by JeanLouis on 08/22/24.
 
 import AppKit
 
@@ -64,7 +60,6 @@ final class BrightnessManager: ObservableObject {
 	}
 }
 
-// (DisplayServices helpers moved into XPC helper)
 
 // MARK: - Keyboard Backlight Controller
 final class KeyboardBacklightManager: ObservableObject {

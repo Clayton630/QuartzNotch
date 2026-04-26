@@ -1,9 +1,3 @@
-//
-// TimerLiveActivity.swift
-// boringNotch
-//
-// Closed-notch "live activity" indicator for Quick Timers (page 3).
-//
 
 import SwiftUI
 import AppKit
@@ -76,7 +70,6 @@ private struct TimerSidesHoverTrackingView: NSViewRepresentable {
             onSidesHoverChanged?(false)
         }
 
-        // Let underlying SwiftUI buttons receive clicks while keeping tracking active.
         override func hitTest(_ point: NSPoint) -> NSView? {
             nil
         }
@@ -84,8 +77,6 @@ private struct TimerSidesHoverTrackingView: NSViewRepresentable {
         private func updateHoverState(with event: NSEvent) {
             let p = convert(event.locationInWindow, from: nil)
             if treatWholeAreaAsHoverTarget {
-                // Expanded mode: keep hover stable near edges to avoid accidental close
-                // when the cursor grazes the top/border of the activity.
                 let tolerantBounds = bounds.insetBy(dx: -10, dy: -10)
                 onSidesHoverChanged?(tolerantBounds.contains(p))
                 return
@@ -122,7 +113,6 @@ private struct TimerNeedlePivotModifier: ViewModifier {
         let anchor = UnitPoint(x: pivot / max(1, length), y: 0.5)
 
         return content
-      // Place pivot at center: shift view so its pivot point sits on the ZStack center.
             .offset(x: length / 2 - pivot)
             .rotationEffect(.degrees(angle), anchor: anchor)
     }
@@ -150,6 +140,8 @@ struct TimerLiveActivity: View {
     let expandedTimeWidth: CGFloat
     let expandedRowHeight: CGFloat
     let expandedRowsSpacing: CGFloat
+    let expandedTopPadding: CGFloat
+    let expandedBottomPadding: CGFloat
 
   /// Expanded (hover on left/right segments only). The physical notch segment stays passive so classic notch hover works.
     let isExpanded: Bool
@@ -160,7 +152,6 @@ struct TimerLiveActivity: View {
     let onStopTimer: (QuickTimer) -> Void
     let animatedValue: Int
 
-  // Match the in-app running timer pause/play tint.
     private let timerOrange = Color(nsColor: .systemOrange)
 
     @State private var isHoveringLeft: Bool = false
@@ -169,18 +160,14 @@ struct TimerLiveActivity: View {
     var body: some View {
         let extra = extraCount > 0 ? " +\(extraCount)" : ""
 
-    // Slightly larger ring (the previous one looked too small).
-    // Keep in sync with ContentView.timerActivityLayout.
         let ringSize: CGFloat = layout.fontSize + 5
         let ringLineWidth: CGFloat = 2.2
-    // Needle is a tiny rounded rectangle whose *inner end* is fixed at the center.
-    // Its outer end rotates along the ring, like the reference image.
         let needleThickness: CGFloat = 2.49
 
         let rowsCount = max(1, timers.count)
         let expandedHeaderHeight: CGFloat = 0
-        let expandedTopPadding: CGFloat = 5
-        let expandedBottomPadding: CGFloat = 16
+        let expandedRowHorizontalPadding: CGFloat = 6
+        let expandedSeparatorInset: CGFloat = 14
         let footerHeight: CGFloat = isExpanded
             ? (expandedTopPadding
                + expandedHeaderHeight
@@ -191,22 +178,18 @@ struct TimerLiveActivity: View {
 
         let totalHeight = baseHeight + footerHeight
         let leftHoverWidth = isCompactMode ? 0 : (layout.leftWidth + layout.sidePadding)
-    // In compact mode, the right side carries the ring (former left content).
         let rightHoverWidth = isCompactMode
             ? max(layout.leftWidth + layout.sidePadding + 18, 48)
             : max(layout.rightWidth + layout.sidePadding + 22, 64)
 
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-        // LEFT SECTION: Timer ring (with native hover area)
                 if !isCompactMode {
                     ZStack(alignment: .top) {
                         ZStack {
-              // Track
                             Circle()
                                 .stroke(Color(red: 0x5A / 255.0, green: 0x41 / 255.0, blue: 0x22 / 255.0), lineWidth: ringLineWidth)
 
-              // Remaining progress (decreasing)
                             Circle()
                                 .trim(from: 0, to: max(0, min(1, progressRemaining)))
                                 .stroke(
@@ -219,10 +202,8 @@ struct TimerLiveActivity: View {
                             GeometryReader { geo in
                                 let r = min(geo.size.width, geo.size.height) / 2
                                 let clamped = max(0, min(1, progressRemaining))
-                // Circle trim is rotated by -90° above, so 0 starts at 12 o'clock.
                                 let angle = -90 + (360 * clamped)
 
-                // Keep the needle fully inside the ring stroke.
                                 let pathRadius = r - ringLineWidth / 2
                                 let inset: CGFloat = 1.2
                                 let needleLength = max(2, pathRadius - needleThickness / 2 - inset)
@@ -230,8 +211,6 @@ struct TimerLiveActivity: View {
                                 RoundedRectangle(cornerRadius: needleThickness / 2, style: .continuous)
                                     .fill(timerOrange)
                                     .frame(width: needleLength, height: needleThickness)
-                  // Fix a pivot point slightly *inside* the needle (not right at the extremity)
-                  // to avoid the visual "sliding" effect.
                                     .modifier(TimerNeedlePivotModifier(length: needleLength, pivotFraction: 0.18, angle: angle))
                                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                                     .animation(.linear(duration: 1), value: progressRemaining)
@@ -245,12 +224,10 @@ struct TimerLiveActivity: View {
                     }
                 }
 
-        // CENTER SECTION: Physical notch area (without hover)
                 Rectangle()
                     .fill(.black)
                     .frame(width: notchWidth, height: totalHeight)
 
-        // RIGHT SECTION: Countdown text (with native hover area)
                 ZStack(alignment: .topTrailing) {
                     if isCompactMode {
                         ZStack {
@@ -352,7 +329,7 @@ struct TimerLiveActivity: View {
                                 .minimumScaleFactor(0.7)
                                 .frame(width: expandedTimeWidth, alignment: .trailing)
                         }
-                        .padding(.horizontal, 1)
+                        .padding(.horizontal, expandedRowHorizontalPadding)
                         .frame(height: expandedRowHeight)
 
                         if index < timers.count - 1 {
@@ -362,7 +339,7 @@ struct TimerLiveActivity: View {
                                     Rectangle()
                                         .fill(.white.opacity(0.14))
                                         .frame(height: 1)
-                                        .padding(.horizontal, 10)
+                                        .padding(.horizontal, expandedSeparatorInset)
                                 }
                         }
                     }

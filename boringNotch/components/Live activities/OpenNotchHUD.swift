@@ -1,9 +1,3 @@
-//
-// OpenNotchHUD.swift
-// boringNotch
-//
-// Created by Alexander on 2024-11-23.
-//
 
 import SwiftUI
 import Defaults
@@ -17,7 +11,6 @@ struct OpenNotchHUD: View {
     
     var body: some View {
         HStack(spacing: 8) {
-      // Icon
             Group {
                 switch type {
                 case .volume:
@@ -46,7 +39,6 @@ struct OpenNotchHUD: View {
             .foregroundStyle(.white)
             .frame(width: 20, alignment: .center)
             
-      // Slider or Status Text
             if type != .mic {
                 DraggableProgressBar(value: $value, onChange: { newVal in
                      updateSystemValue(newVal)
@@ -59,7 +51,6 @@ struct OpenNotchHUD: View {
                     .fixedSize()
             }
             
-      // Percentage Text
             if type != .mic && showPercentage {
                 Text("\(Int(value * 100))%")
                     .font(.system(size: 12, weight: .medium))

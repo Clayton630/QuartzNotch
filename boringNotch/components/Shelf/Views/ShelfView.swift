@@ -1,9 +1,3 @@
-//
-// ShelfItemView.swift
-// boringNotch
-//
-// Created by Alexander on 2025-09-24.
-//
 
 import SwiftUI
 import AppKit
@@ -11,6 +5,7 @@ import Defaults
 
 struct ShelfView: View {
     @EnvironmentObject var vm: BoringViewModel
+    @Environment(\.openNotchLayoutCompression) private var openLayoutCompression
     @Binding var isPagerScrollEnabled: Bool
     @StateObject var tvm = ShelfStateViewModel.shared
     @StateObject var selection = ShelfSelectionModel.shared
@@ -21,57 +16,83 @@ struct ShelfView: View {
 
     private let spacing: CGFloat = 0
     private let interItemSpacing: CGFloat = 12
-    private let cameraReservedWidth: CGFloat = 150
 
-  // Fallback for mirror preference without relying on external Defaults package
     private var isMirrorEnabled: Bool {
         Defaults[.showMirror]
-    }
-
-    private var shouldShowCamera: Bool {
-        isMirrorEnabled
-            && webcamManager.cameraAvailable
-            && vm.isCameraExpanded
-            && !vm.suppressCameraLayoutInOpenContent
     }
 
     private var isDropHighlighted: Bool {
         isLocalDropTargeting
     }
 
-    var body: some View {
-    // Use negative HStack spacing (instead of negative padding/offset) to visually reduce the
-    // gap between FileShareView and the tray while keeping a stable, predictable hit/drop region.
-    // Negative padding/offset can make macOS drop hit-testing feel "shifted".
-    // Camera open: keep a tighter and symmetric layout
-    // (same spacing Share<->Tray and Tray<->Camera reserve).
-        let shelfGap: CGFloat = shouldShowCamera ? -6 : -24.5
+    private var shelfGap: CGFloat {
+        -24.5 + (6 * openLayoutCompression)
+    }
 
+    private var fileShareWidth: CGFloat {
+        170 - (12 * openLayoutCompression)
+    }
+
+    private var outerHorizontalPadding: CGFloat {
+        22 - (3 * openLayoutCompression)
+    }
+
+    private var outerVerticalPadding: CGFloat {
+        10 - (4 * openLayoutCompression)
+    }
+
+    private var panelContentVerticalPadding: CGFloat {
+        16 - (6 * openLayoutCompression)
+    }
+
+    private var panelContentHorizontalPadding: CGFloat {
+        8 - (1.5 * openLayoutCompression)
+    }
+
+    @ViewBuilder
+    private func bottomAmbientShadow(cornerRadius: CGFloat, opacity: Double, blur: CGFloat, y: CGFloat) -> some View {
+        if pageUseLiquidGlassBackground {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.black.opacity(opacity))
+                .scaleEffect(x: 0.99, y: 0.95)
+                .blur(radius: blur)
+                .offset(y: y)
+                .mask {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .clear, location: 0.00),
+                                    .init(color: .clear, location: 0.52),
+                                    .init(color: .white.opacity(0.72), location: 0.82),
+                                    .init(color: .white, location: 1.00),
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                }
+                .drawingGroup()
+                .blendMode(.multiply)
+                .allowsHitTesting(false)
+        }
+    }
+
+    var body: some View {
         HStack(spacing: shelfGap) {
 
-      // AirDrop (FileShareView)
             FileShareView()
                 .aspectRatio(1, contentMode: .fit)
-                .frame(width: shouldShowCamera ? 150 : 170, alignment: .leading)
+                .frame(width: fileShareWidth, alignment: .leading)
                 .frame(maxHeight: .infinity, alignment: .leading)
                 .environmentObject(vm)
 
-      // File tray (expanded to the left)
-      // NOTE: On macOS, attaching .onDrop to a view that is only a *stroke* can make the
-      // effective drop region feel "broken" (the hit area may end up matching the stroke
-      // outline instead of the full panel bounds). We add an invisible fill behind the
-      // chrome so the drop area exactly matches the visible panel rectangle.
             panel
                 .frame(minWidth: 0)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .layoutPriority(1)
-        // Keep the tray above the share view in the overlap region so it reliably receives drops.
                 .zIndex(1)
-        // When the pointer is over the tray, allow the tray's horizontal ScrollView
-        // to receive two-finger scrolling instead of the pager.
                 .onHover { hovering in
-          // If the tray is empty there is nothing to scroll inside the tray,
-          // so keep the pager scroll enabled even while hovering the tray.
                     if hovering && !tvm.isEmpty {
                         isPagerScrollEnabled = false
                     } else {
@@ -79,14 +100,9 @@ struct ShelfView: View {
                     }
                 }
 
-            if shouldShowCamera {
-                Spacer(minLength: 0)
-                    .frame(width: cameraReservedWidth, height: 0)
-            }
         }
-    // Consistent global margins
-        .padding(.horizontal, 19)
-        .padding(.vertical, 10)
+        .padding(.horizontal, outerHorizontalPadding)
+        .padding(.vertical, outerVerticalPadding)
         .onAppear { isPagerScrollEnabled = true }
         .onDisappear { isPagerScrollEnabled = true }
         .onDisappear {
@@ -97,11 +113,9 @@ struct ShelfView: View {
             vm.dragDetectorTargeting = targeted
         }
         .onChange(of: tvm.isEmpty) { isEmpty in
-      // If the tray becomes empty, re-enable pager scrolling immediately.
             if isEmpty { isPagerScrollEnabled = true }
         }
 
-    // Quick Look
         .onChange(of: selection.selectedIDs) {
             updateQuickLookSelection()
         }
@@ -137,29 +151,76 @@ struct ShelfView: View {
 
     var panel: some View {
         let hasItems = !tvm.items.isEmpty
-        let idleFillOpacity: Double = hasItems ? 0.97 : 0.60
-        let idleOverlayOpacity: Double = hasItems ? 0.36 : 0.10
+        let idleFillOpacity: Double = hasItems ? (pageUseLiquidGlassBackground ? 0.66 : 0.97) : (pageUseLiquidGlassBackground ? 0.38 : 0.60)
+        let idleOverlayOpacity: Double = hasItems ? (pageUseLiquidGlassBackground ? 0.14 : 0.36) : (pageUseLiquidGlassBackground ? 0.06 : 0.10)
+        let strokeOpacity: Double = pageUseLiquidGlassBackground ? 0.15 : 0.12
+        let shadowOpacity: Double = pageUseLiquidGlassBackground ? 0.30 : 0.40
+        let strokeBaseColor: Color = isDropHighlighted ? .accentColor : .white
+        let counterStrokeColor: Color = isDropHighlighted ? .accentColor.opacity(0.18) : .black.opacity(0.055)
+        let strokeBlendMode: BlendMode = isDropHighlighted ? .normal : .screen
+        let counterStrokeBlendMode: BlendMode = isDropHighlighted ? .normal : .multiply
         return ZStack {
-      // Invisible fill that defines a reliable hit/drop region.
+            if pageUseLiquidGlassBackground {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .opacity(hasItems ? 0.33 : 0.27)
+
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.white.opacity(hasItems ? 0.070 : 0.046))
+
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.black.opacity(hasItems ? 0.010 : 0.007))
+            }
+
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(cardBaseFill.opacity(isDropHighlighted ? 1.0 : idleFillOpacity))
                 .overlay {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(cardBaseFill.opacity(isDropHighlighted ? 0.22 : idleOverlayOpacity))
                 }
-                .shadow(color: Color.black.opacity(pageUseLiquidGlassBackground ? 0.25 : 0.40), radius: 6, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(shadowOpacity), radius: 6, x: 0, y: 2)
 
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(
-                    isDropHighlighted ? Color.accentColor.opacity(0.62) : Color.white.opacity(0.12),
-                    lineWidth: 1.3
-                )
-                .animation(nil, value: isDropHighlighted)
+            bottomAmbientShadow(cornerRadius: 16, opacity: 0.22, blur: 15, y: 7)
+
+            if pageUseLiquidGlassBackground {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(counterStrokeColor, lineWidth: 1.0)
+                    .blendMode(counterStrokeBlendMode)
+            }
+
+            Group {
+                if pageUseLiquidGlassBackground {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: strokeBaseColor.opacity(isDropHighlighted ? 0.28 : strokeOpacity), location: 0.00),
+                                    .init(color: strokeBaseColor.opacity(isDropHighlighted ? 0.28 : strokeOpacity), location: 0.54),
+                                    .init(color: strokeBaseColor.opacity(isDropHighlighted ? 0.38 : 0.17), location: 0.76),
+                                    .init(color: strokeBaseColor.opacity(isDropHighlighted ? 0.58 : 0.34), location: 1.00),
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 1.3
+                        )
+                        .blendMode(strokeBlendMode)
+                } else {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(
+                            isDropHighlighted ? Color.accentColor.opacity(0.62) : Color.white.opacity(strokeOpacity),
+                            lineWidth: 1.3
+                        )
+                }
+            }
+            .animation(nil, value: isDropHighlighted)
         }
         .overlay {
             content
-                .padding(.vertical)
-                .padding(.horizontal, 8)
+                .padding(.vertical, panelContentVerticalPadding)
+                .padding(.horizontal, panelContentHorizontalPadding)
+                .shadow(color: Color.black.opacity(pageUseLiquidGlassBackground ? 0.10 : 0.0), radius: 2.0, x: 0, y: 1)
+                .shadow(color: Color.black.opacity(pageUseLiquidGlassBackground ? 0.035 : 0.0), radius: 4.6, x: 0, y: 2)
         }
         .overlay(alignment: .topTrailing) {
             if hasItems {
@@ -186,8 +247,6 @@ struct ShelfView: View {
                 .padding(.trailing, 8)
             }
         }
-    // Avoid disabling the entire transaction tree here.
-    // This view participates in the pager's horizontal translation animation.
         .contentShape(Rectangle())
         .onTapGesture { selection.clearIfAllowed() }
     }
@@ -222,8 +281,6 @@ struct ShelfView: View {
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.white.opacity(0.92))
                 }
-        // Make the empty state itself a full-size drop target so you don't have to aim
-        // for the stroke/margins.
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data],
@@ -241,8 +298,6 @@ struct ShelfView: View {
                 }
                 .padding(-spacing)
                 .scrollIndicators(.never)
-        // On macOS, the NSScrollView subtree can block parent .onDrop hit-testing.
-        // Attach the drop destination here so the whole tray area accepts drops.
                 .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data],
                         isTargeted: $isLocalDropTargeting) { providers in
                     handleDrop(providers: providers)

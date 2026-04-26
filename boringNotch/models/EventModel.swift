@@ -1,11 +1,3 @@
-//
-// EventModel.swift
-// Calendr
-//
-// Created by Paker on 24/12/20.
-// Original source: https://github.com/pakerwreah/Calendr
-// Modified by Alexander on 2025-05-18.
-//
 
 import Foundation
 
@@ -54,12 +46,6 @@ enum EventType: Equatable {
     case reminder(completed: Bool)
 }
 
-enum EventStatus: Equatable {
-    case upcoming
-    case inProgress
-    case ended
-}
-
 extension EventType {
     var isEvent: Bool { if case .event = self { return true } else { return false } }
     var isBirthday: Bool { self ~= .birthday }
@@ -67,17 +53,6 @@ extension EventType {
 }
 
 extension EventModel {
-    
-    var eventStatus: EventStatus {
-        if start > Date() {
-            return .upcoming
-        } else if end > Date() {
-            return .inProgress
-        } else {
-            return .ended
-        }
-    }
-        
     var attendance: AttendanceStatus { if case .event(let attendance) = type { return attendance } else { return .unknown } }
 
     var isMeeting: Bool { !participants.isEmpty }

@@ -1,9 +1,3 @@
-//
-// MediaChecker.swift
-// boringNotch
-//
-// Created by Alexander on 2025-07-26.
-//
 
 import Foundation
 
@@ -34,7 +28,6 @@ final class MediaChecker: Sendable {
                 throw MediaCheckerError.processExecutionFailed
             }
 
-   // Timeout after 10 seconds
             let didExit: Bool = try await withThrowingTaskGroup(of: Bool.self) { group in
                 group.addTask {
                     process.waitUntilExit()

@@ -1,8 +1,3 @@
-//
-// AnimatedFace.swift
-//
-// Created by Harsh Vardhan Goswami on 04/08/24.
-//
 
 import SwiftUI
 
@@ -13,20 +8,16 @@ struct MinimalFaceFeatures: View {
     
     var body: some View {
         VStack(spacing: 4) { // Adjusted spacing to fit within 30x30
-      // Eyes
             HStack(spacing: 4) { // Adjusted spacing to fit within 30x30
                 Eye(isBlinking: $isBlinking)
                 Eye(isBlinking: $isBlinking)
             }
             
-      // Nose and mouth combined
             VStack(spacing: 2) { // Adjusted spacing to fit within 30x30
-        // Nose
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Color.white)
                     .frame(width: 3, height: 4)
                 
-        // Mouth (happy)
                 GeometryReader { geometry in
                     Path { path in
                         let width = geometry.size.width

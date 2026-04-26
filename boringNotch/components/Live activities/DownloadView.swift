@@ -1,9 +1,3 @@
-//
-// DownloadView.swift
-// boringNotch
-//
-// Created by Harsh Vardhan Goswami on 17/08/24.
-//
 
 import Foundation
 import SwiftUI

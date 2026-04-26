@@ -114,14 +114,9 @@ public struct LockIconAnimatedBlurView: View {
 
     public var body: some View {
         ZStack {
-      // Sharp icon (always present)
             LockIconAnimatedView(isLocked: isLocked, size: size, iconColor: iconColor)
                 .opacity(sharpOpacity)
 
-      // Blurred overlay.
-      // Approach change (robust + visible): we blur a *padded* version of the icon,
-      // then clip back to the original size. This prevents the blur from being
-      // visually "eaten" by tight bounds on very small icons (16px).
             LockIconAnimatedView(isLocked: isLocked, size: size, iconColor: iconColor)
                 .padding(blurPadding)
                 .blur(radius: blurRadius)
@@ -134,19 +129,15 @@ public struct LockIconAnimatedBlurView: View {
     }
 
     private var blurPadding: CGFloat {
-    // Enough padding so the blur kernel has room to spread.
-    // (If padding is too small, blur can look identical on tiny icons.)
         max(4, blurRadius * 1.8)
     }
 
     private var blurOpacity: Double {
-    // Keep it readable: at high blur, the blurred layer dominates.
         let maxR: CGFloat = 18
         return Double(max(0, min(1, blurRadius / maxR)))
     }
 
     private var sharpOpacity: Double {
-    // Crossfade: sharp becomes dominant as blur goes to 0.
         max(0, min(1, 1.0 - blurOpacity))
     }
 }
@@ -156,7 +147,6 @@ struct LockIconProgressView: View {
     var iconColor: Color = .white
 
     var body: some View {
-    // Fallback is used only when fully locked.
         let nearLocked = progress >= 0.999
 
         if LockIconLottieView.isAvailable, !nearLocked {
@@ -186,7 +176,6 @@ struct LockIconLottieView: View {
             return animation
         }
 
-    // Fallback: try loading by URL (helps when the resource is packaged differently)
         if let url = Bundle.main.url(forResource: "lock_icon_animation", withExtension: "json"),
            let data = try? Data(contentsOf: url) {
             return try? LottieAnimation.from(data: data)
@@ -203,13 +192,7 @@ struct LockIconLottieView: View {
     var body: some View {
         Group {
             if let animation = Self.animation {
-        // Use Lottie's SwiftUI renderer (important: SwiftUI masking works correctly with this).
                 Lottie.LottieView(animation: animation)
-          // NOTE:
-          // On macOS, Lottie's SwiftUI renderer can occasionally render an empty frame
-          // when the progress is *exactly* 0.0 or 1.0 (endpoint frames).
-          // That would make the lock icon disappear in the fully-locked state.
-          // Clamping away from endpoints keeps the first/last frame reliably visible.
                     .currentProgress(Double(max(0.02, min(0.98, progress))))
                     .configuration(.init(renderingEngine: .mainThread))
             } else {

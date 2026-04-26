@@ -1,9 +1,3 @@
-//
-// ImageService.swift
-// boringNotch
-//
-// Created by Alexander on 2025-09-13.
-//
 
 import Foundation
 import Defaults

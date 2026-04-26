@@ -1,19 +1,3 @@
-//
-// AlbumArtFlipView.swift
-// boringNotch
-//
-// Dynamic Island-like album art flip (2D-ish, direction-aware, non-linear).
-// Perf-focused + reliable under rapid taps:
-//
-// Fix for your exact bug:
-// - If you click twice quickly, we DO NOT replace the running flip's target.
-// - The running flip always lands on the first requested artwork.
-// - Any extra tap while animating is queued and will trigger a second flip immediately after.
-// - If you spam more than twice, we coalesce the queue to the latest (but still guarantee
-//  at least one follow-up flip after the current one).
-//
-// Visual behavior kept the same (soft / organic / amortie).
-//
 
 import AppKit
 import SwiftUI
@@ -31,22 +15,16 @@ struct AlbumArtFlipView: View {
     let geometryID: String
     let namespace: Namespace.ID
 
-  // Front face (currently displayed track)
     @State private var frontImage: NSImage
     @State private var frontBlurredImage: NSImage?
 
-  // Back face TARGET for the CURRENT flip.
-  // IMPORTANT: while animating, this must NOT change, otherwise you "skip" intermediate flips.
     @State private var backImage: NSImage
 
-  // Direction locked for the CURRENT flip
     @State private var activeDirection: AlbumArtFlipDirection
 
-  // Queue: latest request that arrives while animating (will play AFTER current flip)
     @State private var queuedImage: NSImage?
     @State private var queuedDirection: AlbumArtFlipDirection?
 
-  // Animation states
     @State private var blurMix: CGFloat = 0
     @State private var liveBlurRadius: CGFloat = 0
     @State private var flipAngle: Double = 0
@@ -81,7 +59,6 @@ struct AlbumArtFlipView: View {
 
     var body: some View {
         ZStack {
-      // FRONT face (old artwork). Crossfade sharp -> blurred.
             ZStack {
                 Image(nsImage: frontImage)
                     .resizable()
@@ -110,7 +87,6 @@ struct AlbumArtFlipView: View {
             )
             .opacity(frontVisible ? 1 : 0)
 
-      // BACK face (target of the current flip), always crisp.
             Image(nsImage: backImage)
                 .resizable()
                 .aspectRatio(1, contentMode: .fit)
@@ -134,7 +110,6 @@ struct AlbumArtFlipView: View {
                 )
                 .opacity(frontVisible ? 0 : 1)
         }
-    // Direction cue: subtle, but makes next/previous clearly different
         .offset(x: xCue)
         .shadow(
             color: Color.black.opacity(isAnimating ? 0.0 : 0.32),
@@ -156,7 +131,6 @@ struct AlbumArtFlipView: View {
             frontBlurredImage = nil
             prepareBlurredFrontAsync()
         }
-    // Single source of truth for playback changes: eventID
         .onChange(of: eventID) { _, _ in
             handleFlipEvent(newIncoming: incomingImage, newDirection: direction)
         }
@@ -190,18 +164,13 @@ struct AlbumArtFlipView: View {
   // MARK: - Reliable event handling (fixes “second tap doesn’t animate”)
 
     private func handleFlipEvent(newIncoming: NSImage, newDirection: AlbumArtFlipDirection) {
-    // If we are idle, this event becomes the immediate flip target.
         if !isAnimating {
-      // Update the target for the next flip
             backImage = newIncoming
             activeDirection = newDirection
             startFlipIfNeeded()
             return
         }
 
-    // If we are currently animating:
-    // DO NOT change backImage (running target) — otherwise you skip a flip visually.
-    // Instead queue the new request so we play it right after this flip finishes.
         queuedImage = newIncoming
         queuedDirection = newDirection
     }
@@ -209,7 +178,6 @@ struct AlbumArtFlipView: View {
   // MARK: - Animation
 
     private func startFlipIfNeeded() {
-    // No-op if already showing same image instance
         if backImage === frontImage { return }
         startFlip()
     }
@@ -220,14 +188,12 @@ struct AlbumArtFlipView: View {
 
         let sign: Double = (activeDirection == .next) ? 1 : -1
 
-    // Tunables (soft / organic / amortie)
         let blurRampDuration: TimeInterval = 0.34
         let flipStartDelay: TimeInterval = 0.02
         let flipDuration: TimeInterval = 1.02
         let minSqueeze: CGFloat = 0.44
         let strongBlurRadius: CGFloat = 18
 
-    // Reset
         blurMix = 0
         liveBlurRadius = 0
         flipAngle = 0
@@ -238,7 +204,6 @@ struct AlbumArtFlipView: View {
             prepareBlurredFrontAsync()
         }
 
-    // Blur ramps immediately
         if frontBlurredImage != nil {
             withAnimation(.timingCurve(0.10, 0.00, 0.16, 1.00, duration: blurRampDuration)) {
                 blurMix = 1
@@ -249,14 +214,12 @@ struct AlbumArtFlipView: View {
             }
         }
 
-    // Flip overlaps blur ramp
         DispatchQueue.main.asyncAfter(deadline: .now() + flipStartDelay) {
             withAnimation(.timingCurve(0.20, 0.80, 0.06, 1.00, duration: flipDuration)) {
                 flipAngle = sign * 180
             }
         }
 
-    // Squeeze updates
         let steps = 64
         for i in 0...steps {
             let t = flipStartDelay + (flipDuration * Double(i) / Double(steps))
@@ -266,7 +229,6 @@ struct AlbumArtFlipView: View {
                 let softened = pow(max(0, raw), 0.35)
                 squeezeX = max(minSqueeze, softened)
 
-        // As soon as we cross to back face: kill blur so new is crisp
                 if !didClearBlur, abs(normalizedAngle) >= 90 {
                     didClearBlur = true
                     withAnimation(.timingCurve(0.18, 0.00, 0.18, 1.00, duration: 0.10)) {
@@ -277,13 +239,10 @@ struct AlbumArtFlipView: View {
             }
         }
 
-    // End: commit backImage → frontImage, then chain queued flip if any
         DispatchQueue.main.asyncAfter(deadline: .now() + flipStartDelay + flipDuration) {
-      // Commit the running target (backImage) as the new front
             frontImage = backImage
             frontBlurredImage = nil
 
-      // Reset transforms
             var tx = Transaction()
             tx.disablesAnimations = true
             withTransaction(tx) {
@@ -293,10 +252,8 @@ struct AlbumArtFlipView: View {
                 squeezeX = 1
             }
 
-      // Warm blur for next time
             prepareBlurredFrontAsync()
 
-      // Softer rebound
             withAnimation(.interpolatingSpring(stiffness: 170, damping: 34)) {
                 bounceScale = 1.0065
             }
@@ -310,16 +267,13 @@ struct AlbumArtFlipView: View {
                 isAnimating = false
                 didClearBlur = false
 
-        // If a request arrived while animating, play it now (guaranteed second flip)
                 if let qImg = queuedImage, let qDir = queuedDirection {
                     queuedImage = nil
                     queuedDirection = nil
 
-          // Set new target + direction for the next flip
                     backImage = qImg
                     activeDirection = qDir
 
-          // Start immediately if it actually changes the image
                     startFlipIfNeeded()
                 }
             }
@@ -338,7 +292,6 @@ struct AlbumArtFlipView: View {
                 if self.frontImage === source {
                     self.frontBlurredImage = blurred
 
-          // If we were using live blur fallback mid-ramp, switch smoothly to bitmap blur.
                     if self.liveBlurRadius > 0, blurred != nil, self.blurMix == 0 {
                         withAnimation(.linear(duration: 0.10)) {
                             self.blurMix = 1

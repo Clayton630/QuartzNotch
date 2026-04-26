@@ -1,8 +1,3 @@
-//
-// ShelfStateViewModel.swift
-// boringNotch
-//
-// Created by Alexander on 2025-10-09.
 
 import Foundation
 import AppKit
@@ -19,7 +14,6 @@ final class ShelfStateViewModel: ObservableObject {
 
     var isEmpty: Bool { items.isEmpty }
 
-  // Queue for deferred bookmark updates to avoid publishing during view updates
     private var pendingBookmarkUpdates: [ShelfItem.ID: Data] = [:]
     private var updateTask: Task<Void, Never>?
 
@@ -31,7 +25,6 @@ final class ShelfStateViewModel: ObservableObject {
     func add(_ newItems: [ShelfItem]) {
         guard !newItems.isEmpty else { return }
         var merged = items
-    // Deduplicate by identityKey while preserving order (existing first)
         var seen: Set<String> = Set(merged.map { $0.identityKey })
         for it in newItems {
             let key = it.identityKey
@@ -65,7 +58,6 @@ final class ShelfStateViewModel: ObservableObject {
     private func scheduleDeferredBookmarkUpdate(for item: ShelfItem, bookmark: Data) {
         pendingBookmarkUpdates[item.id] = bookmark
         
-    // Cancel existing task and schedule a new one
         updateTask?.cancel()
         updateTask = Task { @MainActor [weak self] in
             await Task.yield()

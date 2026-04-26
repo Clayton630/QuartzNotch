@@ -1,9 +1,3 @@
-//
-// QuickTimerManager.swift
-// boringNotch
-//
-// Created by AI Assistant on 2026-02-02.
-//
 
 import Foundation
 import Combine
@@ -12,55 +6,69 @@ import UserNotifications
 class QuickTimerManager: ObservableObject {
     static let shared = QuickTimerManager()
     
-    @Published var timers: [QuickTimer] = []
+    @Published var timers: [QuickTimer] = [] {
+        didSet { updateTickerIfNeeded() }
+    }
     private var cancellables = Set<AnyCancellable>()
+    private var tickerCancellable: AnyCancellable?
     
     private init() {
         requestNotificationPermission()
-        startTimerUpdates()
     }
     
     private func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
     
-    private func startTimerUpdates() {
-        Timer.publish(every: 1, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                self?.updateTimers()
-            }
-            .store(in: &cancellables)
+    private var hasRunningTimers: Bool {
+        timers.contains(where: \.isRunning)
     }
-    
-    private func updateTimers() {
-        for i in timers.indices {
-            if timers[i].isRunning {
-                timers[i].remainingSeconds -= 1
-                
-                if timers[i].remainingSeconds <= 0 {
-                    timers[i].isRunning = false
-                    timers[i].remainingSeconds = 0
-                    sendNotification(for: timers[i])
+
+    private func updateTickerIfNeeded() {
+        if hasRunningTimers {
+            guard tickerCancellable == nil else { return }
+            tickerCancellable = Timer.publish(every: 1, on: .main, in: .common)
+                .autoconnect()
+                .sink { [weak self] _ in
+                    self?.updateTimers()
                 }
-                
-        // Force UI update immediately for each running timer
-                DispatchQueue.main.async { [weak self] in
-                    self?.objectWillChange.send()
-                }
-            }
+        } else {
+            tickerCancellable?.cancel()
+            tickerCancellable = nil
         }
     }
     
+    private func updateTimers() {
+        guard hasRunningTimers else {
+            updateTickerIfNeeded()
+            return
+        }
+
+        var didChange = false
+        for i in timers.indices {
+            guard timers[i].isRunning else { continue }
+            timers[i].remainingSeconds -= 1
+            didChange = true
+
+            if timers[i].remainingSeconds <= 0 {
+                timers[i].isRunning = false
+                timers[i].remainingSeconds = 0
+                sendNotification(for: timers[i])
+            }
+        }
+
+        if didChange {
+            objectWillChange.send()
+        }
+        updateTickerIfNeeded()
+    }
+    
     func startTimer(duration: TimeInterval, preset: TimerPreset) {
-    // Check if a timer with this preset already exists
         if let index = timers.firstIndex(where: { $0.preset == preset }) {
-      // Restart existing timer
             timers[index].remainingSeconds = Int(duration)
             timers[index].totalSeconds = Int(duration)
             timers[index].isRunning = true
         } else {
-      // Create new timer
             let timer = QuickTimer(
                 preset: preset,
                 totalSeconds: Int(duration),
@@ -68,18 +76,21 @@ class QuickTimerManager: ObservableObject {
             )
             timers.append(timer)
         }
+        updateTickerIfNeeded()
     }
     
     func toggleTimer(_ timer: QuickTimer) {
         if let index = timers.firstIndex(where: { $0.id == timer.id }) {
             timers[index].isRunning.toggle()
         }
+        updateTickerIfNeeded()
     }
     
     func stopTimer(_ timer: QuickTimer) {
         if let index = timers.firstIndex(where: { $0.id == timer.id }) {
             timers.remove(at: index)
         }
+        updateTickerIfNeeded()
     }
     
     func resetTimer(_ timer: QuickTimer) {
@@ -87,6 +98,7 @@ class QuickTimerManager: ObservableObject {
             timers[index].remainingSeconds = timers[index].totalSeconds
             timers[index].isRunning = false
         }
+        updateTickerIfNeeded()
     }
     
     private func sendNotification(for timer: QuickTimer) {
@@ -108,7 +120,7 @@ class QuickTimerManager: ObservableObject {
 struct QuickTimer: Identifiable {
     let id = UUID()
     let preset: TimerPreset
-    let totalSeconds: Int
+    var totalSeconds: Int
     var remainingSeconds: Int
     var isRunning: Bool = true
     

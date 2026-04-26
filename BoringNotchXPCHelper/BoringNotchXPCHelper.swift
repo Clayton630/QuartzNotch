@@ -14,12 +14,39 @@ class BoringNotchXPCHelper: NSObject, BoringNotchXPCHelperProtocol {
 
     // MARK: - Bluetooth Battery (best-effort)
 
+    private struct SPBluetoothBatterySnapshot {
+        let normalizedAddress: String
+        let deviceName: String
+        let main: Int?
+        let left: Int?
+        let right: Int?
+        let generic: Int?
+
+        var bestPercent: Int? {
+            if let main { return main }
+            if let left, let right { return max(left, right) }
+            if let left { return left }
+            if let right { return right }
+            return generic
+        }
+
+        func matches(name wantedName: String) -> Bool {
+            let trimmedName = deviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedName.isEmpty, !wantedName.isEmpty else { return false }
+            if trimmedName.compare(wantedName, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame {
+                return true
+            }
+            return trimmedName.range(of: wantedName, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+        }
+    }
+
     private static let spCacheQueue = DispatchQueue(label: "theboringteam.boringnotch.spbt.cache")
-    private static var spCache: (ts: Date, json: [String: Any])?
+    private static var spCache: (ts: Date, snapshots: [SPBluetoothBatterySnapshot])?
+    private static var spCacheLoadGroup: DispatchGroup?
     private static let spCacheTTL: TimeInterval = 12.0
 
     @objc func warmUpBluetoothBatteryCache() {
-        _ = Self.loadSystemProfilerBTJSON()
+        _ = Self.loadSystemProfilerBTSnapshots()
     }
 
     @objc func bluetoothBatteryPercent(forDeviceAddress address: String, deviceName: String, with reply: @escaping (NSNumber?) -> Void) {
@@ -386,158 +413,179 @@ class BoringNotchXPCHelper: NSObject, BoringNotchXPCHelperProtocol {
     // MARK: - system_profiler (AirPods + some BT devices)
 
     private static func readSystemProfilerBatteryPercent(matchingNormalizedAddress normalizedAddr: String, deviceName: String) -> Int? {
-        guard let json = loadSystemProfilerBTJSON() else { return nil }
+        guard let snapshots = loadSystemProfilerBTSnapshots() else { return nil }
 
-        // First try: match by device_address when available.
-        var match: [String: Any]?
-
-        func walkForAddress(_ node: Any) {
-            if match != nil { return }
-            if let dict = node as? [String: Any] {
-                if !normalizedAddr.isEmpty,
-                   let addr = dict["device_address"] as? String,
-                   normalizeBTAddress(addr) == normalizedAddr {
-                    match = dict
-                    return
-                }
-                for (_, v) in dict {
-                    walkForAddress(v)
-                    if match != nil { return }
-                }
-            } else if let arr = node as? [Any] {
-                for v in arr {
-                    walkForAddress(v)
-                    if match != nil { return }
-                }
-            }
+        if !normalizedAddr.isEmpty,
+           let snapshot = snapshots.first(where: { $0.normalizedAddress == normalizedAddr }) {
+            return snapshot.bestPercent
         }
 
-        walkForAddress(json)
-
-        // Second try (AirPods-friendly): match by device_name if address wasn't found.
-        if match == nil {
-            let wantedName = deviceName.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !wantedName.isEmpty {
-                func walkForName(_ node: Any) {
-                    if match != nil { return }
-                    if let dict = node as? [String: Any] {
-                        if let n = dict["device_name"] as? String {
-                            // Case-insensitive exact match first; then contains.
-                            let dn = n.trimmingCharacters(in: .whitespacesAndNewlines)
-                            if dn.compare(wantedName, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame {
-                                match = dict
-                                return
-                            }
-                            if dn.range(of: wantedName, options: [.caseInsensitive, .diacriticInsensitive]) != nil {
-                                match = dict
-                                return
-                            }
-                        }
-                        for (_, v) in dict {
-                            walkForName(v)
-                            if match != nil { return }
-                        }
-                    } else if let arr = node as? [Any] {
-                        for v in arr {
-                            walkForName(v)
-                            if match != nil { return }
-                        }
-                    }
-                }
-                walkForName(json)
-            }
-        }
-
-        guard let device = match else { return nil }
-
-        func doubleFrom(_ any: Any?) -> Double? {
-            if let n = any as? NSNumber { return n.doubleValue }
-            if let i = any as? Int { return Double(i) }
-            if let d = any as? Double { return d }
-            if let f = any as? Float { return Double(f) }
-            if let s = any as? String {
-                let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
-                if let v = Double(trimmed) { return v }
-                let digits = trimmed.filter { $0.isNumber }
-                return Double(digits)
-            }
-            return nil
-        }
-
-        func normalizePercent(_ raw: Int, keyLower: String) -> Int? {
-            // system_profiler often returns "battery level bars" for controllers: 0..4 (or 0..10).
-            if keyLower.contains("batterylevel") || (keyLower.contains("battery") && keyLower.contains("level")) {
-                if (0...4).contains(raw) { return raw * 25 }
-                if (0...10).contains(raw) { return raw * 10 }
-            }
-            guard (0...100).contains(raw) else { return nil }
-            return raw
-        }
-
-        func percentFrom(_ any: Any?, keyLower: String) -> Int? {
-            guard let d = doubleFrom(any) else { return nil }
-            if d > 0, d <= 1.0, (keyLower.contains("percent") || keyLower.contains("level")) {
-                return Int((d * 100.0).rounded())
-            }
-            return normalizePercent(Int(d.rounded()), keyLower: keyLower)
-        }
-
-        if let main = percentFrom(device["device_batteryLevelMain"], keyLower: "device_batterylevelmain") { return main }
-
-        let left = percentFrom(device["device_batteryLevelLeft"], keyLower: "device_batterylevelleft")
-        let right = percentFrom(device["device_batteryLevelRight"], keyLower: "device_batterylevelright")
-        if let l = left, let r = right { return max(l, r) }
-        if let l = left { return l }
-        if let r = right { return r }
-
-        if let generic = percentFrom(device["device_batteryLevel"], keyLower: "device_batterylevel") { return generic }
-
-        // Some devices (including controllers) may expose battery under different keys.
-        // Be conservative: only accept keys that look like a level/percent, not flags/status.
-        for (k, v) in device {
-            let kl = k.lowercased()
-            guard kl.contains("battery") else { continue }
-            guard (kl.contains("level") || kl.contains("percent")) else { continue }
-            if let p = percentFrom(v, keyLower: kl) { return p }
+        let wantedName = deviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !wantedName.isEmpty,
+           let snapshot = snapshots.first(where: { $0.matches(name: wantedName) }) {
+            return snapshot.bestPercent
         }
 
         return nil
     }
 
-    private static func loadSystemProfilerBTJSON() -> [String: Any]? {
-        let cached: (ts: Date, json: [String: Any])? = spCacheQueue.sync { spCache }
-        if let c = cached, Date().timeIntervalSince(c.ts) < spCacheTTL {
-            return c.json
-        }
+    private static func loadSystemProfilerBTSnapshots() -> [SPBluetoothBatterySnapshot]? {
+        let now = Date()
+        var cachedSnapshots: [SPBluetoothBatterySnapshot]?
+        var waitGroup: DispatchGroup?
+        var shouldLoad = false
 
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/sbin/system_profiler")
-        proc.arguments = ["SPBluetoothDataType", "-json"]
-
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        proc.standardError = Pipe()
-
-        do {
-            try proc.run()
-        } catch {
-            return nil
-        }
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
-        guard !data.isEmpty else { return nil }
-
-        do {
-            let obj = try JSONSerialization.jsonObject(with: data, options: [])
-            guard let dict = obj as? [String: Any] else { return nil }
-            spCacheQueue.sync {
-                spCache = (Date(), dict)
+        spCacheQueue.sync {
+            if let cached = spCache, now.timeIntervalSince(cached.ts) < spCacheTTL {
+                cachedSnapshots = cached.snapshots
+                return
             }
-            return dict
-        } catch {
-            return nil
+
+            if let group = spCacheLoadGroup {
+                waitGroup = group
+                return
+            }
+
+            let group = DispatchGroup()
+            group.enter()
+            spCacheLoadGroup = group
+            shouldLoad = true
         }
+
+        if let cachedSnapshots {
+            return cachedSnapshots
+        }
+
+        if !shouldLoad {
+            _ = waitGroup?.wait(timeout: .now() + 5)
+            return spCacheQueue.sync { spCache?.snapshots }
+        }
+
+        let snapshots: [SPBluetoothBatterySnapshot]? = autoreleasepool {
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: "/usr/sbin/system_profiler")
+            proc.arguments = ["SPBluetoothDataType", "-json"]
+
+            let pipe = Pipe()
+            proc.standardOutput = pipe
+            proc.standardError = Pipe()
+
+            do {
+                try proc.run()
+            } catch {
+                return nil
+            }
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            proc.waitUntilExit()
+            guard !data.isEmpty else { return nil }
+
+            do {
+                let obj = try JSONSerialization.jsonObject(with: data, options: [])
+                var snapshots: [SPBluetoothBatterySnapshot] = []
+                collectSystemProfilerBatterySnapshots(from: obj, into: &snapshots)
+                return snapshots
+            } catch {
+                return nil
+            }
+        }
+
+        spCacheQueue.sync {
+            if let snapshots {
+                spCache = (Date(), snapshots)
+            }
+            spCacheLoadGroup?.leave()
+            spCacheLoadGroup = nil
+        }
+        return snapshots
+    }
+
+    private static func collectSystemProfilerBatterySnapshots(from node: Any, into snapshots: inout [SPBluetoothBatterySnapshot]) {
+        if let dict = node as? [String: Any] {
+            if let snapshot = systemProfilerBatterySnapshot(from: dict) {
+                snapshots.append(snapshot)
+            }
+            for value in dict.values {
+                collectSystemProfilerBatterySnapshots(from: value, into: &snapshots)
+            }
+            return
+        }
+
+        if let array = node as? [Any] {
+            for value in array {
+                collectSystemProfilerBatterySnapshots(from: value, into: &snapshots)
+            }
+        }
+    }
+
+    private static func systemProfilerBatterySnapshot(from dict: [String: Any]) -> SPBluetoothBatterySnapshot? {
+        let normalizedAddress = ((dict["device_address"] as? String).map(normalizeBTAddress)) ?? ""
+        let deviceName = (dict["device_name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        let main = systemProfilerPercent(from: dict["device_batteryLevelMain"], keyLower: "device_batterylevelmain")
+        let left = systemProfilerPercent(from: dict["device_batteryLevelLeft"], keyLower: "device_batterylevelleft")
+        let right = systemProfilerPercent(from: dict["device_batteryLevelRight"], keyLower: "device_batterylevelright")
+        let generic = systemProfilerGenericPercent(from: dict)
+
+        guard !normalizedAddress.isEmpty || !deviceName.isEmpty else { return nil }
+        guard main != nil || left != nil || right != nil || generic != nil else { return nil }
+
+        return SPBluetoothBatterySnapshot(
+            normalizedAddress: normalizedAddress,
+            deviceName: deviceName,
+            main: main,
+            left: left,
+            right: right,
+            generic: generic
+        )
+    }
+
+    private static func systemProfilerGenericPercent(from dict: [String: Any]) -> Int? {
+        if let generic = systemProfilerPercent(from: dict["device_batteryLevel"], keyLower: "device_batterylevel") {
+            return generic
+        }
+
+        for (key, value) in dict {
+            let keyLower = key.lowercased()
+            guard keyLower.contains("battery") else { continue }
+            guard keyLower.contains("level") || keyLower.contains("percent") else { continue }
+            if let value = systemProfilerPercent(from: value, keyLower: keyLower) {
+                return value
+            }
+        }
+
+        return nil
+    }
+
+    private static func systemProfilerPercent(from any: Any?, keyLower: String) -> Int? {
+        guard let d = systemProfilerDouble(from: any) else { return nil }
+        if d > 0, d <= 1.0, (keyLower.contains("percent") || keyLower.contains("level")) {
+            return Int((d * 100.0).rounded())
+        }
+        return normalizeSystemProfilerPercent(Int(d.rounded()), keyLower: keyLower)
+    }
+
+    private static func systemProfilerDouble(from any: Any?) -> Double? {
+        if let n = any as? NSNumber { return n.doubleValue }
+        if let i = any as? Int { return Double(i) }
+        if let d = any as? Double { return d }
+        if let f = any as? Float { return Double(f) }
+        if let s = any as? String {
+            let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let v = Double(trimmed) { return v }
+            let digits = trimmed.filter { $0.isNumber }
+            return Double(digits)
+        }
+        return nil
+    }
+
+    private static func normalizeSystemProfilerPercent(_ raw: Int, keyLower: String) -> Int? {
+        if keyLower.contains("batterylevel") || (keyLower.contains("battery") && keyLower.contains("level")) {
+            if (0...4).contains(raw) { return raw * 25 }
+            if (0...10).contains(raw) { return raw * 10 }
+        }
+        guard (0...100).contains(raw) else { return nil }
+        return raw
     }
 
     @objc func isAccessibilityAuthorized(with reply: @escaping (Bool) -> Void) {

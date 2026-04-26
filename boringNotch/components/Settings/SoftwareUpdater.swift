@@ -1,9 +1,3 @@
-//
-// SoftwareUpdater.swift
-// boringNotch
-//
-// Created by Richard Kunkli on 09/08/2024.
-//
 
 import SwiftUI
 import Sparkle
@@ -24,7 +18,6 @@ struct CheckForUpdatesView: View {
     init(updater: SPUUpdater) {
         self.updater = updater
         
-    // Create our view model for our CheckForUpdatesView
         self.checkForUpdatesViewModel = CheckForUpdatesViewModel(updater: updater)
     }
     

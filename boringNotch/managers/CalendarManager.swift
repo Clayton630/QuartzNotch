@@ -1,10 +1,3 @@
-//
-// CalendarManager.swift
-// boringNotch
-//
-// Created by Harsh Vardhan Goswami on 08/09/24.
-//
-
 import Defaults
 import EventKit
 import SwiftUI
@@ -61,6 +54,7 @@ class CalendarManager: ObservableObject {
         self.reminderLists = all.filter { $0.isReminder }
         self.allCalendars = all // for legacy compatibility, can be removed if not needed
         updateSelectedCalendars()
+        await updateEvents()
     }
 
     func refreshCalendarAuthorizationStatus() {
@@ -84,9 +78,13 @@ class CalendarManager: ObservableObject {
             self.calendarAuthorizationStatus = granted ? .fullAccess : .denied
             if granted {
                 await reloadCalendarAndReminderLists()
+                var calendar = Calendar.current
+                calendar.timeZone = .autoupdatingCurrent
+                let nextDay = calendar.date(byAdding: .day, value: 1, to: currentWeekStartDate)!
+                let endDate = calendar.date(byAdding: .second, value: -1, to: nextDay)!
                 events = await calendarService.events(
                     from: currentWeekStartDate,
-                    to: Calendar.current.date(byAdding: .day, value: 1, to: currentWeekStartDate)!,
+                    to: endDate,
                     calendars: selectedCalendars.map { $0.id })
             }
         case .restricted, .denied:
@@ -94,9 +92,13 @@ class CalendarManager: ObservableObject {
         case .fullAccess:
             NSLog("Full access")
             await reloadCalendarAndReminderLists()
+            var calendar = Calendar.current
+            calendar.timeZone = .autoupdatingCurrent
+            let nextDay = calendar.date(byAdding: .day, value: 1, to: currentWeekStartDate)!
+            let endDate = calendar.date(byAdding: .second, value: -1, to: nextDay)!
             events = await calendarService.events(
                 from: currentWeekStartDate,
-                to: Calendar.current.date(byAdding: .day, value: 1, to: currentWeekStartDate)!,
+                to: endDate,
                 calendars: selectedCalendars.map { $0.id })
         case .writeOnly:
             NSLog("Write only")
@@ -133,7 +135,6 @@ class CalendarManager: ObservableObject {
         
 
     func updateSelectedCalendars() {
-    // Populate selectedCalendarIDs based on Defaults calendar selection state
         switch Defaults[.calendarSelectionState] {
         case .all:
             selectedCalendarIDs = Set(allCalendars.map { $0.id })
@@ -141,7 +142,6 @@ class CalendarManager: ObservableObject {
             selectedCalendarIDs = identifiers
         }
 
-    // Update the local calendar objects that correspond to the selected ids
         selectedCalendars = allCalendars.filter { selectedCalendarIDs.contains($0.id) }
     }
 
@@ -177,19 +177,27 @@ class CalendarManager: ObservableObject {
     }
 
     static func startOfDay(_ date: Date) -> Date {
-        return Calendar.current.startOfDay(for: date)
+        var calendar = Calendar.current
+        calendar.timeZone = .autoupdatingCurrent
+        return calendar.startOfDay(for: date)
     }
 
     func updateCurrentDate(_ date: Date) async {
-        currentWeekStartDate = Calendar.current.startOfDay(for: date)
+        currentWeekStartDate = Self.startOfDay(date)
         await updateEvents()
     }
 
     private func updateEvents() async {
         let calendarIDs = selectedCalendars.map { $0.id }
+        var calendar = Calendar.current
+        calendar.timeZone = .autoupdatingCurrent
+        
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: currentWeekStartDate)!
+        let endDate = calendar.date(byAdding: .second, value: -1, to: nextDay)!
+        
         let eventsResult = await calendarService.events(
             from: currentWeekStartDate,
-            to: Calendar.current.date(byAdding: .day, value: 1, to: currentWeekStartDate)!,
+            to: endDate,
             calendars: calendarIDs
         )
         self.events = eventsResult
@@ -197,10 +205,15 @@ class CalendarManager: ObservableObject {
     
     func setReminderCompleted(reminderID: String, completed: Bool) async {
         await calendarService.setReminderCompleted(reminderID: reminderID, completed: completed)
-    // Refresh events after updating
+        var calendar = Calendar.current
+        calendar.timeZone = .autoupdatingCurrent
+        
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: currentWeekStartDate)!
+        let endDate = calendar.date(byAdding: .second, value: -1, to: nextDay)!
+        
         events = await calendarService.events(
             from: currentWeekStartDate,
-            to: Calendar.current.date(byAdding: .day, value: 1, to: currentWeekStartDate)!,
+            to: endDate,
             calendars: selectedCalendars.map { $0.id })
     }
 }

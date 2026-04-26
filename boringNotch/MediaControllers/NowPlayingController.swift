@@ -1,9 +1,3 @@
-//
-// NowPlayingController.swift
-// boringNotch
-//
-// Created by Alexander on 2025-03-29.
-//
 
 import AppKit
 import Combine
@@ -11,7 +5,7 @@ import Foundation
 
 final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     func updatePlaybackInfo() async {
-        await fetchFavoriteStateIfSupported()
+        await fetchFavoriteStateIfSupported(force: true)
     }
 
   // MARK: - Properties
@@ -50,7 +44,6 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
             }
         }
         
-    // Update the favorite state locally and fetch updated info
         try? await Task.sleep(for: .milliseconds(150))
         await updatePlaybackInfo()
     }
@@ -68,6 +61,8 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     private var process: Process?
     private var pipeHandler: JSONLinesPipeHandler?
     private var streamTask: Task<Void, Never>?
+    private var lastFavoriteTrackKey: String?
+    private var lastFavoriteFetchDate: Date = .distantPast
 
   // MARK: - Initialization
     init?() {
@@ -148,21 +143,17 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     }
     
     func toggleShuffle() async {
-    // MRMediaRemoteSendCommandFunction(6, nil)
         MRMediaRemoteSetShuffleModeFunction(playbackState.isShuffled ? 1 : 3)
         playbackState.isShuffled.toggle()
     }
     
     func toggleRepeat() async {
-    // MRMediaRemoteSendCommandFunction(7, nil)
         let newRepeatMode = (playbackState.repeatMode == .off) ? 3 : (playbackState.repeatMode.rawValue - 1)
         playbackState.repeatMode = RepeatMode(rawValue: newRepeatMode) ?? .off
         MRMediaRemoteSetRepeatModeFunction(newRepeatMode)
     }
     
     func setVolume(_ level: Double) async {
-    // MediaRemote framework doesn't provide direct volume control for the active audio session
-    // As a workaround, try to control the currently active music app directly
         let clampedLevel = max(0.0, min(1.0, level))
         let volumePercentage = Int(clampedLevel * 100)
         
@@ -229,8 +220,9 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     private func handleAdapterUpdate(_ update: NowPlayingUpdate) async {
         let payload = update.payload
         let diff = update.diff ?? false
+        let previousState = self.playbackState
 
-        var newPlaybackState = PlaybackState(bundleIdentifier: playbackState.bundleIdentifier)
+        var newPlaybackState = PlaybackState(bundleIdentifier: previousState.bundleIdentifier)
         
         newPlaybackState.title = payload.title ?? (diff ? self.playbackState.title : "")
         newPlaybackState.artist = payload.artist ?? (diff ? self.playbackState.artist : "")
@@ -288,40 +280,85 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
         newPlaybackState.bundleIdentifier = (
             payload.parentApplicationBundleIdentifier ??
             payload.bundleIdentifier ??
-            (diff ? self.playbackState.bundleIdentifier : "")
+            (diff ? previousState.bundleIdentifier : "")
         )
         
         newPlaybackState.volume = payload.volume ?? (diff ? self.playbackState.volume : 0.5)
+        newPlaybackState.isFavorite = shouldSupportFavorites(bundleIdentifier: newPlaybackState.bundleIdentifier)
+            ? previousState.isFavorite
+            : false
         
         self.playbackState = newPlaybackState
+
+        if shouldSupportFavorites(bundleIdentifier: newPlaybackState.bundleIdentifier) {
+            await fetchFavoriteStateIfSupportedIfNeeded(for: newPlaybackState)
+        } else {
+            lastFavoriteTrackKey = nil
+            lastFavoriteFetchDate = .distantPast
+        }
         
-    // Fetch favorite state for supported apps asynchronously
-    // await fetchFavoriteStateIfSupported()
     }
     
-     private func fetchFavoriteStateIfSupported() async {
+    private func fetchFavoriteStateIfSupportedIfNeeded(for state: PlaybackState) async {
+        let trackKey = favoriteTrackKey(for: state)
+        let didChangeTrack = trackKey != lastFavoriteTrackKey
+        let shouldRefresh = didChangeTrack || Date().timeIntervalSince(lastFavoriteFetchDate) >= 2.0
+        guard shouldRefresh else { return }
+        await fetchFavoriteStateIfSupported(force: didChangeTrack)
+    }
+
+     private func fetchFavoriteStateIfSupported(force: Bool) async {
          let bundleID = playbackState.bundleIdentifier
         
          if bundleID == "com.apple.Music" {
              let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music")
              guard !runningApps.isEmpty else { return }
-             
-             let script = """
-             tell application "Music"
-                 try
-                     return favorited of current track
-                 on error
-                     return false
-                 end try
-             end tell
-             """
-             if let result = try? await AppleScriptHelper.execute(script) {
-                 var updated = self.playbackState
-                 updated.isFavorite = result.booleanValue
-                 self.playbackState = updated
+
+             let delays: [Duration] = force
+                ? [.zero, .milliseconds(120), .milliseconds(260)]
+                : [.zero]
+
+             for delay in delays {
+                 if delay != .zero {
+                     try? await Task.sleep(for: delay)
+                 }
+
+                 let script = """
+                 tell application "Music"
+                     try
+                         return favorited of current track
+                     on error
+                         return false
+                     end try
+                 end tell
+                 """
+                 if let result = try? await AppleScriptHelper.execute(script) {
+                     var updated = self.playbackState
+                     updated.isFavorite = result.booleanValue
+                     self.playbackState = updated
+                     lastFavoriteFetchDate = Date()
+                     lastFavoriteTrackKey = favoriteTrackKey(for: updated)
+                     return
+                 }
              }
          }
      }
+
+    private func shouldSupportFavorites(bundleIdentifier: String?) -> Bool {
+        bundleIdentifier == "com.apple.Music"
+    }
+
+    private func favoriteTrackKey(for state: PlaybackState) -> String {
+        [
+            state.bundleIdentifier,
+            state.title,
+            state.artist,
+            state.album,
+            String(format: "%.0f", state.duration)
+        ]
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .joined(separator: "|")
+    }
     
 }
 
@@ -399,7 +436,6 @@ actor JSONLinesPipeHandler {
             let decodedObject = try JSONDecoder().decode(T.self, from: data)
             await onLine(decodedObject)
         } catch {
-      // Ignore lines that can't be decoded
         }
     }
     

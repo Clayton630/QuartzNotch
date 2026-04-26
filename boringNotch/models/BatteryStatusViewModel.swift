@@ -53,8 +53,6 @@ class BatteryStatusViewModel: ObservableObject {
         case .powerSourceChanged(let pluggedIn):
             print("🔌 Power source: \(pluggedIn ? "Connected" : "Disconnected")")
 
-      // Update state immediately with a snapshot (not through an event queue).
-      // Goal: content ready on the first animation frame.
             if pluggedIn {
                 let snap = managerBattery.currentBatteryInfo()
                 withAnimation {
@@ -70,7 +68,6 @@ class BatteryStatusViewModel: ObservableObject {
             } else {
                 withAnimation {
                     self.isPluggedIn = false
-          // No live activity on unplug.
                     self.statusText = ""
                 }
             }
@@ -94,9 +91,6 @@ class BatteryStatusViewModel: ObservableObject {
             print("maxCapacity: \(self.maxCapacity)")
             print("levelBattery: \(self.levelBattery)")
 
-      // IMPORTANT:
-      // Do not trigger a live activity here anymore.
-      // Sinon tu retrouves exactement ton double-pop ("Plugged" puis "Charging").
             withAnimation {
                 self.isCharging = charging
                 if charging {
@@ -137,7 +131,6 @@ class BatteryStatusViewModel: ObservableObject {
             self.timeToFullCharge = batteryInfo.timeToFullCharge
             self.maxCapacity = batteryInfo.maxCapacity
 
-      // Consistent behavior: if already plugged in at launch, set "charging"; otherwise empty
             self.statusText = batteryInfo.isPluggedIn ? "Charging" : ""
         }
     }

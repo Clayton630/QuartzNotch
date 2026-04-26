@@ -1,9 +1,3 @@
-//
-// NSItemProvider+LoadHelpers.swift
-// boringNotch
-//
-// Created by Alexander on 2025-09-24.
-//
 
 
 import AppKit
@@ -47,11 +41,9 @@ extension NSItemProvider {
                     let folderURL = url.deletingLastPathComponent()
 
                     do {
-            // Delete the file first
                         try fileManager.removeItem(at: url)
                         print("Deleted file: \(url.path)")
 
-            // Check folder contents
                         let contents = try fileManager.contentsOfDirectory(atPath: folderURL.path)
                         if contents.isEmpty {
                             try fileManager.removeItem(at: folderURL)
@@ -78,7 +70,6 @@ extension NSItemProvider {
     func extractURL() async -> URL? {
         if self.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
             if let url = await loadURL(typeIdentifier: UTType.url.identifier) {
-        //Validate URL
                 guard url.scheme != nil else { return nil }
                 return url
             }
@@ -110,20 +101,16 @@ extension NSItemProvider {
                 }
                 var resolvedURL: URL?
                 if let url = item as? URL {
-          // Direct URL provided
                     resolvedURL = url
                 } else if let data = item as? Data {
-          // Some providers hand out a UTF-8 file URL string, others a bookmark. Prefer parsing string first.
                     if let string = String(data: data, encoding: .utf8) {
                         if let url = URL(string: string) {
                             resolvedURL = url
                         } else if string.hasPrefix("/") {
-              // Plain file system path
                             resolvedURL = URL(fileURLWithPath: string)
                         }
                     }
                     if resolvedURL == nil {
-            // Fallback: try treating the data as a bookmark
                         let bookmark = Bookmark(data: data)
                         resolvedURL = bookmark.resolveURL()
                     }

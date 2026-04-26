@@ -1,9 +1,3 @@
-//
-// QuickLookService.swift
-// boringNotch
-//
-// Created by Alexander on 2025-10-07.
-//
 
 import Foundation
 import UniformTypeIdentifiers
@@ -37,9 +31,7 @@ final class QuickLookService: ObservableObject {
         if selectFirst {
             self.selectedURL = accessingURLs.first
         }
-    // Observe the shared Quick Look preview panel closing so we can relinquish security scope
         let panel = QLPreviewPanel.shared()
-    // Remove any existing observer for previous panel
         if let prev = previewPanel {
             NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: prev)
         }
@@ -67,7 +59,6 @@ final class QuickLookService: ObservableObject {
             url.stopAccessingSecurityScopedResource()
         }
         accessingURLs.removeAll()
-    // If Quick Look panel was closed externally, also remove observer and clear reference
         if let panel = previewPanel {
             NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: panel)
             previewPanel = nil
@@ -87,13 +78,11 @@ final class QuickLookService: ObservableObject {
 extension QuickLookService {
     @objc private func previewPanelWillClose(_ notification: Notification) {
         guard let panel = notification.object as? QLPreviewPanel, panel === previewPanel else { return }
-    // Ensure cleanup happens on main actor
         Task { @MainActor in
             stopAccessingCurrentURLs()
             selectedURL = nil
             urls.removeAll()
             isQuickLookOpen = false
-      // Remove observer and clear reference
             NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: panel)
             previewPanel = nil
         }

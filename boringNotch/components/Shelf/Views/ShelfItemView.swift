@@ -1,9 +1,3 @@
-//
-// ShelfItemView.swift
-// boringNotch
-//
-// Created by Alexander on 2025-09-24.
-//
 
 import AppKit
 import SwiftUI
@@ -59,7 +53,7 @@ struct ShelfItemView: View {
                         }
                     )
                 }
-                .overlay(alignment: .topTrailing) {
+                .overlay(alignment: .topLeading) {
                     if isHoveringItem {
                         Button {
                             selection.noteItemInteraction()
@@ -80,7 +74,7 @@ struct ShelfItemView: View {
                                 }
                         }
                         .buttonStyle(.plain)
-                        .offset(x: -12, y: 5)
+                        .offset(x: 12, y: 5)
                         .transition(.scale(scale: 0.88).combined(with: .opacity))
                     }
                 }
@@ -98,7 +92,6 @@ struct ShelfItemView: View {
         }
         .onChange(of: viewModel.isDropTargeted) { _, targeted in
             vm.dragDetectorTargeting = targeted
-      // Debounce drop target state changes
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(50))
                 debouncedDropTarget = targeted
@@ -107,7 +100,6 @@ struct ShelfItemView: View {
         .onAppear {
             Task { 
                 await viewModel.loadThumbnail()
-        // Pre-render drag preview once on appear
                 if cachedPreviewImage == nil {
                     cachedPreviewImage = await renderDragPreview()
                 }
@@ -117,7 +109,6 @@ struct ShelfItemView: View {
             }
         }
         .onChange(of: viewModel.thumbnail) { _, _ in
-      // Invalidate cached preview when thumbnail changes
             Task {
                 cachedPreviewImage = await renderDragPreview()
             }
@@ -252,7 +243,6 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
     func updateNSView(_ nsView: DraggableClickView, context: Context) {
         nsView.item = item
         nsView.viewModel = viewModel
-    // Only update preview if cached version is available
         if let cached = cachedPreviewImage {
             nsView.dragPreviewImage = cached
         }
@@ -269,7 +259,6 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
             return nsImage
         }
         
-    // Fallback to icon if rendering fails
         return viewModel.thumbnail ?? item.icon
     }
     
@@ -314,7 +303,6 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
         }
         
         private func startDragSession(with event: NSEvent) {
-      // Prepare dragging items
             let selectedItems = ShelfSelectionModel.shared.selectedItems(in: ShelfStateViewModel.shared.items)
             let itemsToDrag: [ShelfItem]
 
@@ -324,17 +312,14 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
                 itemsToDrag = [item]
             }
 
-      // Store items being dragged for auto-remove feature
             draggedItems = itemsToDrag
 
-      // Create dragging items for AppKit
             var draggingItems: [NSDraggingItem] = []
 
             for dragItem in itemsToDrag {
                 if let pasteboardItem = createPasteboardItem(for: dragItem) {
                     let draggingItem = NSDraggingItem(pasteboardWriter: pasteboardItem)
 
-          // Use the drag preview image
                     let image = dragPreviewImage ?? dragItem.icon
                     let imageFrame = NSRect(
                         x: 0,
@@ -363,7 +348,6 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
                     return pasteboardItem
                 }
                 
-        // Start accessing security-scoped resource and keep it active during drag
                 if url.startAccessingSecurityScopedResource() {
                     draggedURLs.append(url)
                     NSLog("🔐 Started security-scoped access for drag: \(url.path)")
@@ -387,7 +371,6 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
     // MARK: - NSDraggingSource
         
         func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
-      // When copyOnDrag is enabled, only allow copy operations
             if Defaults[.copyOnDrag] {
                 return [.copy]
             }
@@ -410,14 +393,12 @@ private struct DraggableClickHandler<Content: View>: NSViewRepresentable {
         func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
             ShelfSelectionModel.shared.endDrag()
 
-      // Stop accessing security-scoped resources after drag completes
             for url in draggedURLs {
                 url.stopAccessingSecurityScopedResource()
                 NSLog("🔐 Stopped security-scoped access after drag: \(url.path)")
             }
             draggedURLs.removeAll()
 
-      // Auto-remove items from shelf if enabled and drag succeeded
             if Defaults[.autoRemoveShelfItems] && !operation.isEmpty {
                 for item in draggedItems {
                     ShelfStateViewModel.shared.remove(item)

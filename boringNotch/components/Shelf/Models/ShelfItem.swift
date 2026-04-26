@@ -1,9 +1,3 @@
-//
-// ShelfItem.swift
-// boringNotch
-//
-// Created by Alexander on 2025-09-24.
-//
 
 import AppKit
 import Foundation
@@ -65,7 +59,6 @@ struct ShelfItem: Identifiable, Codable, Equatable, Sendable {
             let bookmark = Bookmark(data: bookmarkData)
             guard let resolvedURL = bookmark.resolveURL() else { return "" }
             
-      // Check for stored data files (text blocks, weblocs, etc.) to provide friendly names
             if resolvedURL.pathExtension.lowercased() == "json" && resolvedURL.path.contains("TextBlocks") {
                 do {
                     let data = try Data(contentsOf: resolvedURL)
@@ -89,7 +82,6 @@ struct ShelfItem: Identifiable, Codable, Equatable, Sendable {
                         return textData.displayTitle
                     }
                 } catch {
-          // Fall through to default naming
                 }
             } else if resolvedURL.pathExtension.lowercased() == "webloc" && resolvedURL.path.contains("WebLocs") {
                 do {
@@ -100,7 +92,6 @@ struct ShelfItem: Identifiable, Codable, Equatable, Sendable {
                         return title ?? urlString
                     }
                 } catch {
-          // Fall through to default naming
                 }
             }
             return (try? resolvedURL.resourceValues(forKeys: [.localizedNameKey]).localizedName) ?? resolvedURL.lastPathComponent
@@ -146,7 +137,6 @@ struct ShelfItem: Identifiable, Codable, Equatable, Sendable {
         
         let url = context.url
         
-    // Handle temporary files
         if isTemporary {
             TemporaryFileStorageService.shared.removeTemporaryFileIfNeeded(at: url)
             return

@@ -1,9 +1,3 @@
-//
-// MusicControlButton.swift
-// boringNotch
-//
-// Created by Alexander on 2025-11-16.
-//
 
 import Defaults
 
@@ -84,13 +78,23 @@ enum MusicControlButton: String, CaseIterable, Identifiable, Codable, Defaults.S
         case .volume:
             return "speaker.wave.2.fill"
         case .favorite:
-            return "heart"
+            return "star"
         case .goBackward:
             return "gobackward.15"
         case .goForward:
             return "goforward.15"
         case .none:
             return ""
+        }
+    }
+
+    /// Icon name to use when the slot position calls for a filled variant.
+    /// Falls back to `iconName` for symbols that have no fill counterpart.
+    var filledIconName: String {
+        switch self {
+        case .playPause:  return "playpause.fill"
+        case .favorite:   return "star.fill"
+        default:          return iconName  // backward.fill / forward.fill already filled; others have no fill variant
         }
     }
 

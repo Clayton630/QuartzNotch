@@ -1,9 +1,3 @@
-//
-// boringNotchApp.swift
-// boringNotchApp
-//
-// Created by Harsh Vardhan Goswami on 02/08/24.
-//
 
 import AVFoundation
 import Combine
@@ -12,8 +6,407 @@ import KeyboardShortcuts
 import Sparkle
 import SwiftUI
 import CoreGraphics
+import CoreImage
 import SkyLightWindow
 import QuartzCore
+import Darwin
+
+@_silgen_name("CGSMainConnectionID")
+private func CGSMainConnectionID() -> UInt32
+
+@_silgen_name("CGSCopyManagedDisplaySpaces")
+private func CGSCopyManagedDisplaySpaces(_ connection: UInt32) -> CFArray
+
+final class LockScreenBackdropSharedStore {
+    static let shared = LockScreenBackdropSharedStore()
+
+    private let fileQueue = DispatchQueue(label: "quartznotch.lockscreen-backdrop.shared-store", qos: .utility)
+    private let colorContext = CIContext(options: [.cacheIntermediates: false])
+    private var lastExportFingerprint: String?
+    private var didAttemptInstall = false
+
+    private init() {}
+
+    private let backdropDirectory: URL = {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/QuartzNotch/LockScreenBackdrop", isDirectory: true)
+    }()
+
+    private let artworkURL: URL = {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/QuartzNotch/LockScreenBackdrop/current-artwork.png", isDirectory: false)
+    }()
+
+    private let metadataURL: URL = {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/QuartzNotch/LockScreenBackdrop/metadata.plist", isDirectory: false)
+    }()
+
+    private let installedSaverURL: URL = {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Screen Savers/QuartzNotchBackdrop.saver", isDirectory: true)
+    }()
+
+    func prepare() {
+        ensureBackdropDirectory()
+        installEmbeddedSaverIfNeeded()
+    }
+
+    func exportCurrentMediaState() {
+        prepare()
+
+        let musicManager = MusicManager.shared
+        guard !musicManager.isUsingIdleMetadata else { return }
+
+        let artwork = musicManager.albumArt
+        let title = musicManager.songTitle
+        let artist = musicManager.artistName
+        let album = musicManager.album
+        let bundleIdentifier = musicManager.bundleIdentifier
+
+        fileQueue.async { [weak self] in
+            guard let self else { return }
+            guard let pngData = self.pngData(from: artwork) else { return }
+
+            let fingerprint = self.makeFingerprint(
+                title: title,
+                artist: artist,
+                album: album,
+                bundleIdentifier: bundleIdentifier,
+                artworkData: pngData
+            )
+            guard fingerprint != self.lastExportFingerprint else { return }
+
+            let accentColor = self.averageColor(fromPNGData: pngData) ?? NSColor.white.withAlphaComponent(0.12)
+
+            do {
+                try pngData.write(to: self.artworkURL, options: .atomic)
+                try self.writeMetadata(
+                    title: title,
+                    artist: artist,
+                    album: album,
+                    bundleIdentifier: bundleIdentifier,
+                    accentColor: accentColor
+                )
+                self.lastExportFingerprint = fingerprint
+            } catch {
+                print("Failed to export lock-screen backdrop shared state: \(error)")
+            }
+        }
+    }
+
+    func installedSaverLocation() -> URL {
+        installedSaverURL
+    }
+
+    private func ensureBackdropDirectory() {
+        do {
+            try FileManager.default.createDirectory(at: backdropDirectory, withIntermediateDirectories: true)
+        } catch {
+            print("Failed to create shared backdrop directory: \(error)")
+        }
+    }
+
+    private func installEmbeddedSaverIfNeeded() {
+        guard !didAttemptInstall else { return }
+        didAttemptInstall = true
+
+        guard let embeddedSaverURL = Bundle.main.resourceURL?
+            .appendingPathComponent("Screen Savers", isDirectory: true)
+            .appendingPathComponent("QuartzNotchBackdrop.saver", isDirectory: true),
+              FileManager.default.fileExists(atPath: embeddedSaverURL.path) else {
+            return
+        }
+
+        let installedSaverDirectory = installedSaverURL.deletingLastPathComponent()
+        do {
+            try FileManager.default.createDirectory(at: installedSaverDirectory, withIntermediateDirectories: true)
+            if shouldReplaceInstalledSaver(source: embeddedSaverURL, destination: installedSaverURL) {
+                if FileManager.default.fileExists(atPath: installedSaverURL.path) {
+                    try FileManager.default.removeItem(at: installedSaverURL)
+                }
+                try FileManager.default.copyItem(at: embeddedSaverURL, to: installedSaverURL)
+            }
+        } catch {
+            print("Failed to install QuartzNotchBackdrop.saver: \(error)")
+        }
+    }
+
+    private func shouldReplaceInstalledSaver(source: URL, destination: URL) -> Bool {
+        guard FileManager.default.fileExists(atPath: destination.path) else { return true }
+        let sourceValues = try? source.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+        let destinationValues = try? destination.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+
+        if sourceValues?.fileSize != destinationValues?.fileSize {
+            return true
+        }
+
+        switch (sourceValues?.contentModificationDate, destinationValues?.contentModificationDate) {
+        case let (sourceDate?, destinationDate?):
+            return sourceDate > destinationDate
+        default:
+            return false
+        }
+    }
+
+    private func writeMetadata(
+        title: String,
+        artist: String,
+        album: String,
+        bundleIdentifier: String?,
+        accentColor: NSColor
+    ) throws {
+        let calibrated = accentColor.usingColorSpace(.deviceRGB) ?? accentColor
+        let metadata: [String: Any] = [
+            "title": title,
+            "artist": artist,
+            "album": album,
+            "bundleIdentifier": bundleIdentifier ?? "",
+            "accentColorRGBA": [
+                NSNumber(value: Double(calibrated.redComponent)),
+                NSNumber(value: Double(calibrated.greenComponent)),
+                NSNumber(value: Double(calibrated.blueComponent)),
+                NSNumber(value: Double(calibrated.alphaComponent))
+            ],
+            "generatedAt": Date().timeIntervalSince1970
+        ]
+
+        let data = try PropertyListSerialization.data(fromPropertyList: metadata, format: .xml, options: 0)
+        try data.write(to: metadataURL, options: .atomic)
+    }
+
+    private func pngData(from image: NSImage) -> Data? {
+        guard let tiffData = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData) else {
+            return nil
+        }
+        return bitmap.representation(using: .png, properties: [:])
+    }
+
+    private func averageColor(fromPNGData pngData: Data) -> NSColor? {
+        guard let ciImage = CIImage(data: pngData) else { return nil }
+
+        let filter = CIFilter.areaAverage()
+        filter.inputImage = ciImage
+        filter.extent = ciImage.extent
+
+        guard let output = filter.outputImage else { return nil }
+
+        var bitmap = [UInt8](repeating: 0, count: 4)
+        colorContext.render(
+            output,
+            toBitmap: &bitmap,
+            rowBytes: 4,
+            bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+            format: .RGBA8,
+            colorSpace: CGColorSpaceCreateDeviceRGB()
+        )
+
+        return NSColor(
+            calibratedRed: CGFloat(bitmap[0]) / 255.0,
+            green: CGFloat(bitmap[1]) / 255.0,
+            blue: CGFloat(bitmap[2]) / 255.0,
+            alpha: 0.12
+        )
+    }
+
+    private func makeFingerprint(
+        title: String,
+        artist: String,
+        album: String,
+        bundleIdentifier: String?,
+        artworkData: Data
+    ) -> String {
+        let prefix = artworkData.prefix(128).base64EncodedString()
+        return [title, artist, album, bundleIdentifier ?? "", prefix, String(artworkData.count)].joined(separator: "|")
+    }
+}
+
+import AppKit
+import Foundation
+
+final class LockScreenIdleBackdropCoordinator {
+    static let shared = LockScreenIdleBackdropCoordinator()
+
+    private let storeURL = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Application Support/com.apple.wallpaper/Store/Index.plist", isDirectory: false)
+    private let screenSaverDomain = "com.apple.screensaver" as CFString
+
+    private var originalStoreData: Data?
+    private var originalScreenSaverValues: [String: Any?] = [:]
+    private var isActive = false
+
+    private init() {}
+
+    func activateIfPossible(saverURL: URL) -> Bool {
+        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26 else { return false }
+        guard FileManager.default.fileExists(atPath: saverURL.path) else { return false }
+
+        do {
+            let currentData = try Data(contentsOf: storeURL)
+            if originalStoreData == nil {
+                originalStoreData = currentData
+            }
+            if originalScreenSaverValues.isEmpty {
+                originalScreenSaverValues = [
+                    "moduleDict": copyScreenSaverPreference(named: "moduleDict"),
+                    "moduleName": copyScreenSaverPreference(named: "moduleName"),
+                    "path": copyScreenSaverPreference(named: "path"),
+                    "override-picture-path": copyScreenSaverPreference(named: "override-picture-path")
+                ]
+            }
+
+            guard let mutatedData = try makeMutatedStoreData(from: currentData) else {
+                return false
+            }
+
+            applyScreenSaverOverride(saverURL: saverURL)
+
+            if mutatedData != currentData {
+                try mutatedData.write(to: storeURL, options: .atomic)
+            }
+
+            reloadWallpaperAgent()
+            isActive = true
+            return true
+        } catch {
+            print("Failed to activate lock-screen Idle backdrop: \(error)")
+            return false
+        }
+    }
+
+    func restoreIfNeeded() {
+        guard isActive, let originalStoreData else { return }
+
+        defer {
+            isActive = false
+            self.originalStoreData = nil
+            self.originalScreenSaverValues = [:]
+        }
+
+        do {
+            try originalStoreData.write(to: storeURL, options: .atomic)
+            restoreScreenSaverPreferences()
+            reloadWallpaperAgent()
+        } catch {
+            print("Failed to restore lock-screen Idle backdrop store: \(error)")
+        }
+    }
+
+    private func makeMutatedStoreData(from data: Data) throws -> Data? {
+        let plistObject = try PropertyListSerialization.propertyList(
+            from: data,
+            options: [.mutableContainersAndLeaves],
+            format: nil
+        )
+        guard let root = plistObject as? NSMutableDictionary else { return nil }
+
+        var mutatedAnyIdle = false
+        mutateIdleEntries(in: root, mutatedAnyIdle: &mutatedAnyIdle)
+        guard mutatedAnyIdle else { return nil }
+
+        return try PropertyListSerialization.data(fromPropertyList: root, format: .binary, options: 0)
+    }
+
+    private func mutateIdleEntries(in object: Any, mutatedAnyIdle: inout Bool) {
+        if let dict = object as? NSMutableDictionary {
+            if let idle = dict["Idle"] as? NSMutableDictionary {
+                dict["Idle"] = configuredIdleEntry()
+                mutatedAnyIdle = true
+            }
+
+            for value in dict.allValues {
+                mutateIdleEntries(in: value, mutatedAnyIdle: &mutatedAnyIdle)
+            }
+            return
+        }
+
+        if let array = object as? NSMutableArray {
+            for value in array {
+                mutateIdleEntries(in: value, mutatedAnyIdle: &mutatedAnyIdle)
+            }
+        }
+    }
+
+    private func configuredIdleEntry() -> NSMutableDictionary {
+        let choice = NSMutableDictionary()
+        choice["Provider"] = "default"
+        choice["Files"] = NSMutableArray()
+        choice["Configuration"] = Data()
+
+        let content = NSMutableDictionary()
+        content["Choices"] = NSMutableArray(array: [choice])
+        content["EncodedOptionValues"] = "$null"
+        content["Shuffle"] = "$null"
+
+        let linked = NSMutableDictionary()
+        linked["Content"] = content
+        linked["LastSet"] = Date()
+        linked["LastUse"] = Date()
+
+        let idleEntry = NSMutableDictionary()
+        idleEntry["Type"] = "linked"
+        idleEntry["Linked"] = linked
+        return idleEntry
+    }
+
+    private func applyScreenSaverOverride(saverURL: URL) {
+        let moduleDict: [String: Any] = [
+            "moduleName": "QuartzNotchBackdrop",
+            "path": saverURL.path,
+            "type": "0"
+        ]
+
+        setScreenSaverPreference(moduleDict, named: "moduleDict")
+        setScreenSaverPreference(nil, named: "moduleName")
+        setScreenSaverPreference(nil, named: "path")
+        setScreenSaverPreference(saverURL.path, named: "override-picture-path")
+        synchronizeScreenSaverPreferences()
+    }
+
+    private func restoreScreenSaverPreferences() {
+        for key in ["moduleDict", "moduleName", "path", "override-picture-path"] {
+            setScreenSaverPreference(originalScreenSaverValues[key] ?? nil, named: key)
+        }
+        synchronizeScreenSaverPreferences()
+    }
+
+    private func copyScreenSaverPreference(named key: String) -> Any? {
+        CFPreferencesCopyValue(
+            key as CFString,
+            screenSaverDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+    }
+
+    private func setScreenSaverPreference(_ value: Any?, named key: String) {
+        CFPreferencesSetValue(
+            key as CFString,
+            value as CFPropertyList?,
+            screenSaverDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+    }
+
+    private func synchronizeScreenSaverPreferences() {
+        CFPreferencesSynchronize(
+            screenSaverDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+    }
+
+    private func reloadWallpaperAgent() {
+        let killall = Process()
+        killall.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
+        killall.arguments = ["WallpaperAgent"]
+        try? killall.run()
+        killall.waitUntilExit()
+    }
+}
+
 
 @main
 struct DynamicNotchApp: App {
@@ -24,8 +417,15 @@ struct DynamicNotchApp: App {
     let updaterController: SPUStandardUpdaterController
 
     init() {
-    // Ensure the Menu Bar icon is OFF by default on a clean install / after preferences reset.
-    // If the user has already chosen a value, we preserve it.
+        // Register as loginwindow peer BEFORE SkyLightOperator.shared is ever accessed.
+        // Must be the very first SkyLight-related call in the process — see prepareSkyLightLoginwindowAnchor().
+        prepareSkyLightLoginwindowAnchor()
+
+        // Eagerly create the level-200 underlay space so it exists before the first lock screen.
+        // SLSSetLoginwindowConnection (above) must precede SLSSpaceCreate for the
+        // loginwindow peer registration to apply to the newly created space.
+        _ = LockScreenBackdropSkyLightOperator.shared
+
         if UserDefaults.standard.object(forKey: "menubarIcon") == nil {
             Defaults[.menubarIcon] = false
         }
@@ -38,7 +438,6 @@ struct DynamicNotchApp: App {
         updaterController = SPUStandardUpdaterController(
             startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
 
-    // Initialize the settings window controller with the updater controller
         SettingsWindowController.shared.setUpdaterController(updaterController)
     }
 
@@ -73,34 +472,46 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var timer: Timer?
     var closeNotchTask: Task<Void, Never>?
     private var previousScreens: [NSScreen]?
+    private var pendingScreenConfigurationTask: Task<Void, Never>?
     private var onboardingWindowController: NSWindowController?
     private var screenLockedObserver: Any?
     private var screenUnlockedObserver: Any?
     private var isScreenLocked: Bool = false
-    private var windowScreenDidChangeObserver: Any?
+    private var appCancellables = Set<AnyCancellable>()
+    private var lockStateSyncCancellable: AnyCancellable?
+    private var lockScreenMediaPanelSyncCancellable: AnyCancellable?
+    private var lockScreenMediaHideTask: Task<Void, Never>?
+    private var desktopWallpaperRecacheTask: Task<Void, Never>?
+    private var unlockWallpaperRestoreTask: Task<Void, Never>?
+    private var lastLockScreenMediaActivityAt: Date = .distantPast
+    private var windowScreenDidChangeObservers: [ObjectIdentifier: Any] = [:]
     private var dragDetectors: [String: DragDetector] = [:] // UUID -> DragDetector
+    private var iconAppearanceObserver: NSObjectProtocol?
+    private var dockPreferenceObserver: NSObjectProtocol?
 
-  // Dedicated window for the lock activity on the lock screen
     private let lockScreenActivityWindow = LockScreenLiveActivityWindowManager.shared
-
-    private func applyDockIconIfNeeded() {
-        // Ensure Dock/app switcher always gets a concrete icon image even if system cache is stale.
-        if let path = Bundle.main.path(forResource: "AppIcon", ofType: "icns"),
-           let icon = NSImage(contentsOfFile: path) {
-            NSApp.applicationIconImage = icon
-            return
-        }
-        if let icon = NSImage(named: "AppIcon") {
-            NSApp.applicationIconImage = icon
-        }
-    }
+    private let lockScreenPanelManager = LockScreenPanelManager.shared
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        pendingScreenConfigurationTask?.cancel()
+        AppIconModeManager.stopMonitoringSystemAppearance()
         NotificationCenter.default.removeObserver(self)
+        lockStateSyncCancellable?.cancel()
+        lockStateSyncCancellable = nil
+        lockScreenMediaPanelSyncCancellable?.cancel()
+        lockScreenMediaPanelSyncCancellable = nil
+        if let observer = iconAppearanceObserver {
+            DistributedNotificationCenter.default().removeObserver(observer)
+            iconAppearanceObserver = nil
+        }
+        if let observer = dockPreferenceObserver {
+            DistributedNotificationCenter.default().removeObserver(observer)
+            dockPreferenceObserver = nil
+        }
         if let observer = screenLockedObserver {
             DistributedNotificationCenter.default().removeObserver(observer)
             screenLockedObserver = nil
@@ -109,6 +520,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             DistributedNotificationCenter.default().removeObserver(observer)
             screenUnlockedObserver = nil
         }
+        lockScreenPanelManager.hidePanel()
         MusicManager.shared.destroy()
         cleanupDragDetectors()
         cleanupWindows()
@@ -118,69 +530,188 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func onScreenLocked(_ notification: Notification) {
         isScreenLocked = true
+        desktopWallpaperRecacheTask?.cancel()
+        desktopWallpaperRecacheTask = nil
+        unlockWallpaperRestoreTask?.cancel()
+        unlockWallpaperRestoreTask = nil
 
-    // During the lock transition, suppress any closed-notch live activity
-    // in the main window to avoid visual conflicts with the lock overlay.
+        LockScreenDesktopOverrideCoordinator.shared.cacheCurrentDesktopImages(includeRawSnapshots: false)
+
         LockTransitionState.shared.begin()
 
-    // Feeds SwiftUI state (for in-notch rendering when needed)
         LockScreenState.shared.setLocked(true)
 
-    // Dedicated lock-screen window (robust: works even if the main window
-    // is not allowed or visible on the lock screen)
-        if Defaults[.showOnLockScreen] && Defaults[.liveActivityLockScreen] {
-            lockScreenActivityWindow.showLocked(
-                preferredScreenUUID: coordinator.preferredScreenUUID
-            )
+        if Defaults[.showOnLockScreen] {
+            if Defaults[.liveActivityLockScreen] {
+                // Force main-screen lock overlay to avoid rendering on an off-target display.
+                lockScreenActivityWindow.showLocked(preferredScreenUUID: nil)
+            } else {
+                lockScreenActivityWindow.hideImmediately()
+            }
+            syncLockScreenActivityPanelVisibility()
         }
 
         if !Defaults[.showOnLockScreen] {
+            lockScreenPanelManager.hidePanel()
             hideNotchWindowsForLock()
         } else {
-      // Important: do NOT SkyLight-delegate the main notch window(s) during lock.
-      // Doing so can force a Space re-attachment on unlock and switch to an existing fullscreen Space.
         }
     }
 
     @MainActor
     func onScreenUnlocked(_ notification: Notification) {
         isScreenLocked = false
+        desktopWallpaperRecacheTask?.cancel()
+        desktopWallpaperRecacheTask = nil
+        unlockWallpaperRestoreTask?.cancel()
+        unlockWallpaperRestoreTask = nil
 
-        LockScreenState.shared.setLocked(false)
-
-    // Keep main-window activities suppressed until the unlock transition finishes.
-        LockTransitionState.shared.begin()
-
-        if Defaults[.showOnLockScreen] && Defaults[.liveActivityLockScreen] {
-            lockScreenActivityWindow.showUnlockedAndHide {
-                Task { @MainActor in
-                    LockTransitionState.shared.end()
+        if Defaults[.showOnLockScreen] {
+            let unlockScreen = NSScreen.screens.first(where: { $0.localizedName == "Built-in Retina Display" }) ?? NSScreen.main
+            let unlockRestoreImage = LockScreenDesktopOverrideCoordinator.shared.currentGeneratedImage()
+            if Defaults[.liveActivityLockScreen] {
+                if let unlockScreen, let unlockRestoreImage {
+                    if lockScreenActivityWindow.hasPreparedDesktopRestoreCover {
+                        lockScreenActivityWindow.presentPreparedDesktopRestoreCover(on: unlockScreen)
+                    } else {
+                        lockScreenActivityWindow.showDesktopRestoreCover(image: unlockRestoreImage, on: unlockScreen)
+                    }
+                } else {
+                    lockScreenActivityWindow.hideDesktopRestoreCoverImmediately()
                 }
+            } else {
+                lockScreenActivityWindow.hideImmediately()
             }
+
+            LockScreenState.shared.setLocked(false)
+            LockTransitionState.shared.begin()
+
+            lockScreenPanelManager.hidePanelForUnlock(rememberExpandedStateForNextShow: true)
+
+            if Defaults[.liveActivityLockScreen] {
+                lockScreenActivityWindow.showUnlockedAndHide { [weak self] in
+                    Task { @MainActor in
+                        guard let self else { return }
+                        if let unlockScreen, let unlockRestoreImage {
+                            self.unlockWallpaperRestoreTask?.cancel()
+                            self.unlockWallpaperRestoreTask = Task { [weak self] in
+                                await LockScreenDesktopOverrideCoordinator.shared.restoreIfNeededAndWaitForDesktopReady(on: unlockScreen)
+                                guard !Task.isCancelled else { return }
+                                await MainActor.run {
+                                    self?.lockScreenActivityWindow.hideDesktopRestoreCover(after: 0.06, duration: 0.22)
+                                    self?.unlockWallpaperRestoreTask = nil
+                                    LockTransitionState.shared.end()
+                                }
+                            }
+                        } else if let unlockScreen {
+                            LockScreenDesktopOverrideCoordinator.shared.restoreIfNeededForUnlock(on: unlockScreen)
+                            self.unlockWallpaperRestoreTask = nil
+                            LockTransitionState.shared.end()
+                        } else {
+                            LockScreenDesktopOverrideCoordinator.shared.restoreIfNeeded()
+                            self.unlockWallpaperRestoreTask = nil
+                            LockTransitionState.shared.end()
+                        }
+                    }
+                }
+            } else {
+                LockTransitionState.shared.end()
+            }
+
         } else {
-      // No lock-screen live activity: end suppression immediately.
+            LockScreenState.shared.setLocked(false)
+            LockTransitionState.shared.begin()
+            lockScreenPanelManager.hidePanel()
             lockScreenActivityWindow.hideImmediately()
             Task { @MainActor in
                 LockTransitionState.shared.end()
             }
         }
 
-    // IMPORTANT (Spaces): do not touch the main notch window(s) immediately on unlock.
-    // Repositioning / ordering too early is a common trigger for "jump to an existing fullscreen Space".
-    // The lock-screen overlay window handles visuals; we restore the notch windows after the transition.
         Task { @MainActor in
-      // Small delay = let WindowServer settle the active Space after unlock.
             try? await Task.sleep(for: .milliseconds(450))
             self.adjustWindowPosition(changeAlpha: false)
             if !Defaults[.showOnLockScreen] { self.showNotchWindowsAfterUnlock() }}
+
+        desktopWallpaperRecacheTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(1200))
+            guard let self, !self.isScreenLocked else { return }
+            LockScreenDesktopOverrideCoordinator.shared.cacheCurrentDesktopImages()
+            self.desktopWallpaperRecacheTask = nil
+        }
+    }
+
+    @MainActor
+    private var activeQuickTimersForLockScreen: [QuickTimer] {
+        var timers = QuickTimerManager.shared.timers
+            .filter { $0.remainingSeconds > 0 || $0.didFinish }
+
+        if let mirrored = QuickTimerManager.shared.mirroredSystemQuickTimer {
+            timers.append(mirrored)
+        }
+
+        return timers
+    }
+
+    private var shouldShowLockScreenTimerPanel: Bool {
+        guard Defaults[.showOnLockScreen] else { return false }
+        guard Defaults[.enableLockScreenTimerWidget] else { return false }
+        if QuickTimerManager.shared.mirroredSystemQuickTimer == nil {
+            guard Defaults[.liveActivityTimerEnabled] else { return false }
+        }
+        return !activeQuickTimersForLockScreen.isEmpty
+    }
+
+    @MainActor
+    private func syncLockScreenActivityPanelVisibility() {
+        guard isScreenLocked else {
+            lockScreenMediaHideTask?.cancel()
+            lockScreenMediaHideTask = nil
+            lockScreenPanelManager.hidePanel(preserveExpandedStateForNextShow: true)
+            return
+        }
+
+        let hasRealArtwork = !MusicManager.shared.albumArt.isEqual(defaultImage)
+        let hasRealText =
+            !MusicManager.shared.songTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && MusicManager.shared.songTitle != "Not Playing"
+        let isMediaStillWarm = Date().timeIntervalSince(lastLockScreenMediaActivityAt) < 2.0
+
+        let shouldShowMediaPanel =
+            Defaults[.showOnLockScreen]
+            && Defaults[.enableLockScreenMediaWidget]
+            && (hasRealText || hasRealArtwork || isMediaStillWarm)
+
+        if shouldShowMediaPanel || shouldShowLockScreenTimerPanel {
+            lockScreenMediaHideTask?.cancel()
+            lockScreenMediaHideTask = nil
+            lockScreenPanelManager.showPanel(showMediaCard: shouldShowMediaPanel)
+        } else {
+            lockScreenMediaHideTask?.cancel()
+            lockScreenMediaHideTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(550))
+                guard let self else { return }
+                guard self.isScreenLocked else { return }
+                let hasRealArtwork = !MusicManager.shared.albumArt.isEqual(defaultImage)
+                let hasRealText =
+                    !MusicManager.shared.songTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    && MusicManager.shared.songTitle != "Not Playing"
+                let isMediaStillWarm = Date().timeIntervalSince(self.lastLockScreenMediaActivityAt) < 2.0
+                let shouldStillShowMedia =
+                    Defaults[.showOnLockScreen]
+                    && Defaults[.enableLockScreenMediaWidget]
+                    && (hasRealText || hasRealArtwork || isMediaStillWarm)
+                let shouldStillHide = !shouldStillShowMedia && !self.shouldShowLockScreenTimerPanel
+                if shouldStillHide {
+                    self.lockScreenPanelManager.hidePanel()
+                }
+            }
+        }
     }
 
     
     @MainActor
     private func hideNotchWindowsForLock() {
-    // We avoid closing/recreating windows during the lock/unlock transition because
-    // attaching a window back into the private notch Space (CGSSpace) is a common trigger
-    // for macOS "jumping" to an existing fullscreen Space on unlock.
         if Defaults[.showOnAllDisplays] {
             for w in windows.values {
                 w.alphaValue = 0
@@ -194,7 +725,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func showNotchWindowsAfterUnlock() {
-    // Restore visibility without tearing down / re-attaching to Spaces.
         if Defaults[.showOnAllDisplays] {
             for w in windows.values {
                 w.alphaValue = 1
@@ -211,20 +741,33 @@ private func cleanupWindows(shouldInvert: Bool = false) {
         
         if shouldCleanupMulti {
             windows.values.forEach { window in
-                window.close()
-                NotchSpaceManager.shared.notchSpace.windows.remove(window)
+                tearDownNotchWindow(window)
             }
             windows.removeAll()
             viewModels.removeAll()
         } else if let window = window {
-            window.close()
-            NotchSpaceManager.shared.notchSpace.windows.remove(window)
-            if let obs = windowScreenDidChangeObserver {
-                NotificationCenter.default.removeObserver(obs)
-                windowScreenDidChangeObserver = nil
-            }
+            tearDownNotchWindow(window)
             self.window = nil
         }
+    }
+
+    private func removeWindowScreenDidChangeObserver(for window: NSWindow) {
+        let key = ObjectIdentifier(window)
+        if let observer = windowScreenDidChangeObservers.removeValue(forKey: key) {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    @MainActor
+    private func tearDownNotchWindow(_ window: NSWindow) {
+        removeWindowScreenDidChangeObserver(for: window)
+        if let skyLightWindow = window as? BoringNotchSkyLightWindow {
+            skyLightWindow.disableSkyLight()
+        }
+        window.contentView = nil
+        window.orderOut(nil)
+        window.close()
+        NotchSpaceManager.shared.notchSpace.windows.remove(window)
     }
 
     private func cleanupDragDetectors() {
@@ -258,10 +801,10 @@ private func cleanupWindows(shouldInvert: Bool = false) {
         guard let uuid = screen.displayUUID else { return }
         
         let screenFrame = screen.frame
-        let notchHeight = openNotchSize.height
-        let notchWidth = openNotchSize.width
+        let openSize = getOpenNotchSize(screenUUID: uuid)
+        let notchHeight = openSize.height
+        let notchWidth = openSize.width
         
-    // Create notch region at the top-center of the screen where an open notch would occupy
         let notchRegion = CGRect(
             x: screenFrame.midX - notchWidth / 2,
             y: screenFrame.maxY - notchHeight,
@@ -283,6 +826,8 @@ private func cleanupWindows(shouldInvert: Bool = false) {
 
     private func handleDragEntersNotchRegion(onScreen screen: NSScreen) {
         guard let uuid = screen.displayUUID else { return }
+        guard Defaults[.boringShelf] else { return }
+        guard Defaults[.pageShelfEnabled] || Defaults[.allowShelfRevealWhenPageHidden] else { return }
         
         if Defaults[.showOnAllDisplays], let viewModel = viewModels[uuid] {
             viewModel.open()
@@ -294,23 +839,28 @@ private func cleanupWindows(shouldInvert: Bool = false) {
     }
 
     private func createBoringNotchWindow(for screen: NSScreen, with viewModel: BoringViewModel) -> NSWindow {
+        let windowSize = getWindowSize(screenUUID: screen.displayUUID)
         let rect = NSRect(x: 0, y: 0, width: windowSize.width, height: windowSize.height)
         let styleMask: NSWindow.StyleMask = [.borderless, .nonactivatingPanel, .utilityWindow, .hudWindow]
         
         let window = BoringNotchSkyLightWindow(contentRect: rect, styleMask: styleMask, backing: .buffered, defer: false)
 
-        window.contentView = NSHostingView(
+        let hostingView = NSHostingView(
             rootView: ContentView()
                 .environmentObject(viewModel)
         )
+        // The notch window already reserves the physical notch area in its own
+        // layout. On integrated MacBook displays, letting SwiftUI keep the
+        // system safe area adds that top inset a second time and pushes open
+        // content down. External displays do not expose the same inset, which
+        // is why the bug only showed up on larger built-in notched panels.
+        hostingView.safeAreaRegions = []
+        window.contentView = hostingView
 
-    // Avoid orderFrontRegardless(): it can cause Space jumps (especially around lock/unlock).
-    // With a non-activating panel, orderFront(nil) is sufficient to show the window.
         window.orderFront(nil)
         NotchSpaceManager.shared.notchSpace.windows.insert(window)
 
-    // Observe when the window's screen changes so we can update drag detectors
-        windowScreenDidChangeObserver = NotificationCenter.default.addObserver(
+        let observer = NotificationCenter.default.addObserver(
             forName: NSWindow.didChangeScreenNotification,
             object: window,
             queue: .main) { [weak self] _ in
@@ -318,6 +868,7 @@ private func cleanupWindows(shouldInvert: Bool = false) {
                     self?.setupDragDetectors()
                 }
         }
+        windowScreenDidChangeObservers[ObjectIdentifier(window)] = observer
         return window
     }
 
@@ -328,16 +879,24 @@ private func cleanupWindows(shouldInvert: Bool = false) {
         }
 
         let screenFrame = screen.frame
-        window.setFrameOrigin(
-            NSPoint(
-                x: screenFrame.origin.x + (screenFrame.width / 2) - window.frame.width / 2,
-                y: screenFrame.origin.y + screenFrame.height - window.frame.height
-            ))
+        let targetSize = getWindowSize(screenUUID: screen.displayUUID)
+        let targetOrigin = NSPoint(
+            x: screenFrame.origin.x + (screenFrame.width / 2) - targetSize.width / 2,
+            y: screenFrame.origin.y + screenFrame.height - targetSize.height
+        )
+        window.setFrame(NSRect(origin: targetOrigin, size: targetSize), display: true)
         window.alphaValue = 1
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        applyDockIconIfNeeded()
+        NSColor.enableControlAccentColorOverride()
+        NSColor.applyEffectiveAccentOverride()
+        AppIconModeManager.applyCurrentAppIconOverride()
+        AppIconModeManager.startMonitoringSystemAppearance()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            LockScreenDesktopOverrideCoordinator.shared.warmUpAccessIfNeeded()
+            LockScreenDesktopOverrideCoordinator.shared.cacheCurrentDesktopImages()
+        }
 
         NotificationCenter.default.addObserver(
             self,
@@ -351,6 +910,22 @@ private func cleanupWindows(shouldInvert: Bool = false) {
             name: .reopenOnboardingSetup,
             object: nil
         )
+
+        iconAppearanceObserver = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            AppIconModeManager.applyCurrentAppIconOverride()
+        }
+
+        dockPreferenceObserver = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("com.apple.dock.prefchanged"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            AppIconModeManager.applyCurrentAppIconOverride()
+        }
 
         NotificationCenter.default.addObserver(
             forName: Notification.Name.selectedScreenChanged, object: nil, queue: nil
@@ -369,6 +944,17 @@ private func cleanupWindows(shouldInvert: Bool = false) {
                 self?.setupDragDetectors()
             }
         }
+
+        Defaults.publisher(.debugLargeScreenLayoutPreviewMode)
+            .map(\.newValue)
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    self?.adjustWindowPosition()
+                }
+            }
+            .store(in: &appCancellables)
 
         NotificationCenter.default.addObserver(
             forName: Notification.Name.automaticallySwitchDisplayChanged, object: nil, queue: nil
@@ -398,7 +984,6 @@ private func cleanupWindows(shouldInvert: Bool = false) {
             }
         }
 
-    // Use closure-based observers for DistributedNotificationCenter and keep tokens for removal
         screenLockedObserver = DistributedNotificationCenter.default().addObserver(
             forName: NSNotification.Name(rawValue: "com.apple.screenIsLocked"),
             object: nil, queue: .main) { [weak self] notification in
@@ -414,6 +999,85 @@ private func cleanupWindows(shouldInvert: Bool = false) {
                     self?.onScreenUnlocked(notification)
                 }
         }
+
+        lockStateSyncCancellable = LockScreenState.shared.$isLocked
+            .removeDuplicates()
+            .sink { [weak self] locked in
+                guard let self else { return }
+                guard locked != self.isScreenLocked else { return }
+                Task { @MainActor in
+                    if locked {
+                        self.onScreenLocked(Notification(name: NSNotification.Name("LockScreenStateFallbackLocked")))
+                    } else {
+                        self.onScreenUnlocked(Notification(name: NSNotification.Name("LockScreenStateFallbackUnlocked")))
+                    }
+                }
+            }
+
+        lockScreenMediaPanelSyncCancellable = Publishers.CombineLatest(
+            MusicManager.shared.$songTitle.removeDuplicates(),
+            MusicManager.shared.$artistName.removeDuplicates()
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] _, _ in
+            Task { @MainActor [weak self] in
+                if !MusicManager.shared.isUsingIdleMetadata {
+                    self?.lastLockScreenMediaActivityAt = Date()
+                }
+                self?.syncLockScreenActivityPanelVisibility()
+            }
+        }
+
+        MusicManager.shared.$albumArtFlipEventID
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.lastLockScreenMediaActivityAt = Date()
+            }
+            .store(in: &appCancellables)
+
+        Publishers.CombineLatest(
+            QuickTimerManager.shared.$timers
+                .map { $0.map(\.id) }
+                .removeDuplicates(),
+            QuickTimerManager.shared.$mirroredSystemQuickTimer
+                .map { $0?.id }
+                .removeDuplicates()
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] _, _ in
+            Task { @MainActor [weak self] in
+                self?.syncLockScreenActivityPanelVisibility()
+            }
+        }
+        .store(in: &appCancellables)
+
+        Publishers.Merge3(
+            Defaults.publisher(.showOnLockScreen).map { _ in () },
+            Defaults.publisher(.enableLockScreenMediaWidget).map { _ in () },
+            Defaults.publisher(.enableLockScreenTimerWidget).map { _ in () }
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.syncLockScreenActivityPanelVisibility()
+            }
+        }
+        .store(in: &appCancellables)
+
+        Defaults.publisher(.liveActivityLockScreen)
+            .map(\.newValue)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] enabled in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if !Defaults[.showOnLockScreen] || !enabled {
+                        self.lockScreenActivityWindow.hideImmediately()
+                    } else if self.isScreenLocked {
+                        self.lockScreenActivityWindow.showLocked(preferredScreenUUID: nil)
+                    }
+                }
+            }
+            .store(in: &appCancellables)
 
         KeyboardShortcuts.onKeyDown(for: .toggleSneakPeek) { [weak self] in
             guard let self = self else { return }
@@ -449,6 +1113,7 @@ private func cleanupWindows(shouldInvert: Bool = false) {
                 switch viewModel.notchState {
                 case .closed:
                     await MainActor.run {
+                        viewModel.manualOpenUntil = Date().addingTimeInterval(3.15)
                         viewModel.open()
                     }
 
@@ -518,12 +1183,35 @@ private func cleanupWindows(shouldInvert: Bool = false) {
 
         previousScreens = currentScreens
 
-        if screensChanged {
-            DispatchQueue.main.async { [weak self] in
-                self?.cleanupWindows()
-                self?.adjustWindowPosition()
-                self?.setupDragDetectors()
-            }
+        guard screensChanged else { return }
+
+        pendingScreenConfigurationTask?.cancel()
+        pendingScreenConfigurationTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(220))
+            guard !Task.isCancelled else { return }
+            self?.applyStabilizedScreenConfigurationChange()
+        }
+    }
+
+    @MainActor
+    private func applyStabilizedScreenConfigurationChange() {
+        cleanupWindows()
+
+        if Defaults[.showOnAllDisplays] {
+            viewModels.values.forEach { $0.closeForLockTransition() }
+        } else {
+            vm.closeForLockTransition()
+        }
+
+        adjustWindowPosition()
+        setupDragDetectors()
+
+        pendingScreenConfigurationTask?.cancel()
+        pendingScreenConfigurationTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(260))
+            guard !Task.isCancelled else { return }
+            self?.adjustWindowPosition(changeAlpha: false)
+            self?.setupDragDetectors()
         }
     }
 
@@ -531,17 +1219,14 @@ private func cleanupWindows(shouldInvert: Bool = false) {
         if Defaults[.showOnAllDisplays] {
             let currentScreenUUIDs = Set(NSScreen.screens.compactMap { $0.displayUUID })
 
-      // Remove windows for screens that no longer exist
             for uuid in windows.keys where !currentScreenUUIDs.contains(uuid) {
                 if let window = windows[uuid] {
-                    window.close()
-                    NotchSpaceManager.shared.notchSpace.windows.remove(window)
+                    tearDownNotchWindow(window)
                     windows.removeValue(forKey: uuid)
                     viewModels.removeValue(forKey: uuid)
                 }
             }
 
-      // Create or update windows for all screens
             for screen in NSScreen.screens {
                 guard let uuid = screen.displayUUID else { continue }
                 
@@ -554,11 +1239,9 @@ private func cleanupWindows(shouldInvert: Bool = false) {
                 }
 
                 if let window = windows[uuid], let viewModel = viewModels[uuid] {
+                    viewModel.screenUUID = uuid
+                    viewModel.closeForLockTransition()
                     positionWindow(window, on: screen, changeAlpha: changeAlpha)
-
-                    if viewModel.notchState == .closed {
-                        viewModel.close()
-                    }
                 }
             }
         } else {
@@ -572,14 +1255,15 @@ private func cleanupWindows(shouldInvert: Bool = false) {
                 coordinator.selectedScreenUUID = mainUUID
                 selectedScreen = mainScreen
             } else {
-                if let window = window {
-                    window.alphaValue = 0
+                if let window {
+                    tearDownNotchWindow(window)
+                    self.window = nil
                 }
                 return
             }
 
             vm.screenUUID = selectedScreen.displayUUID
-            vm.notchSize = getClosedNotchSize(screenUUID: selectedScreen.displayUUID)
+            vm.closeForLockTransition()
 
             if window == nil {
                 window = createBoringNotchWindow(for: selectedScreen, with: vm)
@@ -587,10 +1271,6 @@ private func cleanupWindows(shouldInvert: Bool = false) {
 
             if let window = window {
                 positionWindow(window, on: selectedScreen, changeAlpha: changeAlpha)
-
-                if vm.notchState == .closed {
-                    vm.close()
-                }
             }
         }
     }
@@ -636,7 +1316,6 @@ private func cleanupWindows(shouldInvert: Bool = false) {
                     step: step,
                     onFinish: {
                         window.orderOut(nil)
-//            NSApp.setActivationPolicy(.accessory)
                         window.close()
                         self.onboardingWindowController = nil
                         NSApp.deactivate()
@@ -653,7 +1332,6 @@ private func cleanupWindows(shouldInvert: Bool = false) {
             onboardingWindowController = NSWindowController(window: window)
         }
 
-//    NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         onboardingWindowController?.window?.makeKeyAndOrderFront(nil)
         onboardingWindowController?.window?.orderFrontRegardless()
@@ -669,6 +1347,7 @@ extension Notification.Name {
     static let reopenOnboardingSetup = Notification.Name("reopenOnboardingSetup")
 }
 
+
 extension CGRect: @retroactive Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(origin.x)
@@ -682,627 +1361,113 @@ extension CGRect: @retroactive Hashable {
     }
 }
 
-// MARK: - Lock Screen Live Activity Window
-
-// MARK: - Lock Screen Live Activity Window
-
-@MainActor
-final class LockScreenLiveActivityWindowManager {
-    static let shared = LockScreenLiveActivityWindowManager()
-
-  // Lock-screen window (SkyLight).
-    private var lockWindow: NSWindow?
-    private var lockHosting: NSHostingView<AnyView>?
-
-  // Desktop window used during unlock transition.
-    private var desktopWindow: NSWindow?
-    private var desktopHosting: NSHostingView<AnyView>?
-
-  // Two separate models prevent state contamination
-    private let lockModel = LockScreenLiveActivityOverlayModel()
-    private let desktopModel = LockScreenLiveActivityOverlayModel()
-
-    private var hideTask: Task<Void, Never>?
-    private var isUnlockRunning = false
-
-  // Geometry cache (avoids mismatch)
-    private var lastScreenUUID: String?
-    private var lastNotchSize: CGSize?
-    private var lastTotalWidth: CGFloat?
-    
-  // Cover window (anti-flicker)
-    private var coverWindow: NSWindow?
-    private var coverHosting: NSHostingView<AnyView>?
-
-  // MARK: - Public
-
-  /// Show the "locked" overlay on the requested screen.
-  /// - Note: if `preferredScreenUUID` is nil or invalid, fallback to the main screen.
-    func showLocked(preferredScreenUUID: String?) {
-        hideTask?.cancel()
-        hideTask = nil
-        isUnlockRunning = false
-
-    // Keep desktop window invisible during lock.
-        desktopModel.hide()
-        desktopWindow?.alphaValue = 0
-        desktopWindow?.orderOut(nil)
-
-        let screen: NSScreen = {
-            if let uuid = preferredScreenUUID,
-               let s = NSScreen.screen(withUUID: uuid) { return s }
-            return NSScreen.main ?? NSScreen.screens.first!
-        }()
-
-        lastScreenUUID = screen.displayUUID
-
-        let notchSize = getClosedNotchSize(screenUUID: screen.displayUUID)
-        let (totalWidth, rect) = makeRect(for: notchSize)
-        lastNotchSize = notchSize
-        lastTotalWidth = totalWidth
-
-        ensureLockWindow(rect: rect, notchSize: notchSize, totalWidth: totalWidth)
-        positionWindow(lockWindow!, on: screen, width: totalWidth, height: notchSize.height)
-
-        if let lockWindow {
-            SkyLightOperator.shared.delegateWindow(lockWindow)
-            lockWindow.alphaValue = 1
-            lockWindow.orderFront(nil)
-        }
-
-    // Important: start from a hidden state (otherwise no animation can run).
-        lockModel.hide()
-
-    // Start a single animation immediately (without visible steps).
-        Task { @MainActor in
-            var tx0 = Transaction()
-            tx0.disablesAnimations = true
-            withTransaction(tx0) {
-                lockModel.setLocked(resetBlur: false)
-                lockModel.widthScale = 0.72
-                lockModel.opacity = 1
-                lockModel.iconBlur = 10
-            }
-
-            withAnimation(NotchMotion.lockReveal) {
-                lockModel.widthScale = 1
-                lockModel.iconBlur = 0
-            }
-        }
-    }
-
-    func showUnlockedAndHide(onFinished: (() -> Void)? = nil) {
-        if isUnlockRunning { return }
-        isUnlockRunning = true
-        hideTask?.cancel()
-
-        hideTask = Task { @MainActor in
-            defer {
-                self.isUnlockRunning = false
-                onFinished?()
-            }
-
-      // Important:
-      // The short black background flicker came from the lockWindow -> desktopWindow
-      // handoff (two windows, two hosting passes, and one to two non-deterministic
-      // composition frames depending on GPU / WindowServer).
-      // To remove this robustly, do not swap windows: reuse lockWindow (SkyLight)
-      // for unlock + collapse, then orderOut and remove delegate at the end.
-
-            let screen: NSScreen = {
-                if let uuid = lastScreenUUID, let s = NSScreen.screen(withUUID: uuid) { return s }
-                return NSScreen.main ?? NSScreen.screens.first!
-            }()
-
-            let notchSize = lastNotchSize ?? getClosedNotchSize(screenUUID: screen.displayUUID)
-            let (totalWidth, rect) = makeRect(for: notchSize)
-
-      // Reuse lockWindow when available (nominal path).
-            if let lockWindow {
-        // Ensure exact geometry (no AppKit animation).
-                await NSAnimationContext.runAnimationGroup { ctx in
-                    ctx.duration = 0
-                    ctx.allowsImplicitAnimation = false
-                    lockWindow.animator().alphaValue = 1
-                }
-                lockWindow.setFrame(rect, display: true)
-                positionWindow(lockWindow, on: screen, width: totalWidth, height: notchSize.height)
-
-                if let cv = lockWindow.contentView {
-                    cv.layoutSubtreeIfNeeded()
-                    cv.needsDisplay = true
-                    cv.displayIfNeeded()
-                }
-                lockWindow.displayIfNeeded()
-                CATransaction.flush()
-
-        // Start the lock animation (without modifying the Lottie itself).
-                lockModel.setUnlocked(resetBlur: false)
-
-        // Wait for lock icon animation, then run collapse + fade.
-        // Slightly longer guard to avoid any overlap where width collapse starts
-        // before the unlock icon motion has visually completed.
-                try? await Task.sleep(nanoseconds: 960_000_000)
-
-                await hideDesktopWithAnimation(
-                    desktopWindow: lockWindow,
-                    model: lockModel,
-                    notchSize: notchSize,
-                    totalWidth: totalWidth
-                )
-
-                lockModel.hide()
-                await NSAnimationContext.runAnimationGroup { ctx in
-                    ctx.duration = 0
-                    ctx.allowsImplicitAnimation = false
-                    lockWindow.animator().alphaValue = 0
-                }
-                lockWindow.orderOut(nil)
-                SkyLightOperator.shared.undelegateWindow(lockWindow)
-                self.lockWindow = nil
-                self.lockHosting = nil
-                return
-            }
-
-      // Rare fallback if lockWindow is unavailable: keep desktop path unchanged.
-            var tx = Transaction()
-            tx.disablesAnimations = true
-            withTransaction(tx) {
-                desktopModel.setLocked()
-                desktopModel.opacity = 1
-                desktopModel.widthScale = 1
-            }
-
-            ensureDesktopWindow(rect: rect, notchSize: notchSize, totalWidth: totalWidth)
-            guard let desktopWindow else { return }
-
-            positionWindow(desktopWindow, on: screen, width: totalWidth, height: notchSize.height)
-            await NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0
-                ctx.allowsImplicitAnimation = false
-                desktopWindow.animator().alphaValue = 1
-            }
-            desktopWindow.orderFront(nil)
-            desktopModel.setUnlocked(resetBlur: false)
-            try? await Task.sleep(nanoseconds: 960_000_000)
-            await hideDesktopWithAnimation(desktopWindow: desktopWindow, model: desktopModel, notchSize: notchSize, totalWidth: totalWidth)
-            desktopModel.hide()
-            desktopWindow.alphaValue = 0
-            desktopWindow.orderOut(nil)
-        }
-    }
-
-  // MARK: - Desktop dismiss animation (lock/unlock style)
-
-    private func hideDesktopWithAnimation(
-        desktopWindow: NSWindow,
-        model: LockScreenLiveActivityOverlayModel,
-        notchSize: CGSize,
-        totalWidth: CGFloat
-    ) async {
-    // Unlock dismiss: single-phase (no multi-speed stepping).
-        let duration: TimeInterval = 0.34
-
-        let safeTotalWidth = max(totalWidth, 1)
-        let collapsedScale = max(0.001, min(1.0, notchSize.width / safeTotalWidth))
-
-    // 0) Cancel any residual AppKit alpha animation (common one-frame flash source).
-        await NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0
-            ctx.allowsImplicitAnimation = false
-            desktopWindow.animator().alphaValue = 1
-        }
-
-    // 1) Ensure overlay opacity is fully set, without animation.
-        var tx = Transaction()
-        tx.disablesAnimations = true
-        withTransaction(tx) {
-            model.opacity = 1
-        }
-
-    // 2) Single visual phase: width collapse only (no mid-animation fade).
-        withAnimation(NotchMotion.lockDismiss) {
-            model.widthScale = collapsedScale
-        }
-        try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
-        desktopWindow.alphaValue = 0
-    }
-
-    func hideImmediately() {
-        hideTask?.cancel()
-        hideTask = nil
-        isUnlockRunning = false
-
-        lockModel.hide()
-        desktopModel.hide()
-
-        lockWindow?.alphaValue = 0
-        lockWindow?.orderOut(nil)
-
-        desktopWindow?.alphaValue = 0
-        desktopWindow?.orderOut(nil)
-    }
-
-  // MARK: - Internals (Geometry)
-
-    private func makeRect(for notchSize: CGSize) -> (CGFloat, NSRect) {
-        let indicatorSide = max(0, notchSize.height - 12)
-        let totalWidth = notchSize.width + indicatorSide * 2 + cornerRadiusInsets.closed.bottom * 2
-        let rect = NSRect(x: 0, y: 0, width: totalWidth, height: notchSize.height)
-        return (totalWidth, rect)
-    }
-
-    private func positionWindow(_ window: NSWindow, on screen: NSScreen, width: CGFloat, height: CGFloat) {
-        let screenFrame = screen.frame
-        window.setFrameOrigin(NSPoint(x: screenFrame.midX - width / 2, y: screenFrame.maxY - height))
-    }
-
-  // MARK: - Internals (Windows)
-
-    private func ensureLockWindow(rect: NSRect, notchSize: CGSize, totalWidth: CGFloat) {
-        if lockWindow == nil {
-            let styleMask: NSWindow.StyleMask = [.borderless, .nonactivatingPanel, .utilityWindow, .hudWindow]
-            let w = NSWindow(contentRect: rect, styleMask: styleMask, backing: .buffered, defer: false)
-
-            w.isOpaque = false
-            w.backgroundColor = .clear
-            w.hasShadow = false
-            w.ignoresMouseEvents = true
-            w.isReleasedWhenClosed = false
-
-            w.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
-            w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-
-            let root = LockScreenLiveActivityOverlay(model: lockModel, notchSize: notchSize)
-                .frame(width: totalWidth, height: notchSize.height)
-                .ignoresSafeArea()
-
-            let hosting = NSHostingView(rootView: AnyView(root))
-            w.contentView = hosting
-
-            lockWindow = w
-            lockHosting = hosting
-        } else {
-            lockWindow?.setFrame(rect, display: true)
-
-            if let hosting = lockHosting {
-                let root = LockScreenLiveActivityOverlay(model: lockModel, notchSize: notchSize)
-                    .frame(width: totalWidth, height: notchSize.height)
-                    .ignoresSafeArea()
-                hosting.rootView = AnyView(root)
-            }
-        }
-    }
-
-    private func ensureDesktopWindow(rect: NSRect, notchSize: CGSize, totalWidth: CGFloat) {
-        if desktopWindow == nil {
-            let styleMask: NSWindow.StyleMask = [.borderless, .nonactivatingPanel, .utilityWindow, .hudWindow]
-            let w = NSWindow(contentRect: rect, styleMask: styleMask, backing: .buffered, defer: false)
-
-            w.isOpaque = false
-            w.backgroundColor = .clear
-            w.hasShadow = false
-            w.ignoresMouseEvents = true
-            w.isReleasedWhenClosed = false
-
-            w.level = .mainMenu + 3
-            w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-
-            let root = LockScreenLiveActivityOverlay(model: desktopModel, notchSize: notchSize)
-                .frame(width: totalWidth, height: notchSize.height)
-                .ignoresSafeArea()
-
-            let hosting = NSHostingView(rootView: AnyView(root))
-            w.contentView = hosting
-
-            desktopWindow = w
-            desktopHosting = hosting
-        } else {
-            desktopWindow?.setFrame(rect, display: true)
-
-            if let hosting = desktopHosting {
-                let root = LockScreenLiveActivityOverlay(model: desktopModel, notchSize: notchSize)
-                    .frame(width: totalWidth, height: notchSize.height)
-                    .ignoresSafeArea()
-                hosting.rootView = AnyView(root)
-            }
-        }
-    }
-
-  // MARK: - Manual animation (60fps, deterministic)
-
-    private func animateWidthScaleEaseOut(model: LockScreenLiveActivityOverlayModel,
-                                         from: CGFloat, to: CGFloat, duration: TimeInterval) async {
-        let dt: TimeInterval = 1.0 / 60.0
-        let steps = max(1, Int(duration / dt))
-        for i in 0...steps {
-            let t = CGFloat(i) / CGFloat(steps)
-            let eased = easeOutCubic(t)
-            model.widthScale = lerp(from, to, eased)
-            try? await Task.sleep(for: .milliseconds(Int(dt * 1000)))
-        }
-    }
-
-  /// Three-speed curve without discontinuity (C1 continuous) to avoid
-  /// perceived micro-stutter between phases 2 and 3.
-  ///
-  /// Implementation: three-segment Hermite spline.
-  /// - t in [0..1] (time)
-  /// - p in [0..1] (progress)
-  /// Controls points (t, p) and dp/dt slopes at segment joints.
-    private func animateWidthScaleOrganicSpline(model: LockScreenLiveActivityOverlayModel,
-                                                from: CGFloat, to: CGFloat, duration: TimeInterval) async {
-        let dt: TimeInterval = 1.0 / 60.0
-        let steps = max(1, Int(duration / dt))
-
-    // Split timing (3 phases)
-        let t0: CGFloat = 0
-        let t1: CGFloat = 0.40
-        let t2: CGFloat = 0.93
-        let t3: CGFloat = 1
-
-    // Strong non-linearity without aggressive overshoot.
-        let p0: CGFloat = 0
-        let p1: CGFloat = 0.56
-        let p2: CGFloat = 0.97
-        let p3: CGFloat = 1
-
-    // Start cushioned, stronger mid section, then long damped landing.
-        let m0: CGFloat = 0.08
-        let m1: CGFloat = 1.20
-        let m2: CGFloat = 0.06
-        let m3: CGFloat = 0.0
-
-        func hermite(_ u: CGFloat, _ a: CGFloat, _ b: CGFloat, _ ma: CGFloat, _ mb: CGFloat, _ h: CGFloat) -> CGFloat {
-            let uu = max(0, min(1, u))
-            let uu2 = uu * uu
-            let uu3 = uu2 * uu
-            let h00 = 2*uu3 - 3*uu2 + 1
-            let h10 = uu3 - 2*uu2 + uu
-            let h01 = -2*uu3 + 3*uu2
-            let h11 = uu3 - uu2
-            return h00*a + h10*(h*ma) + h01*b + h11*(h*mb)
-        }
-
-        func splineProgress(_ t: CGFloat) -> CGFloat {
-            if t <= t1 {
-                let h = (t1 - t0)
-                let u = (t - t0) / h
-                return hermite(u, p0, p1, m0, m1, h)
-            } else if t <= t2 {
-                let h = (t2 - t1)
-                let u = (t - t1) / h
-                return hermite(u, p1, p2, m1, m2, h)
-            } else {
-                let h = (t3 - t2)
-                let u = (t - t2) / h
-                return hermite(u, p2, p3, m2, m3, h)
-            }
-        }
-
-        for i in 0...steps {
-            let t = CGFloat(i) / CGFloat(steps)
-            let p = max(0, min(1.0, splineProgress(t)))
-            model.widthScale = lerp(from, to, p)
-            try? await Task.sleep(for: .milliseconds(Int(dt * 1000)))
-        }
-
-        model.widthScale = to
-    }
-
-    private func animateLockRevealOrganic(
-        model: LockScreenLiveActivityOverlayModel,
-        duration: TimeInterval,
-        maxBlur: CGFloat
-    ) async {
-        let dt: TimeInterval = 1.0 / 60.0
-        let steps = max(1, Int(duration / dt))
-
-        func hermite(_ u: CGFloat, _ a: CGFloat, _ b: CGFloat, _ ma: CGFloat, _ mb: CGFloat, _ h: CGFloat) -> CGFloat {
-            let uu = max(0, min(1, u))
-            let uu2 = uu * uu
-            let uu3 = uu2 * uu
-            let h00 = 2*uu3 - 3*uu2 + 1
-            let h10 = uu3 - 2*uu2 + uu
-            let h01 = -2*uu3 + 3*uu2
-            let h11 = uu3 - uu2
-            return h00*a + h10*(h*ma) + h01*b + h11*(h*mb)
-        }
-
-    // Horizontal reveal profile: non-linear and fluid, but no visible bounce spike.
-        let t0: CGFloat = 0
-        let t1: CGFloat = 0.16
-        let t2: CGFloat = 0.84
-        let t3: CGFloat = 1
-
-        let p0: CGFloat = 0
-        let p1: CGFloat = 0.24
-        let p2: CGFloat = 0.94
-        let p3: CGFloat = 1
-
-        let m0: CGFloat = 0.44
-        let m1: CGFloat = 1.02
-        let m2: CGFloat = 0.20
-        let m3: CGFloat = 0
-
-        func widthProgress(_ t: CGFloat) -> CGFloat {
-            if t <= t1 {
-                let h = t1 - t0
-                let u = (t - t0) / h
-                return hermite(u, p0, p1, m0, m1, h)
-            } else if t <= t2 {
-                let h = t2 - t1
-                let u = (t - t1) / h
-                return hermite(u, p1, p2, m1, m2, h)
-            } else {
-                let h = t3 - t2
-                let u = (t - t2) / h
-                return hermite(u, p2, p3, m2, m3, h)
-            }
-        }
-
-        func smoothstep(_ a: CGFloat, _ b: CGFloat, _ x: CGFloat) -> CGFloat {
-            if x <= a { return 0 }
-            if x >= b { return 1 }
-            let u = (x - a) / (b - a)
-            return u * u * (3 - 2 * u)
-        }
-
-        for i in 0...steps {
-            let t = CGFloat(i) / CGFloat(steps)
-            let w = max(0.01, min(1.0, widthProgress(t)))
-
-      // Fast visibility ramp, then stable.
-            let o = smoothstep(0.00, 0.32, t)
-
-      // Keep blur early, then sharpen aggressively in the second half.
-            let blurDrop = smoothstep(0.16, 0.97, t)
-            let blur = maxBlur * pow(max(0, 1 - blurDrop), 1.35)
-
-            model.widthScale = w
-            model.opacity = o
-            model.iconBlur = blur
-            try? await Task.sleep(for: .milliseconds(Int(dt * 1000)))
-        }
-
-        model.widthScale = 1
-        model.opacity = 1
-        model.iconBlur = 0
-    }
-
-    private func animateOpacityEaseOut(model: LockScreenLiveActivityOverlayModel,
-                                       from: CGFloat, to: CGFloat, duration: TimeInterval) async {
-        let dt: TimeInterval = 1.0 / 60.0
-        let steps = max(1, Int(duration / dt))
-        for i in 0...steps {
-            let t = CGFloat(i) / CGFloat(steps)
-            let eased = easeOutCubic(t)
-            model.opacity = lerp(from, to, eased)
-            try? await Task.sleep(for: .milliseconds(Int(dt * 1000)))
-        }
-    }
-
-    private func animateWidthScaleBackEase(model: LockScreenLiveActivityOverlayModel,
-                                          from: CGFloat, to: CGFloat, duration: TimeInterval, overshoot: CGFloat) async {
-        let dt: TimeInterval = 1.0 / 60.0
-        let steps = max(1, Int(duration / dt))
-        for i in 0...steps {
-            let t = CGFloat(i) / CGFloat(steps)
-            let eased = easeOutBack(t, s: overshoot)
-            model.widthScale = lerp(from, to, eased)
-            try? await Task.sleep(for: .milliseconds(Int(dt * 1000)))
-        }
-    }
-
-    private func lerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat { a + (b - a) * t }
-
-    private func easeOutCubic(_ t: CGFloat) -> CGFloat {
-        let p = 1 - t
-        return 1 - (p * p * p)
-    }
-
-    private func easeOutBack(_ t: CGFloat, s: CGFloat) -> CGFloat {
-        let c1 = s * 10.0
-        let c3 = c1 + 1.0
-        let x = t - 1.0
-        return 1.0 + (c3 * x * x * x) + (c1 * x * x)
-    }
+// MARK: - Lock Screen Display Context
+
+struct LockScreenDisplayContext {
+    let screen: NSScreen
+    let frame: NSRect
+    let identifier: String
 }
 
 @MainActor
-final class LockScreenLiveActivityOverlayModel: ObservableObject {
-    enum Mode { case hidden, locked, unlocked }
+final class LockScreenDisplayContextProvider {
+    static let shared = LockScreenDisplayContextProvider()
 
-    @Published private(set) var mode: Mode = .hidden
-    @Published var opacity: CGFloat = 0
-  /// Horizontal expand/collapse only. This avoids the "drop from the top" feel.
-    @Published var widthScale: CGFloat = 0.01
-  /// Slight blur on the lock icon only (appearance/disappearance).
-    @Published var iconBlur: CGFloat = 0
+    private(set) var context: LockScreenDisplayContext?
+    private var screenChangeObserver: NSObjectProtocol?
+    private var workspaceObservers: [NSObjectProtocol] = []
 
-    func setLocked(resetBlur: Bool = true) {
-        mode = .locked
-        opacity = 1
-        widthScale = 1
-        if resetBlur { iconBlur = 0 }
+    private init() {
+        refresh(reason: "init")
+        registerObservers()
     }
 
-    func setUnlocked(resetBlur: Bool = true) {
-        mode = .unlocked
-        opacity = 1
-        widthScale = 1
-        if resetBlur { iconBlur = 0 }
-    }
-
-  /// Collapse the overlay horizontally while keeping it pinned.
-  /// We keep opacity at 1 so the disappearance reads as a width collapse (like music).
-    func collapseForDismiss() {
-        widthScale = 0.01
-    }
-
-    func hide() {
-        mode = .hidden
-        opacity = 0
-        widthScale = 0.01
-        iconBlur = 0
-    }
-}
-
-struct LockScreenLiveActivityOverlay: View {
-    @ObservedObject var model: LockScreenLiveActivityOverlayModel
-    let notchSize: CGSize
-
-  // Match the same feel as closed live activities.
-    private let topCornerRadius: CGFloat = 7
-
-    private var indicatorSide: CGFloat { max(0, notchSize.height - 12) }
-    private var totalWidth: CGFloat {
-        notchSize.width + indicatorSide * 2 + cornerRadiusInsets.closed.bottom * 2
-    }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            indicator
-                .frame(width: indicatorSide, height: indicatorSide)
-                .padding(.leading, cornerRadiusInsets.closed.bottom)
-
-            Rectangle()
-                .fill(.black)
-                .frame(width: notchSize.width - topCornerRadius)
-
-      // "Fake" right indicator for visual symmetry.
-            Color.clear
-                .frame(width: indicatorSide, height: indicatorSide)
-                .padding(.trailing, cornerRadiusInsets.closed.bottom)
+    deinit {
+        if let screenChangeObserver {
+            NotificationCenter.default.removeObserver(screenChangeObserver)
         }
-        .frame(width: totalWidth, height: notchSize.height)
-        .background(.black)
-        .clipShape(
-            NotchShape(
-                topCornerRadius: topCornerRadius,
-                bottomCornerRadius: cornerRadiusInsets.closed.bottom
-            )
-        )
-        .opacity(model.opacity)
-    // Expand/collapse horizontally only: avoids the "drop from top" feel.
-        .scaleEffect(x: model.widthScale, y: 1.0, anchor: .top)
-        .compositingGroup()
+        let workspaceCenter = NSWorkspace.shared.notificationCenter
+        workspaceObservers.forEach { workspaceCenter.removeObserver($0) }
     }
 
-    @ViewBuilder
-    private var indicator: some View {
-    // A single animated icon that transitions between locked/unlocked.
-    // (Uses lock_icon_animation.json)
-    // NOTE:
-    // Applying SwiftUI .blur() directly to a Lottie view can be unreliable on macOS.
-    // With drawingGroup, the icon can rasterize as a gray square. Use a robust blur by
-    // generating an icon snapshot, applying CoreImage Gaussian blur, and crossfading
-    // only during the first and last moments.
-        LockIconAnimatedBlurView(
-            isLocked: model.mode != .unlocked,
-            size: 16,
-            iconColor: .white,
-            blurRadius: model.iconBlur
+    @discardableResult
+    func refresh(reason: String) -> LockScreenDisplayContext? {
+        guard let screen = preferredLockScreen() else {
+            context = nil
+            return nil
+        }
+
+        let snapshot = LockScreenDisplayContext(
+            screen: screen,
+            frame: screen.frame,
+            identifier: screen.localizedName
         )
+        context = snapshot
+        return snapshot
+    }
+
+    func contextSnapshot() -> LockScreenDisplayContext? {
+        if let context {
+            return context
+        }
+        return refresh(reason: "snapshot-miss")
+    }
+
+    private func preferredLockScreen() -> NSScreen? {
+        if let builtin = NSScreen.screens.first(where: { screen in
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
+                return false
+            }
+            return CGDisplayIsBuiltin(CGDirectDisplayID(number.uint32Value)) != 0
+        }) {
+            return builtin
+        }
+
+        let mainDisplayID = CGMainDisplayID()
+        if let mainScreen = NSScreen.screens.first(where: { screen in
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
+                return false
+            }
+            return CGDirectDisplayID(number.uint32Value) == mainDisplayID
+        }) {
+            return mainScreen
+        }
+
+        return NSScreen.main ?? NSScreen.screens.first
+    }
+
+    private func registerObservers() {
+        screenChangeObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                _ = self?.refresh(reason: "screen-parameters")
+            }
+        }
+
+        let workspaceCenter = NSWorkspace.shared.notificationCenter
+        let wakeObserver = workspaceCenter.addObserver(
+            forName: NSWorkspace.screensDidWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                _ = self?.refresh(reason: "screens-did-wake")
+            }
+        }
+
+        let spaceObserver = workspaceCenter.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                _ = self?.refresh(reason: "space-changed")
+            }
+        }
+
+        workspaceObservers = [wakeObserver, spaceObserver]
     }
 }

@@ -314,19 +314,7 @@
         }
       }
     },
-    "“Bluetooth” shows or hides the device-connected popup." : {
-
-    },
-    "“Focus mode” shows or hides the concentration live activity in the closed notch." : {
-
-    },
-    "“Lock screen” shows or hides the lock/unlock popup. (The notch visibility on lock screen is controlled in Advanced → Show notch on lock screen.)" : {
-
-    },
-    "“Shelf content” shows or hides the closed-notch tray counter popup." : {
-
-    },
-    "“Timer” shows or hides the closed-notch timer indicator for Quick Timers (page 3)." : {
+    "\"Smart reveal\" only shows the Shelf page when you are dragging files into it, or when it already contains files." : {
 
     },
     "(%@)" : {
@@ -1340,13 +1328,13 @@
     "+10s" : {
 
     },
-    "⚠ Semi liquid glass mode is still experimental and may occasionally present visual bugs or slight stutters" : {
+    "⚠ Semi liquid glass mode is still experimental and may occasionally present visual bugs or slight stutters. On systems without native liquid glass, QuartzNotch now uses a compatibility fallback automatically." : {
 
     },
     "00:00" : {
 
     },
-    "0.2" : {
+    "0.3" : {
 
     },
     "About" : {
@@ -1450,6 +1438,7 @@
       }
     },
     "Accent color" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1548,6 +1537,9 @@
           }
         }
       }
+    },
+    "Accent Color" : {
+
     },
     "Access Denied" : {
       "localizations" : {
@@ -1749,6 +1741,9 @@
         }
       }
     },
+    "Activity Types" : {
+
+    },
     "Add" : {
       "localizations" : {
         "ar" : {
@@ -1848,6 +1843,9 @@
           }
         }
       }
+    },
+    "Add a control" : {
+
     },
     "Add manually" : {
       "extractionState" : "stale",
@@ -2457,6 +2455,9 @@
     "Alpha" : {
 
     },
+    "Alpha Version" : {
+
+    },
     "Always show full event titles" : {
       "localizations" : {
         "ar" : {
@@ -2657,6 +2658,9 @@
           }
         }
       }
+    },
+    "App & Displays" : {
+
     },
     "App icon" : {
       "localizations" : {
@@ -3362,6 +3366,9 @@
         }
       }
     },
+    "Battery indicator" : {
+
+    },
     "Battery Information" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3462,6 +3469,9 @@
           }
         }
       }
+    },
+    "Battery percentage" : {
+
     },
     "Battery Settings" : {
       "localizations" : {
@@ -3968,7 +3978,11 @@
         }
       }
     },
+    "Build" : {
+
+    },
     "Calendar" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4067,6 +4081,9 @@
           }
         }
       }
+    },
+    "Calendar & Reminders" : {
+
     },
     "Calendar access is denied. Please enable it in System Settings." : {
       "localizations" : {
@@ -4171,6 +4188,9 @@
     "Calendar access is not granted yet." : {
 
     },
+    "Calendar toggle" : {
+
+    },
     "Calendars" : {
       "localizations" : {
         "ar" : {
@@ -4270,6 +4290,9 @@
           }
         }
       }
+    },
+    "Camera preview click" : {
+
     },
     "Cancel" : {
       "localizations" : {
@@ -4371,6 +4394,9 @@
         }
       }
     },
+    "Capture failed" : {
+
+    },
     "Change media with horizontal gestures" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -4471,6 +4497,9 @@
           }
         }
       }
+    },
+    "Channel" : {
+
     },
     "Charging" : {
       "localizations" : {
@@ -4775,6 +4804,9 @@
         }
       }
     },
+    "Check the spelling or start a new search." : {
+
+    },
     "Choose a Media Mode" : {
 
     },
@@ -4880,6 +4912,7 @@
       }
     },
     "Choose any color" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4980,6 +5013,7 @@
       }
     },
     "Choose between your system accent color or customize it with your own selection." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5079,7 +5113,11 @@
         }
       }
     },
+    "Choose which icon pack QuartzNotch uses. Light, dark and tinted variants still follow macOS automatically." : {
+
+    },
     "Choose which service to use when sharing files from the shelf. Click the shelf button to select files, or drag files onto it to share immediately." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5281,6 +5319,7 @@
       }
     },
     "Clear slot" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5681,6 +5720,7 @@
       }
     },
     "Color Presets" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5979,6 +6019,9 @@
           }
         }
       }
+    },
+    "Configure how QuartzNotch behaves, which display it appears on, and how you interact with it." : {
+
     },
     "Connected" : {
 
@@ -6384,6 +6427,7 @@
       }
     },
     "Custom" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6483,7 +6527,11 @@
         }
       }
     },
+    "Custom Accent Color" : {
+
+    },
     "Custom height" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6584,6 +6632,7 @@
       }
     },
     "Custom music live activity animation" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6783,7 +6832,11 @@
         }
       }
     },
+    "Custom Visualizer" : {
+
+    },
     "Custom vizualizers (Lottie)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6984,6 +7037,7 @@
       }
     },
     "Customize which controls appear in the music player. Volume expands when active." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7084,6 +7138,7 @@
       }
     },
     "Default" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7486,6 +7541,9 @@
         }
       }
     },
+    "Display" : {
+
+    },
     "Done Editing" : {
 
     },
@@ -7691,6 +7749,7 @@
       }
     },
     "Drag a control onto a slot" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7791,6 +7850,7 @@
       }
     },
     "Drag items in the preview to reorder or drop from the palette" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8302,6 +8362,7 @@
       }
     },
     "Enable boring mirror" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8903,9 +8964,6 @@
         }
       }
     },
-    "Enable toolbar" : {
-
-    },
     "Enable window shadow" : {
       "localizations" : {
         "ar" : {
@@ -9005,6 +9063,9 @@
           }
         }
       }
+    },
+    "Enables QuartzNotch on the lock screen and unlock screen, including the content options below." : {
+
     },
     "Enhance your experience with HUDs" : {
       "localizations" : {
@@ -9107,6 +9168,7 @@
       }
     },
     "Enjoy your free time!" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9512,6 +9574,7 @@
 
     },
     "Files dropped on the shelf will be shared via this service" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9712,6 +9775,9 @@
       }
     },
     "Focus mode" : {
+
+    },
+    "Force liquid glass compatibility fallback" : {
 
     },
     "Full Disk Access required for custom Focus icon and color" : {
@@ -9918,6 +9984,7 @@
       }
     },
     "Gesture control" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10116,6 +10183,9 @@
           }
         }
       }
+    },
+    "Gestures" : {
+
     },
     "Get started" : {
       "localizations" : {
@@ -10418,6 +10488,7 @@
       }
     },
     "Gradient" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10724,6 +10795,7 @@
       }
     },
     "Hide for all apps" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10824,6 +10896,7 @@
       }
     },
     "Hide for media app only" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11129,6 +11202,7 @@
       }
     },
     "Hierarchical" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11529,6 +11603,9 @@
         }
       }
     },
+    "HUD" : {
+
+    },
     "HUD style" : {
       "localizations" : {
         "ar" : {
@@ -11630,6 +11707,7 @@
       }
     },
     "HUDs" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11833,6 +11911,7 @@
 
     },
     "Inline" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12033,7 +12112,17 @@
         }
       }
     },
+    "Interaction" : {
+
+    },
+    "Keyboard Shortcuts" : {
+
+    },
+    "Layout and style" : {
+
+    },
     "Layout Preview" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12136,7 +12225,10 @@
     "Live Activities" : {
 
     },
-    "Lock screen" : {
+    "Lock / unlock live activity" : {
+
+    },
+    "Lock Screen" : {
 
     },
     "Lottie JSON URL" : {
@@ -12439,7 +12531,11 @@
         }
       }
     },
+    "Made with 🫶 by Clayton" : {
+
+    },
     "Made with 🫶🏻 by not so boring not.people" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12540,6 +12636,7 @@
       }
     },
     "Mark as complete" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12640,6 +12737,7 @@
       }
     },
     "Mark as incomplete" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12740,6 +12838,7 @@
       }
     },
     "Match menu bar height" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12840,6 +12939,7 @@
       }
     },
     "Match menubar height" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12940,6 +13040,7 @@
       }
     },
     "Match real notch height" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13240,6 +13341,7 @@
       }
     },
     "Media controls" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13439,10 +13541,8 @@
         }
       }
     },
-    "Media mode" : {
-
-    },
     "Media playback live activity" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13541,6 +13641,9 @@
           }
         }
       }
+    },
+    "Media player" : {
+
     },
     "Media Source" : {
       "extractionState" : "stale",
@@ -14555,6 +14658,7 @@
       }
     },
     "Never hide" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14955,6 +15059,7 @@
       }
     },
     "No events today" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -15155,6 +15260,9 @@
         }
       }
     },
+    "No results for “%@”" : {
+
+    },
     "Not Now" : {
       "localizations" : {
         "ar" : {
@@ -15256,6 +15364,7 @@
       }
     },
     "Notch behavior" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -15556,6 +15665,7 @@
       }
     },
     "Notch sizing" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -15655,10 +15765,10 @@
         }
       }
     },
-    "Notch toolbar" : {
+    "Now playing" : {
 
     },
-    "Now playing" : {
+    "OK" : {
 
     },
     "Open Calendar Settings" : {
@@ -16162,6 +16272,7 @@
       }
     },
     "Option key behaviour" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16277,6 +16388,7 @@
 
     },
     "Pick a Color" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16379,6 +16491,21 @@
     "Pick how boringNotch should decide what to show. You can change this later in Settings → Media." : {
 
     },
+    "Playback Behavior" : {
+
+    },
+    "Playback Source" : {
+
+    },
+    "Player Appearance" : {
+
+    },
+    "Player Controls" : {
+
+    },
+    "Player layout" : {
+
+    },
     "Plugged In" : {
       "localizations" : {
         "ar" : {
@@ -16478,6 +16605,9 @@
           }
         }
       }
+    },
+    "Power status icons" : {
+
     },
     "Preferred display" : {
       "localizations" : {
@@ -16579,7 +16709,11 @@
         }
       }
     },
+    "Privacy & Capture" : {
+
+    },
     "Progress bar style" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16682,7 +16816,14 @@
     "QuartzNotch" : {
 
     },
+    "QuartzNotch on the lock screen" : {
+
+    },
+    "Quick camera" : {
+
+    },
     "Quick Share" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16983,6 +17124,7 @@
       }
     },
     "Quit app" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -17082,7 +17224,11 @@
         }
       }
     },
+    "Quit QuartzNotch" : {
+
+    },
     "Release name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18703,7 +18849,11 @@
         }
       }
     },
+    "Settings icon" : {
+
+    },
     "Shelf" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18802,6 +18952,12 @@
           }
         }
       }
+    },
+    "Shelf and Sharing" : {
+
+    },
+    "Shelf Behavior" : {
+
     },
     "Shelf content" : {
 
@@ -18907,6 +19063,7 @@
       }
     },
     "Show battery indicator" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -19007,6 +19164,7 @@
       }
     },
     "Show battery percentage" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -19205,9 +19363,6 @@
           }
         }
       }
-    },
-    "Show calendar toggle" : {
-
     },
     "Show cool face animation while inactive" : {
       "localizations" : {
@@ -19711,6 +19866,7 @@
       }
     },
     "Show notch on lock screen" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -20014,6 +20170,7 @@
       }
     },
     "Show power status icons" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -20215,6 +20372,7 @@
       }
     },
     "Show settings icon in notch" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -20415,6 +20573,7 @@
       }
     },
     "Slider color" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -20714,6 +20873,9 @@
           }
         }
       }
+    },
+    "Sneak Peek temporarily shows media details below the notch. Toggle Notch Open opens or closes QuartzNotch manually." : {
+
     },
     "Software updates" : {
       "localizations" : {
@@ -21222,6 +21384,7 @@
       }
     },
     "System" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -21322,6 +21485,7 @@
       }
     },
     "System features" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -21422,6 +21586,9 @@
       }
     },
     "System Wide follows macOS Now Playing (any media app)." : {
+
+    },
+    "The toolbar is a small capsule placed in the top right corner, allowing you to quickly access different controls and informations, customisable below." : {
 
     },
     "Time to Full Charge: %lld min" : {
@@ -21530,6 +21697,9 @@
     "Timer ringtone" : {
 
     },
+    "Timers" : {
+
+    },
     "Tint progress bar with accent color" : {
       "localizations" : {
         "ar" : {
@@ -21630,6 +21800,9 @@
         }
       }
     },
+    "Toggle Notch Open" : {
+
+    },
     "Toggle Notch Open:" : {
       "localizations" : {
         "ar" : {
@@ -21729,6 +21902,9 @@
           }
         }
       }
+    },
+    "Toggle Sneak Peek" : {
+
     },
     "Toggle Sneak Peek:" : {
       "localizations" : {
@@ -22534,6 +22710,9 @@
         }
       }
     },
+    "Use the default QuartzNotch accent color or override it with your own custom color." : {
+
+    },
     "Use your macOS system accent color" : {
       "localizations" : {
         "ar" : {
@@ -22635,6 +22814,7 @@
       }
     },
     "Using System Accent" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -22835,6 +23015,7 @@
       }
     },
     "Version info" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23034,6 +23215,9 @@
           }
         }
       }
+    },
+    "Visualizer Library" : {
+
     },
     "Welcome" : {
       "localizations" : {
@@ -23236,6 +23420,7 @@
       }
     },
     "Window Appearance" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23336,6 +23521,7 @@
       }
     },
     "Window Behavior" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23435,7 +23621,16 @@
         }
       }
     },
+    "Window Rendering" : {
+
+    },
+    "Window Size" : {
+
+    },
     "Without this permission, Focus name can still be detected, but icon and tint may stay generic." : {
+
+    },
+    "You are currently running QuartzNotch Alpha 0.3." : {
 
     },
     "You can now enjoy the app. If you want to tweak things further, you can always visit the settings." : {
@@ -23639,6 +23834,7 @@
       }
     },
     "Your macOS system accent color" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23839,7 +24035,10 @@
         }
       }
     },
-    "YouTube Music requires: " : {
+    "YouTube Music requires:" : {
+
+    },
+    "α" : {
 
     }
   },

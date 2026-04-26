@@ -1,9 +1,3 @@
-//
-// BoringViewModel.swift
-// boringNotch
-//
-// Created by Harsh Vardhan Goswami on 04/08/24.
-//
 
 import Combine
 import Defaults
@@ -31,6 +25,7 @@ class BoringViewModel: NSObject, ObservableObject {
     @Published var edgeAutoOpenActive: Bool = false
     @Published var isHoveringCalendar: Bool = false
     @Published var isBatteryPopoverActive: Bool = false
+    @Published var manualOpenUntil: Date = .distantPast
 
     @Published var screenUUID: String?
 
@@ -68,26 +63,23 @@ class BoringViewModel: NSObject, ObservableObject {
             .store(in: &cancellables)
         
         setupDetectorObserver()
+        setupLayoutObserver()
     }
     
     private func setupDetectorObserver() {
-    // Publisher for the user’s fullscreen detection setting
         let enabledPublisher = Defaults
             .publisher(.hideNotchOption)
             .map(\.newValue)
             .map { $0 != .never }
             .removeDuplicates()
 
-    // Publisher for the current screen UUID (non-nil, distinct)
         let screenPublisher = $screenUUID
             .compactMap { $0 }
             .removeDuplicates()
 
-    // Publisher for fullscreen status dictionary
         let fullscreenStatusPublisher = detector.$fullscreenStatus
             .removeDuplicates()
 
-    // Combine all three: screen UUID, fullscreen status, and enabled setting
         Publishers.CombineLatest3(screenPublisher, fullscreenStatusPublisher, enabledPublisher)
             .map { screenUUID, fullscreenStatus, enabled in
                 let isFullscreen = fullscreenStatus[screenUUID] ?? false
@@ -103,11 +95,26 @@ class BoringViewModel: NSObject, ObservableObject {
             .store(in: &cancellables)
     }
 
-  // Computed property for effective notch height
+    private func setupLayoutObserver() {
+        Defaults.publisher(.debugLargeScreenLayoutPreviewMode)
+            .map(\.newValue)
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                let updatedClosedSize = getClosedNotchSize(screenUUID: self.screenUUID)
+                self.closedNotchSize = updatedClosedSize
+                self.notchSize = (self.notchState == .open)
+                    ? getOpenNotchSize(screenUUID: self.screenUUID)
+                    : updatedClosedSize
+            }
+            .store(in: &cancellables)
+    }
+
     var effectiveClosedNotchHeight: CGFloat {
         let currentScreen = screenUUID.flatMap { NSScreen.screen(withUUID: $0) }
         let noNotchAndFullscreen = hideOnClosed && (currentScreen?.safeAreaInsets.top ?? 0 <= 0 || currentScreen == nil)
-        return noNotchAndFullscreen ? 0 : closedNotchSize.height
+        return noNotchAndFullscreen ? 0 : getEffectiveClosedNotchHeight(screenUUID: screenUUID)
     }
 
     var chinHeight: CGFloat {
@@ -152,6 +159,9 @@ class BoringViewModel: NSObject, ObservableObject {
                 NSApp.activate(ignoringOtherApps: true)
 
                 let alert = NSAlert()
+                let appIcon = NSWorkspace.shared.icon(forFile: Bundle.main.bundleURL.path)
+                appIcon.size = NSSize(width: 64, height: 64)
+                alert.icon = appIcon
                 alert.messageText = "Camera Access Required"
                 alert.informativeText = "Please allow camera access in System Settings."
                 alert.addButton(withTitle: "Open Settings")
@@ -193,33 +203,26 @@ class BoringViewModel: NSObject, ObservableObject {
     }
 
     func open() {
-    // Clear stale drop-target state before open animation starts.
-    // Without this, a previous closed-notch drag target can render one frame
-    // of misplaced highlight while the open layout is still settling.
         dragDetectorTargeting = false
         generalDropTargeting = false
         dropZoneTargeting = false
         dropEvent = false
 
-        self.notchSize = openNotchSize
+        self.notchSize = getOpenNotchSize(screenUUID: self.screenUUID)
         self.notchState = .open
         
-    // Force music information update when notch is opened
         MusicManager.shared.forceUpdate()
     }
 
     func close() {
-    // Do not close while a share picker or sharing service is active
         if SharingStateManager.shared.preventNotchClose {
             return
         }
 
-    // Close the camera before closing the notch
         if isCameraExpanded {
             toggleCameraPreview()
         }
 
-    // Reset drop-target state when closing as well to keep next open clean.
         dragDetectorTargeting = false
         generalDropTargeting = false
         dropZoneTargeting = false
@@ -230,11 +233,10 @@ class BoringViewModel: NSObject, ObservableObject {
         self.isBatteryPopoverActive = false
         self.coordinator.sneakPeek.show = false
         self.edgeAutoOpenActive = false
+        self.manualOpenUntil = .distantPast
 
-        if !ShelfStateViewModel.shared.isEmpty && Defaults[.openShelfByDefault] {
-            coordinator.currentView = .shelf
-        } else if !coordinator.openLastTabByDefault {
-            coordinator.currentView = .home
+        if !coordinator.openLastTabByDefault {
+            coordinator.currentView = coordinator.preferredDefaultView(respectShelfPreference: true)
         }
     }
 
@@ -242,7 +244,6 @@ class BoringViewModel: NSObject, ObservableObject {
   /// Unlike `close()`, this keeps the current tab selection intact (no automatic view switching),
   /// because a lock event should not change the user's navigation state.
     func closeForLockTransition() {
-    // Do not close while a share picker or sharing service is active
         if SharingStateManager.shared.preventNotchClose {
             return
         }
@@ -261,6 +262,7 @@ class BoringViewModel: NSObject, ObservableObject {
         self.isBatteryPopoverActive = false
         self.coordinator.sneakPeek.show = false
         self.edgeAutoOpenActive = false
+        self.manualOpenUntil = .distantPast
     }
 
     func closeHello() {

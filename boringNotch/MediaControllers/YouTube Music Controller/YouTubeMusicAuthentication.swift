@@ -1,9 +1,3 @@
-//
-// YouTubeMusicAuthentication.swift
-// boringNotch
-//
-// Created by Alexander on 2025-09-14.
-//
 
 import Foundation
 
@@ -22,17 +16,14 @@ actor YouTubeMusicAuthManager {
     }
     
     func authenticate() async throws -> String {
-    // Return existing token if valid
         if let token = accessToken {
             return token
         }
         
-    // Wait for ongoing authentication if in progress
         if let task = authenticationTask {
             return try await task.value
         }
         
-    // Start new authentication
         let task = Task<String, Error> {
             do {
                 let token = try await httpClient.authenticate()

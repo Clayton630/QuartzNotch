@@ -1,10 +1,3 @@
-//
-// MusicControllerSelectionView.swift
-// boringNotch
-//
-// Created by Alexander on 2025-06-23.
-// Updated by Clayton on 2026-01-24.
-//
 
 import SwiftUI
 import Defaults
@@ -92,7 +85,7 @@ private struct ScopeOptionView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isSelected ? Color.effectiveAccent.opacity(0.15) : Color.clear)
+                .fill(isSelected ? Color.effectiveAccentBackground : Color.clear)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)

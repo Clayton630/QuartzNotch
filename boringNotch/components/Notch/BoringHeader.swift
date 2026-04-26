@@ -1,9 +1,3 @@
-//
-// BoringHeader.swift
-// boringNotch
-//
-// Created by Harsh Vardhan Goswami on 04/08/24
-//
 
 import Defaults
 import SwiftUI
@@ -20,29 +14,21 @@ struct BoringHeader: View {
 
     @Default(.toolbarEnabled) private var toolbarEnabled
 
-    @Default(.pageHomeEnabled) private var pageHomeEnabled
-    @Default(.pageShelfEnabled) private var pageShelfEnabled
-
-@Default(.pageThirdEnabled) private var pageThirdEnabled
     private let edgeInset: CGFloat = 10
     private let headerVerticalOffset: CGFloat = -3
     var body: some View {
         GeometryReader { geo in
 
-            let centerWidth: CGFloat = (vm.notchState == .open) ? vm.closedNotchSize.width : 0
+            let centerWidth: CGFloat = (vm.notchState == .open) ? getOpenHeaderCenterWidth(screenUUID: vm.screenUUID) : 0
             let sideWidth: CGFloat = max(0, (geo.size.width - centerWidth) / 2)
+            let shoulderSafetyInset: CGFloat = (vm.notchState == .open)
+                ? getOpenHeaderShoulderSafetyInset(screenUUID: vm.screenUUID)
+                : 0
 
-            let enabledPagesCount: Int =
-            (pageHomeEnabled ? 1 : 0) +
-            (pageShelfEnabled ? 1 : 0) +
-            (pageThirdEnabled ? 1 : 0)
+            let enabledPagesCount: Int = presentableNotchViewsInConfiguredOrder(currentView: coordinator.currentView).count
 
             let leftHasDots: Bool = enabledPagesCount > 1
                 && ((!tvm.isEmpty || coordinator.alwaysShowTabs) && Defaults[.boringShelf])
-
-            let hudIsShowing: Bool = isHUDType(coordinator.sneakPeek.type)
-                && coordinator.sneakPeek.show
-                && Defaults[.showOpenNotchHUD]
 
             let hasRightPill: Bool = toolbarEnabled && (
                 Defaults[.settingsIconInNotch]
@@ -53,13 +39,12 @@ struct BoringHeader: View {
 
             let shouldBorrow: Bool =
                 vm.notchState == .open
-                && !hudIsShowing
                 && Defaults[.showBatteryIndicator]
                 && Defaults[.showBatteryPercentage]
 
             let borrow: CGFloat = shouldBorrow ? (leftHasDots ? 16 : 24) : 0
-            let leftWidth: CGFloat = max(0, sideWidth - borrow - edgeInset)
-            let rightWidth: CGFloat = max(0, sideWidth + borrow - edgeInset)
+            let leftWidth: CGFloat = max(0, sideWidth - borrow - edgeInset - shoulderSafetyInset)
+            let rightWidth: CGFloat = max(0, sideWidth + borrow - edgeInset - shoulderSafetyInset)
 
             let rightPillShift: CGFloat = 0
 
@@ -68,7 +53,7 @@ struct BoringHeader: View {
         // MARK: - Left
                 HStack {
                     if leftHasDots {
-                        TabSelectionView()
+                        TabSelectionView(availableWidth: leftWidth)
                             .environmentObject(vm)
                             .padding(.top, 10)
                     } else if vm.notchState == .open {
@@ -105,15 +90,8 @@ struct BoringHeader: View {
         // MARK: - Right
                 VStack(alignment: .trailing, spacing: 6) {
                     if vm.notchState == .open {
-                        if hudIsShowing {
-                            OpenNotchHUD(
-                                type: $coordinator.sneakPeek.type,
-                                value: $coordinator.sneakPeek.value,
-                                icon: $coordinator.sneakPeek.icon
-                            )
-                            .transition(.scale(scale: 0.8).combined(with: .opacity))
-                        } else if hasRightPill {
-                            rightPill
+                        if hasRightPill {
+                            rightPill(availableWidth: rightWidth)
                                 .padding(.top, 10)
                                 .offset(x: rightPillShift)
                         }
@@ -144,55 +122,112 @@ struct BoringHeader: View {
 
   // MARK: - Right pill
 
-    private var rightPill: some View {
+    private func rightPill(availableWidth: CGFloat) -> some View {
         let baseFill = Color(nsColor: .secondarySystemFill)
         let unifiedBaseOpacity: Double = 0.985
         let unifiedDoubleFillOpacity: Double = 0.24
 
-        let dotSize: CGFloat = 8
-        let iconSize: CGFloat = 11
-        let hitPadding: CGFloat = 4
+        func mix(_ from: CGFloat, _ to: CGFloat, _ progress: CGFloat) -> CGFloat {
+            from + (to - from) * progress
+        }
 
-        let iconSpacing: CGFloat = 3
-        let pillHInset: CGFloat = 6
-        let pillVInset: CGFloat = 3
-
-        let batteryWidth: CGFloat = 17
-        let batteryHeight: CGFloat = 11
-        let iconBox: CGFloat = dotSize + (hitPadding * 2)
-
-    // Large notch mode: camera OR calendar visible
         let expandedNotch = vm.isCameraExpanded || showCalendar
-    // Minimum notch mode: open + no camera + no calendar
         let smallOpenNotch = (vm.notchState == .open) && !expandedNotch
 
         let nonBatteryIconsCount =
             (Defaults[.showMirror] ? 1 : 0)
           + (showCalendarToggle ? 1 : 0)
           + (Defaults[.settingsIconInNotch] ? 1 : 0)
+        let iconCount = nonBatteryIconsCount
 
-    // Rule: in minimum notch mode, if there are 3 icons (2 non-battery), hide %
-    // Also keep % hidden when there are 4 icons.
-        let allowBatteryPercentage = !(smallOpenNotch && nonBatteryIconsCount >= 2)
+        struct ToolbarMetrics {
+            let dotSize: CGFloat
+            let iconSize: CGFloat
+            let hitPadding: CGFloat
+            let iconSpacing: CGFloat
+            let pillHInset: CGFloat
+            let pillVInset: CGFloat
+            let batteryWidth: CGFloat
+            let batteryHeight: CGFloat = 11
 
-    // Specific case: minimum notch + 4 icons (3 non-battery) + no %
+            var iconBox: CGFloat { dotSize + (hitPadding * 2) }
+        }
+
+        let baseMetrics = ToolbarMetrics(
+            dotSize: 8,
+            iconSize: 11,
+            hitPadding: 4,
+            iconSpacing: 3,
+            pillHInset: 6,
+            pillVInset: 3,
+            batteryWidth: 17
+        )
+
+        let compactMetrics = ToolbarMetrics(
+            dotSize: 7,
+            iconSize: 10,
+            hitPadding: 3,
+            iconSpacing: 2,
+            pillHInset: 4.5,
+            pillVInset: 2.6,
+            batteryWidth: 15
+        )
+
+        func estimatedWidth(metrics: ToolbarMetrics, includeBatteryPercentage: Bool) -> CGFloat {
+            var width = metrics.pillHInset * 2
+
+            if iconCount > 0 {
+                width += CGFloat(iconCount) * metrics.iconBox
+                width += CGFloat(max(0, iconCount - 1)) * metrics.iconSpacing
+            }
+
+            if Defaults[.showBatteryIndicator] {
+                let batteryGap: CGFloat = includeBatteryPercentage
+                    ? (expandedNotch ? 5 : 4)
+                    : (smallOpenNotch && iconCount == 3 ? 1.2 : 2)
+                width += batteryGap + metrics.batteryWidth
+
+                if includeBatteryPercentage {
+                    width += 34
+                }
+            }
+
+            return width
+        }
+
+        let clampedWidth = max(52, availableWidth)
+        let roomForPercentage = clampedWidth >= estimatedWidth(metrics: baseMetrics, includeBatteryPercentage: true) - 4
+        let allowBatteryPercentage = roomForPercentage && !(smallOpenNotch && nonBatteryIconsCount >= 2)
+
+        let baseWidth = estimatedWidth(metrics: baseMetrics, includeBatteryPercentage: allowBatteryPercentage)
+        let compactWidth = estimatedWidth(metrics: compactMetrics, includeBatteryPercentage: false)
+        let compression: CGFloat = {
+            guard baseWidth > clampedWidth else { return 0 }
+            guard baseWidth > compactWidth else { return 1 }
+            return min(1, max(0, (baseWidth - clampedWidth) / (baseWidth - compactWidth)))
+        }()
+        let dotSize: CGFloat = mix(baseMetrics.dotSize, compactMetrics.dotSize, compression)
+        let iconSize: CGFloat = mix(baseMetrics.iconSize, compactMetrics.iconSize, compression)
+        let hitPadding: CGFloat = mix(baseMetrics.hitPadding, compactMetrics.hitPadding, compression)
+        let iconSpacing: CGFloat = mix(baseMetrics.iconSpacing, compactMetrics.iconSpacing, compression)
+        let pillHInset: CGFloat = mix(baseMetrics.pillHInset, compactMetrics.pillHInset, compression)
+        let pillVInset: CGFloat = mix(baseMetrics.pillVInset, compactMetrics.pillVInset, compression)
+        let batteryWidth: CGFloat = mix(baseMetrics.batteryWidth, compactMetrics.batteryWidth, compression)
+        let batteryHeight: CGFloat = baseMetrics.batteryHeight
+        let iconBox: CGFloat = dotSize + (hitPadding * 2)
+
         let isFourIconsMinimalNoPercent = smallOpenNotch && !allowBatteryPercentage && nonBatteryIconsCount == 3
 
-    // Reliable gap: use padding on the battery block, not Spacer.
-    // - minimum notch + % visible: 4 (unchanged)
-    // - notch grand + % visible: 5 (juste +1)
-    // - % hidden: 2 (unchanged), except 4-icon minimum notch case => 1
         let batteryGap: CGFloat = {
             if allowBatteryPercentage {
                 return expandedNotch ? 5 : 4
             } else {
-                return isFourIconsMinimalNoPercent ? 1 : 2
+                return isFourIconsMinimalNoPercent ? mix(1.2, 0.8, compression) : mix(2, 1.2, compression)
             }
         }()
 
         return HStack(spacing: 0) {
 
-      // Order: Camera, Calendar, Settings
             HStack(spacing: iconSpacing) {
 
                 if Defaults[.showMirror] {
@@ -262,7 +297,6 @@ struct BoringHeader: View {
         .background(
             Capsule()
                 .fill(baseFill)
-        // Unified background opacity (match NotchCardBackground / TabSelectionView).
                 .overlay {
                     Capsule()
                         .fill(baseFill)
