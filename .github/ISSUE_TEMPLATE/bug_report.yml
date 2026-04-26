@@ -1,0 +1,72 @@
+name: Bug report
+description: Report a reproducible problem with QuartzNotch
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Bug summary
+      description: Briefly describe the issue.
+      placeholder: What is going wrong?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps needed to reproduce the issue.
+      placeholder: |
+        1. Open QuartzNotch
+        2. Enable ...
+        3. Click ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+      placeholder: QuartzNotch should...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead?
+      placeholder: Instead, QuartzNotch...
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots, recordings, or logs
+      description: Add anything that helps explain the issue.
+      placeholder: Drag screenshots here or paste logs/error messages.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Share your setup.
+      placeholder: |
+        - QuartzNotch version:
+        - macOS version:
+        - Mac model:
+        - Built-in display or external display:
+        - Anything else relevant:
+    validations:
+      required: true
