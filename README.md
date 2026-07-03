@@ -16,7 +16,7 @@ QuartzNotch turns the area around your MacBook notch into a small interactive sp
 
 It includes a compact media player, customizable pages, a shelf for files, quick timers, clipboard tools, calendar events, camera preview, Live Activities, Lock Screen widgets, and a Liquid Glass-inspired visual style.
 
-QuartzNotch started as a fork of Boring Notch and has since evolved with a redesigned interface, new Lock Screen features, custom layout behavior, and many visual refinements.
+QuartzNotch started as a fork of Quartz Notch and has since evolved with a redesigned interface, new Lock Screen features, custom layout behavior, and many visual refinements.
 
 ## Features
 
@@ -75,17 +75,17 @@ cd QuartzNotch
 Open the project in Xcode:
 
 ```bash
-open boringNotch.xcodeproj
+open QuartzNotch.xcodeproj
 ```
 
-Then build and run the `boringNotch` scheme from Xcode with `Cmd + R`.
+Then build and run the `QuartzNotch` scheme from Xcode with `Cmd + R`.
 
 You can also build from Terminal:
 
 ```bash
 xcodebuild \
-  -project boringNotch.xcodeproj \
-  -scheme boringNotch \
+  -project QuartzNotch.xcodeproj \
+  -scheme QuartzNotch \
   -configuration Debug \
   build
 ```
@@ -107,8 +107,8 @@ This creates the app, packages it into a DMG, and prints the Sparkle appcast enc
 ## Repository Structure
 
 ```text
-boringNotch/              Main macOS app source
-BoringNotchXPCHelper/     Helper service used by the app
+QuartzNotch/              Main macOS app source
+QuartzNotchXPCHelper/     Helper service used by the app
 QuartzNotchScreenSaver/   Screen saver / backdrop component
 Configuration/            Release, DMG, and Sparkle tooling
 mediaremote-adapter/      MediaRemote bridge used for media integration
@@ -116,7 +116,7 @@ updater/                  Sparkle appcast
 .github/                  GitHub issue templates
 ```
 
-Some internal target names still use `boringNotch` because QuartzNotch began as a fork. The public app name is QuartzNotch.
+Some internal target names still use `QuartzNotch` because QuartzNotch began as a fork. The public app name is QuartzNotch.
 
 ## Contributing
 

@@ -1,0 +1,749 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "QuartzNotch"
+          }
+        }
+      }
+    },
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "QuartzNotch"
+          }
+        }
+      }
+    },
+    "NSAppleEventsUsageDescription" : {
+      "comment" : "Privacy - AppleEvents Sending Usage Description",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستخدم QuartzNotch أحداث Apple للتحكم في تطبيق الموسيقى."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch používá AppleEvents k ovládání hudby."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch verwendet AppleEvents, um die Musikwiedergabe zu steuern."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses AppleEvents to control music playback."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses AppleEvents to control music playback."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa AppleEvents para controlar la reproducción de música."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch utilise AppleEvents pour contrôler la lecture musicale."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A QuartzNotch AppleEvents használatával vezérli a zenelejátszást."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa AppleEvents per controllare la riproduzione musicale."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch는 음악 재생을 제어하기 위해 AppleEvents를 사용합니다."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch używa AppleEvents do sterowania odtwarzaniem muzyki."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O QuartzNotch usa AppleEvents para controlar a reprodução de música."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch использует AppleEvents для управления воспроизведением музыки."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch, müzik çalmayı kontrol etmek için AppleEvents kullanır."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch використовує AppleEvents для керування відтворенням музики."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch 使用 AppleEvents 控制音乐播放。"
+          }
+        }
+      }
+    },
+    "NSAudioCaptureUsageDescription" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستخدم QuartzNotch صوت النظام لتحريك الطيف المرئي بالتزامن مع التشغيل الحالي."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch používá systémový zvuk k animaci spektra podle aktuálního přehrávání."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch verwendet Systemaudio, um das visuelle Spektrum synchron zur Wiedergabe zu animieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses system audio to animate the visual spectrum in sync with current playback."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses system audio to animate the visual spectrum in sync with current playback."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa el audio del sistema para animar el espectro visual al ritmo de la reproducción."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch utilise l’audio système pour animer le spectre visuel en synchronisation avec la lecture en cours."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A QuartzNotch rendszerhangot használ a vizuális spektrum aktuális lejátszással szinkronizált animálásához."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa l’audio di sistema per animare lo spettro visivo in sincronia con la riproduzione."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch는 현재 재생에 맞춰 시각 스펙트럼을 애니메이션하기 위해 시스템 오디오를 사용합니다."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch używa dźwięku systemowego do animowania widma zgodnie z bieżącym odtwarzaniem."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O QuartzNotch usa o áudio do sistema para animar o espectro visual em sincronia com a reprodução atual."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch использует системный звук, чтобы анимировать визуальный спектр в такт текущему воспроизведению."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch, görsel spektrumu mevcut çalmayla eşzamanlı canlandırmak için sistem sesini kullanır."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch використовує системний звук, щоб анімувати візуальний спектр синхронно з відтворенням."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch 使用系统音频让视觉频谱与当前播放同步。"
+          }
+        }
+      }
+    },
+    "NSBluetoothAlwaysUsageDescription" : {
+      "comment" : "Privacy - Bluetooth Always Usage Description",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستخدم QuartzNotch Bluetooth لعرض Live Activity للأجهزة المتصلة."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch používá Bluetooth k zobrazení Live Activity pro připojená zařízení."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch verwendet Bluetooth, um eine Live Activity für verbundene Geräte anzuzeigen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses Bluetooth to show a Live Activity for connected devices."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses Bluetooth to show a Live Activity for connected devices."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa Bluetooth para mostrar una Live Activity de los dispositivos conectados."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch utilise le Bluetooth pour afficher une Live Activity des appareils connectés."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A QuartzNotch Bluetoothon keresztül jelenít meg Live Activityt a csatlakoztatott eszközökhöz."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa il Bluetooth per mostrare una Live Activity dei dispositivi connessi."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch는 연결된 기기의 Live Activity를 표시하기 위해 Bluetooth를 사용합니다."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch używa Bluetooth do wyświetlania Live Activity dla podłączonych urządzeń."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O QuartzNotch usa Bluetooth para mostrar uma Live Activity dos dispositivos conectados."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch использует Bluetooth, чтобы показывать Live Activity подключенных устройств."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch, bağlı aygıtlar için Live Activity göstermek amacıyla Bluetooth kullanır."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch використовує Bluetooth, щоб показувати Live Activity підключених пристроїв."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch 使用蓝牙显示已连接设备的 Live Activity。"
+          }
+        }
+      }
+    },
+    "NSCalendarsUsageDescription" : {
+      "comment" : "Privacy - Calendars Usage Description",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستخدم QuartzNotch التقويم لعرض أحداثك."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch používá kalendář k zobrazení vašich událostí."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch verwendet deinen Kalender, um Termine anzuzeigen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses your calendar to display events."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses your calendar to display events."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa tu calendario para mostrar eventos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch utilise votre calendrier pour afficher vos événements."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A QuartzNotch a naptáradat használja az események megjelenítéséhez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa il calendario per mostrare gli eventi."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch는 이벤트를 표시하기 위해 캘린더를 사용합니다."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch używa kalendarza do wyświetlania wydarzeń."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O QuartzNotch usa seu calendário para exibir eventos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch использует календарь для показа событий."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch, etkinlikleri göstermek için takviminizi kullanır."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch використовує календар для показу подій."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch 使用你的日历显示事件。"
+          }
+        }
+      }
+    },
+    "NSCameraUsageDescription" : {
+      "comment" : "Privacy - Camera Usage Description",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستخدم QuartzNotch الكاميرا لعرض معاينة مباشرة."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch používá kameru k zobrazení živého náhledu."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch verwendet die Kamera, um eine Live-Vorschau anzuzeigen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses the camera to show a live preview."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses the camera to show a live preview."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa la cámara para mostrar una vista previa en directo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch utilise la caméra pour afficher un aperçu en direct."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A QuartzNotch a kamerát élő előnézet megjelenítéséhez használja."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa la fotocamera per mostrare un’anteprima live."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch는 실시간 미리보기를 표시하기 위해 카메라를 사용합니다."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch używa kamery do wyświetlania podglądu na żywo."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O QuartzNotch usa a câmera para mostrar uma prévia ao vivo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch использует камеру для показа предпросмотра в реальном времени."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch, canlı önizleme göstermek için kamerayı kullanır."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch використовує камеру для показу живого перегляду."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch 使用相机显示实时预览。"
+          }
+        }
+      }
+    },
+    "NSHumanReadableCopyright" : {
+      "comment" : "Copyright (human-readable)",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : ""
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "comment" : "Privacy - Microphone Usage Description",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستخدم QuartzNotch الصوت لتحريك المؤثرات المرئية حسب التشغيل الحالي."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch používá zvuk k animaci vizualizací podle aktuálního přehrávání."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch verwendet Audio, um Visualisierungen passend zur Wiedergabe zu animieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses audio to animate visuals in sync with current playback."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses audio to animate visuals in sync with current playback."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa el audio para animar los efectos visuales al ritmo de la reproducción."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch utilise l’audio pour animer les visuels en synchronisation avec la lecture en cours."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A QuartzNotch hangot használ a vizuálok aktuális lejátszással szinkronizált animálásához."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa l’audio per animare gli effetti visivi in sincronia con la riproduzione."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch는 현재 재생에 맞춰 시각 효과를 애니메이션하기 위해 오디오를 사용합니다."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch używa dźwięku do animowania wizualizacji zgodnie z bieżącym odtwarzaniem."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O QuartzNotch usa áudio para animar os visuais em sincronia com a reprodução atual."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch использует звук, чтобы анимировать визуальные эффекты в такт текущему воспроизведению."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch, görselleri mevcut çalmayla eşzamanlı canlandırmak için sesi kullanır."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch використовує звук, щоб анімувати візуальні ефекти синхронно з відтворенням."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch 使用音频让视觉效果与当前播放同步。"
+          }
+        }
+      }
+    },
+    "NSRemindersUsageDescription" : {
+      "comment" : "Privacy - Reminders Usage Description",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستخدم QuartzNotch التذكيرات لعرضها في التقويم."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch používá připomínky k jejich zobrazení v kalendáři."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch verwendet Erinnerungen, um sie im Kalender anzuzeigen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses Reminders to display scheduled reminders in the calendar."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch uses Reminders to display scheduled reminders in the calendar."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa Recordatorios para mostrarlos en el calendario."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch utilise Rappels pour afficher vos rappels planifiés dans le calendrier."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A QuartzNotch az Emlékeztetőket használja az ütemezett emlékeztetők naptárban való megjelenítéséhez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch usa Promemoria per mostrarli nel calendario."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch는 예약된 미리 알림을 캘린더에 표시하기 위해 미리 알림을 사용합니다."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch używa Przypomnień do wyświetlania zaplanowanych przypomnień w kalendarzu."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O QuartzNotch usa Lembretes para exibi-los no calendário."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch использует Напоминания, чтобы показывать запланированные напоминания в календаре."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch, planlanmış anımsatıcıları takvimde göstermek için Anımsatıcılar’ı kullanır."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch використовує Нагадування, щоб показувати заплановані нагадування в календарі."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QuartzNotch 使用提醒事项在日历中显示已计划的提醒。"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

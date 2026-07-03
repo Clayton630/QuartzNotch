@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PROJECT_PATH="$ROOT_DIR/boringNotch.xcodeproj"
-SCHEME="boringNotch"
+PROJECT_PATH="$ROOT_DIR/QuartzNotch.xcodeproj"
+SCHEME="QuartzNotch"
 CONFIGURATION="Release"
 DERIVED_DATA_PATH="$ROOT_DIR/.build/DerivedDataRelease"
 RELEASES_DIR="$ROOT_DIR/releases"
@@ -86,9 +86,43 @@ resolve_sparkle_sign_tool() {
   return 1
 }
 
+normalize_framework_symlinks() {
+  # Some frameworks ship with Versions/Current as a real directory instead of
+  # a symlink, and root-level headers as real files instead of symlinks.
+  # codesign --verify --deep fails on such bundles (exit 1, "bundle format is
+  # ambiguous"), which causes Gatekeeper to show "damaged" on user machines.
+  # This function converts those to standard symlink layout before signing.
+  local fw="$1"
+  [[ -d "$fw/Versions/A" ]] || return 0
+
+  local current="$fw/Versions/Current"
+  if [[ -d "$current" && ! -L "$current" ]]; then
+    rm -rf "$current"
+    ln -sf "A" "$current"
+  fi
+
+  local fw_name
+  fw_name="$(basename "$fw" .framework)"
+  local root_bin="$fw/$fw_name"
+  if [[ -f "$root_bin" && ! -L "$root_bin" ]]; then
+    rm -f "$root_bin"
+    ln -sf "Versions/Current/$fw_name" "$root_bin"
+  fi
+
+  if [[ -d "$fw/Resources" && ! -L "$fw/Resources" ]]; then
+    rm -rf "$fw/Resources"
+    ln -sf "Versions/Current/Resources" "$fw/Resources"
+  fi
+}
+
 resign_adhoc_bundle() {
   local app_path="$1"
   [[ -d "$app_path" ]] || die "App not found for ad-hoc signing: $app_path"
+
+  # 0) Normalize any frameworks with non-standard symlink layout.
+  while IFS= read -r fw; do
+    normalize_framework_symlinks "$fw"
+  done < <(find "$app_path/Contents/Frameworks" -maxdepth 1 -type d -name '*.framework' 2>/dev/null | sort)
 
   # 1) Nested app bundles / XPC services first (inside app and frameworks).
   while IFS= read -r nested_bundle; do
@@ -113,10 +147,6 @@ resign_adhoc_bundle() {
 
     # Re-sign each framework bundle AFTER nested code has been updated.
     while IFS= read -r fw; do
-      if [[ "$(basename "$fw")" == "MediaRemoteAdapter.framework" ]]; then
-        # Non-standard framework layout; binary was already signed above.
-        continue
-      fi
       codesign --force --sign - "$fw"
     done < <(find "$app_path/Contents/Frameworks" -maxdepth 1 -type d -name '*.framework' | sort)
   fi
