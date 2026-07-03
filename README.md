@@ -35,15 +35,19 @@ QuartzNotch started as a fork of Quartz Notch and has since evolved with a redes
 
 ## What’s New in 0.4.1
 
-- Lyrics support in the notch media player and Lock Screen player
-- Inline volume controls for the notch player and Lock Screen player
-- Major Lock Screen player refinements, including better layout, animations, scrolling text, and fullscreen artwork behavior
-- Calendar improvements with smoother full-module day swiping and better event layout
-- Reworked Liquid Glass visuals, improved fallback rendering, and better readability
-- New in-app language selector with expanded localization coverage
-- Option to hide the source app badge on album artwork
-- Cleaner custom Focus symbols and updated app/social icons
-- Many fixes for clipping, large-display layouts, animations, Sparkle updates, and DMG packaging
+* A significantly more pronounced Liquid Glass design throughout the app
+* A new real-time synchronized audio visualizer, similar to the one used in the iPhone’s Dynamic Island
+* A complete redesign of the lyrics experience, with full-screen Apple Music-style lyrics on the Lock Screen
+* Added a quick volume control
+* Added a “Buy Me a Coffee” button in the About section for anyone who would like to support the app’s development — completely optional, of course
+* Full app localization in multiple languages
+* Reworked animations, especially for locking and unlocking the interface
+* The music source badge displayed on album artwork can now be disabled for a cleaner, more minimal look
+* Initial codebase cleanup, which should slightly improve the app’s performance and efficiency
+* Full compatibility with macOS 27
+* Fixed every bug I was able to identify — please report any issues you encounter
+* Improved the Calendar user experience
+* Much more
 
 ## Requirements
 
