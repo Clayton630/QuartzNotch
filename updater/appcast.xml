@@ -8,9 +8,9 @@
 
         <item>
             <title>0.4.1</title>
-            <pubDate>Fri, 03 Jul 2026 15:56:00 +0200</pubDate>
+            <pubDate>Fri, 03 Jul 2026 16:37:13 +0200</pubDate>
             <link>https://github.com/Clayton630/QuartzNotch/releases/tag/v0.4.1</link>
-            <sparkle:version>1034</sparkle:version>
+            <sparkle:version>1035</sparkle:version>
             <sparkle:shortVersionString>0.4.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description><![CDATA[
@@ -18,12 +18,12 @@
                 <p>Beta release with the latest Liquid Glass, Lock Screen player, lyrics, calendar, volume, live activity, stability refinements, and Sparkle delivery fixes.</p>
             ]]></description>
             <enclosure
-                url="https://github.com/Clayton630/QuartzNotch/releases/download/v0.4.1/QuartzNotch-0.4.1.1034.dmg"
-                sparkle:version="1034"
+                url="https://github.com/Clayton630/QuartzNotch/releases/download/v0.4.1/QuartzNotch-0.4.1.1035.dmg"
+                sparkle:version="1035"
                 sparkle:shortVersionString="0.4.1"
-                length="22206020"
+                length="22212281"
                 type="application/octet-stream"
-                sparkle:edSignature="5xF44cdHPOfkT+Btjfcqi3p/fFlLJEGUlm/TuFz0IMd4zxw6LNaII6tcjwMX5eLO7N0EF4JsgHqinNuJMA3JAw=="/>
+                sparkle:edSignature="VasxNBkxbf47ebJBxw6wCTedMdRSfmbx8YxQ8ILp5F68cSL+d+LsSKbc8EMXqez0OUI9TauZ7u6TfL3sOTE5DA=="/>
         </item>
 
         <item>
