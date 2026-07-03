@@ -33,18 +33,17 @@ QuartzNotch started as a fork of Quartz Notch and has since evolved with a redes
 - Light/Dark adaptive app icon support
 - Customizable toolbar and page order
 
-## What’s New in 0.3
+## What’s New in 0.4.1
 
-- Completely redesigned Settings window
-- Lock Screen Live Activities for the music player and timers
-- Fullscreen Lock Screen album artwork
-- Reorderable pages
-- Adaptive app icon for Light and Dark mode, plus a new optional icon
-- Fully redesigned Calendar module
-- Clickable camera preview for taking photos
-- Improved readability in Liquid Glass mode
-- Many layout fixes, visual refinements, and stability improvements
-- Simplified GitHub bug report forms
+- Lyrics support in the notch media player and Lock Screen player
+- Inline volume controls for the notch player and Lock Screen player
+- Major Lock Screen player refinements, including better layout, animations, scrolling text, and fullscreen artwork behavior
+- Calendar improvements with smoother full-module day swiping and better event layout
+- Reworked Liquid Glass visuals, improved fallback rendering, and better readability
+- New in-app language selector with expanded localization coverage
+- Option to hide the source app badge on album artwork
+- Cleaner custom Focus symbols and updated app/social icons
+- Many fixes for clipping, large-display layouts, animations, Sparkle updates, and DMG packaging
 
 ## Requirements
 
@@ -96,8 +95,8 @@ Release builds are generated with the release script:
 
 ```bash
 bash Configuration/release/make_release.sh \
-  --version 0.3 \
-  --build 1032 \
+  --version 0.4.1 \
+  --build 1035 \
   --oss \
   --sparkle-account quartznotch_clayton
 ```
