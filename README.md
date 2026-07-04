@@ -29,10 +29,6 @@
   <a href="https://github.com/Clayton630/QuartzNotch/issues"><strong>Report a bug</strong></a>
 </p>
 
-<p align="center">
-  <img src="docs/readme-hero.svg" alt="QuartzNotch interface preview" width="100%" />
-</p>
-
 ---
 
 ## The Idea
