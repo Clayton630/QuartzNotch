@@ -1,6 +1,6 @@
-<svg width="165" height="36" viewBox="0 0 165 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="180" height="36" viewBox="0 0 180 36" fill="none" xmlns="http://www.w3.org/2000/svg">
   <a href="https://github.com/Clayton630/QuartzNotch/releases/download/v0.4.1/QuartzNotch-0.4.1.1035.dmg" target="_parent" style="cursor: pointer;">
-    <rect width="165" height="36" rx="18" fill="#A78BFA"/>
-    <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18" font-weight="400" fill="white" style="user-select: none; pointer-events: none;">Download now</text>
+    <rect width="180" height="36" rx="18" fill="#A78BFA"/>
+    <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="16" font-weight="400" fill="white" style="user-select: none; pointer-events: none;">Download now</text>
   </a>
 </svg>
