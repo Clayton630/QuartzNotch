@@ -52,7 +52,7 @@ struct MusicPlayerView: View {
         let innerSpacing: CGFloat = 12 - (3 * openLayoutCompression)
         let controlsMaxWidth: CGFloat = 290 - (18 * openLayoutCompression)
         let lyricsSidePadding: CGFloat = max(12, sidePadding - 10)
-        let volumeHitHeight: CGFloat = 24 - (2 * openLayoutCompression)
+        let volumeLayoutHeight: CGFloat = OpenNotchLayoutMetrics.volumeExtraHeight
 
         return VStack(spacing: 0) {
             HStack(spacing: innerSpacing) {
@@ -86,9 +86,9 @@ struct MusicPlayerView: View {
             }
             .padding(.leading, sidePadding)
             .padding(.trailing, sidePadding)
-            .frame(height: isVolumeExpanded ? volumeHitHeight : 0, alignment: .center)
+            .frame(height: isVolumeExpanded ? volumeLayoutHeight : 0, alignment: .center)
             .contentShape(Rectangle())
-            .offset(y: isVolumeExpanded ? -((volumeHitHeight - OpenNotchLayoutMetrics.volumeExtraHeight) / 2) + 8 : 0)
+            .offset(y: isVolumeExpanded ? 8 : 0)
             .zIndex(2)
 
             if enableNotchLyrics {

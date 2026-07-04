@@ -9,6 +9,26 @@ import KeyboardShortcuts
 import SwiftUI
 import SwiftUIIntrospect
 
+private struct MarketingPreviewEnvironmentKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+private struct MarketingPreviewScaleEnvironmentKey: EnvironmentKey {
+    static let defaultValue: CGFloat? = nil
+}
+
+extension EnvironmentValues {
+    var isMarketingPreview: Bool {
+        get { self[MarketingPreviewEnvironmentKey.self] }
+        set { self[MarketingPreviewEnvironmentKey.self] = newValue }
+    }
+
+    var marketingPreviewScale: CGFloat? {
+        get { self[MarketingPreviewScaleEnvironmentKey.self] }
+        set { self[MarketingPreviewScaleEnvironmentKey.self] = newValue }
+    }
+}
+
 private struct BottomBleedClipShape: Shape {
     let extraBottom: CGFloat
 
@@ -684,6 +704,8 @@ struct ContentView: View {
     }
 
     @EnvironmentObject var vm: QuartzViewModel
+    @Environment(\.isMarketingPreview) private var isMarketingPreview
+    @Environment(\.marketingPreviewScale) private var marketingPreviewScale
     @ObservedObject var webcamManager = WebcamManager.shared
     @ObservedObject var coordinator = QuartzViewCoordinator.shared
     @ObservedObject var musicManager = MusicManager.shared
@@ -744,6 +766,7 @@ struct ContentView: View {
     @State private var timerWindowReservationReleaseTask: Task<Void, Never>?
 
     @State private var hostWindow: NSWindow?
+    @State private var marketingPreviewFrameInWindow: CGRect?
     @State private var timerGlobalMouseMonitor: Any?
     @State private var nowPlayingClickMonitor: Any?
     @State private var isTimerProximityHovering: Bool = false
@@ -1631,6 +1654,7 @@ struct ContentView: View {
     }
 
     private func applyScreenRecordingVisibilityPolicy() {
+        guard !isMarketingPreview else { return }
         guard let window = hostWindow else { return }
         let isClosed = (vm.notchState == .closed)
         let isInUse = hasClosedLiveActivityForRecordingPolicy
@@ -1658,6 +1682,7 @@ struct ContentView: View {
     }
 
     private func applyDynamicWindowFrame() {
+        guard !isMarketingPreview else { return }
         guard let window = hostWindow, let screen = window.screen else { return }
 
         let targetSize = dynamicWindowSizeComputed
@@ -3136,6 +3161,9 @@ struct ContentView: View {
         .animation(NotchMotion.liveActivityIn, value: closedSecondaryCompactActivityKind)
         .animation(NotchMotion.liveActivityOut, value: isClosedPrimaryActivityExpanded)
         .background(WindowAccessor { hostWindow = $0 })
+        .background(MarketingPreviewFrameAccessor { frame in
+            marketingPreviewFrameInWindow = frame
+        })
         .background(dragDetector)
         .preferredColorScheme(.dark)
         .environmentObject(vm)
@@ -5554,13 +5582,14 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
         guard let window = hostWindow else { return isHovering }
         guard let contentView = window.contentView else { return isHovering }
 
-        let cs: CGFloat = cinemaMode ? cinemaModeScale : 1
+        let cs: CGFloat = marketingPreviewScale ?? (cinemaMode ? cinemaModeScale : 1)
         let pointer = window.mouseLocationOutsideOfEventStream
         let width = max(vm.closedNotchSize.width, openWidthValueComputed) * cs
         let halfWidth = (width / 2) + 10
         let height = max(vm.notchSize.height, openHeightValueComputed ?? vm.notchSize.height) * cs
-        let minY = contentView.bounds.height - (height + 9)
-        let centerX = contentView.bounds.midX
+        let measuredFrame = isMarketingPreview ? marketingPreviewFrameInWindow : nil
+        let minY = (measuredFrame?.maxY ?? contentView.bounds.height) - (height + 9)
+        let centerX = measuredFrame?.midX ?? contentView.bounds.midX
 
         let insideX = abs(pointer.x - centerX) <= halfWidth
         let insideY = pointer.y >= minY
@@ -5571,14 +5600,15 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
         guard let window = hostWindow else { return true }
         guard let contentView = window.contentView else { return true }
 
-        let cs: CGFloat = cinemaMode ? cinemaModeScale : 1
+        let cs: CGFloat = marketingPreviewScale ?? (cinemaMode ? cinemaModeScale : 1)
         let width = max(vm.closedNotchSize.width, frozenHoverZoneWidth) * cs
         let height = max(vm.notchSize.height, vm.effectiveClosedNotchHeight) * cs
         let pointer = window.mouseLocationOutsideOfEventStream
 
-        let centerX = contentView.bounds.midX
+        let measuredFrame = isMarketingPreview ? marketingPreviewFrameInWindow : nil
+        let centerX = measuredFrame?.midX ?? contentView.bounds.midX
         let halfWidth = (width / 2) + 10
-        let minY = contentView.bounds.height - (height + 12)
+        let minY = (measuredFrame?.maxY ?? contentView.bounds.height) - (height + 12)
 
         let insideX = abs(pointer.x - centerX) <= halfWidth
         let insideY = pointer.y >= minY
@@ -6516,6 +6546,29 @@ private struct WindowAccessor: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {
         DispatchQueue.main.async { onResolve(nsView.window) }
+    }
+}
+
+private struct MarketingPreviewFrameAccessor: NSViewRepresentable {
+    let onChange: (CGRect?) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            onChange(frameInWindow(for: view))
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            onChange(frameInWindow(for: nsView))
+        }
+    }
+
+    private func frameInWindow(for view: NSView) -> CGRect? {
+        guard view.window != nil else { return nil }
+        return view.convert(view.bounds, to: nil)
     }
 }
 

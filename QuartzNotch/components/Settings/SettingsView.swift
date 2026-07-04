@@ -2944,6 +2944,26 @@ struct Advanced: View {
             .onChange(of: appLanguage) { _, newLanguage in
                 AppLanguageManager.apply(newLanguage)
             }
+
+            Section {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Open a dedicated preview window for clean screenshots and videos.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Button {
+                        MarketingPreviewWindowController.shared.showWindow()
+                    } label: {
+                        Label("Open Marketing Preview", systemImage: "rectangle.inset.filled.and.person.filled")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text("Marketing Preview")
+            }
         }
         .accentFormRefresh()
         .navigationTitle("Advanced")
