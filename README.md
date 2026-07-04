@@ -16,8 +16,6 @@ QuartzNotch turns the area around your MacBook notch into a small interactive sp
 
 It includes a compact media player, customizable pages, a shelf for files, quick timers, clipboard tools, calendar events, camera preview, Live Activities, Lock Screen widgets, and a Liquid Glass-inspired visual style.
 
-QuartzNotch started as a fork of [BoringNotch](https://github.com/TheBoredTeam/boring.notch) by TheBoredTeam and has since evolved with a redesigned interface, new Lock Screen features, custom layout behavior, and many visual refinements.
-
 ## Features
 
 - Compact notch interface with multiple customizable pages
@@ -119,18 +117,14 @@ updater/                  Sparkle appcast
 .github/                  GitHub issue templates
 ```
 
-Some internal target names still use `QuartzNotch` because QuartzNotch began as a fork. The public app name is QuartzNotch.
-
 ## Contributing
 
 Bug reports and feature requests are welcome through GitHub Issues.
 
 Please read `CONTRIBUTING.md` before opening an issue.
 
-## License and Attribution
+## License
 
 QuartzNotch is distributed under the GNU General Public License v3.0.
 
-QuartzNotch began as a fork of [BoringNotch](https://github.com/TheBoredTeam/boring.notch), which is also distributed under the GNU General Public License v3.0.
-
-See `LICENSE` for the full license text, `NOTICE.md` for project attribution, and `THIRD_PARTY_LICENSES` for bundled and third-party dependency notices.
+See `LICENSE` for the full license text. Attribution and third-party notices are available in `NOTICE.md` and `THIRD_PARTY_LICENSES`.
