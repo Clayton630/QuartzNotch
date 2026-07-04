@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/quartznotch-icon.png" alt="QuartzNotch app icon" width="72" />
+  <img src="docs/quartznotch-icon.png" alt="QuartzNotch app icon" width="80" />
 </p>
 
-<h1 align="center" style="font-size: 3.5em; font-weight: 800; margin-bottom: 0;">QuartzNotch</h1>
+<h1 align="center" style="font-size: 3em; font-weight: 800; margin-bottom: 0;">QuartzNotch</h1>
 
 <p align="center">
   QuartzNotch is a macOS utility that extends the MacBook notch into a functional control surface. It provides quick access to media playback, calendar events, Live Activities, and essential tools directly from your menu bar.
