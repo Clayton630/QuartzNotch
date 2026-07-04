@@ -21,7 +21,7 @@
 
 <p align="center">
   <a href="https://github.com/Clayton630/QuartzNotch/releases/download/v0.4.1/QuartzNotch-0.4.1.1035.dmg">
-    <img alt="Download QuartzNotch for macOS" src="https://img.shields.io/badge/Download_QuartzNotch_for_macOS-000000?style=for-the-badge&logo=apple&logoColor=white&labelColor=FF3B30&color=111111">
+    <img alt="Download" src="docs/download-button.svg" width="240">
   </a>
 </p>
 
@@ -86,11 +86,3 @@ xcodebuild \
   -configuration Debug \
   build
 ```
-
-## Contributing
-
-Bug reports and feature requests are welcome through GitHub Issues. Please read `CONTRIBUTING.md` before opening an issue.
-
-## License
-
-QuartzNotch is distributed under the GNU General Public License v3.0. See `LICENSE` for the full license text. Attribution and third-party notices are available in `NOTICE.md` and `THIRD_PARTY_LICENSES`.
