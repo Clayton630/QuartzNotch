@@ -1,17 +1,6 @@
-<svg width="240" height="88" viewBox="0 0 240 88" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
-  <title id="title">Download</title>
-  <defs>
-    <linearGradient id="blue" x1="120" y1="12" x2="120" y2="76" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#168BFF"/>
-      <stop offset="1" stop-color="#0071E3"/>
-    </linearGradient>
-    <filter id="shadow" x="14" y="6" width="212" height="82" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#0071E3" flood-opacity="0.20"/>
-    </filter>
-  </defs>
-  <g filter="url(#shadow)">
-    <rect x="24" y="14" width="192" height="60" rx="30" fill="url(#blue)"/>
-    <rect x="24.75" y="14.75" width="190.5" height="58.5" rx="29.25" stroke="white" stroke-opacity="0.12" stroke-width="1.5"/>
-  </g>
-  <text x="120" y="53" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', Arial, sans-serif" font-size="30" font-weight="500" fill="white">Download</text>
+<svg width="125" height="36" viewBox="0 0 125 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <a href="https://github.com/Clayton630/QuartzNotch/releases/download/v0.4.1/QuartzNotch-0.4.1.1035.dmg" target="_parent" style="cursor: pointer;">
+    <rect width="125" height="36" rx="18" fill="#A78BFA"/>
+    <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18" font-weight="400" fill="white" style="user-select: none; pointer-events: none;">Download</text>
+  </a>
 </svg>
