@@ -1,0 +1,84 @@
+<svg width="1400" height="620" viewBox="0 0 1400 620" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">QuartzNotch hero preview</title>
+  <desc id="desc">A stylized macOS notch interface with Liquid Glass, media controls, calendar events, and lock screen lyrics.</desc>
+  <defs>
+    <radialGradient id="bgGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(700 210) rotate(90) scale(520 980)">
+      <stop offset="0" stop-color="#8BD9FF" stop-opacity="0.55"/>
+      <stop offset="0.36" stop-color="#FF6F91" stop-opacity="0.24"/>
+      <stop offset="0.72" stop-color="#0B1020" stop-opacity="0.92"/>
+      <stop offset="1" stop-color="#05060A"/>
+    </radialGradient>
+    <linearGradient id="glass" x1="171" y1="112" x2="1229" y2="509" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.25"/>
+      <stop offset="0.43" stop-color="#DDEBFF" stop-opacity="0.11"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.21"/>
+    </linearGradient>
+    <linearGradient id="blackVeil" x1="700" y1="92" x2="700" y2="528" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#000000" stop-opacity="0.95"/>
+      <stop offset="0.43" stop-color="#000000" stop-opacity="0.50"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.12"/>
+    </linearGradient>
+    <linearGradient id="strokeLight" x1="205" y1="515" x2="1195" y2="515" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="0.18" stop-color="#FFFFFF" stop-opacity="0.70"/>
+      <stop offset="0.82" stop-color="#FFFFFF" stop-opacity="0.70"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="softShadow" x="110" y="68" width="1180" height="520" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="34" flood-color="#000000" flood-opacity="0.38"/>
+    </filter>
+    <filter id="blurBand" x="105" y="80" width="1190" height="500" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+
+  <rect width="1400" height="620" fill="#05060A"/>
+  <rect width="1400" height="620" fill="url(#bgGlow)"/>
+  <path d="M0 0H1400V94C1282 65 1183 96 1085 122C930 164 761 153 615 118C445 78 252 53 0 135V0Z" fill="#FFFFFF" fill-opacity="0.05"/>
+  <path d="M0 620H1400V410C1240 477 1087 441 929 407C694 357 545 462 351 492C218 512 105 482 0 438V620Z" fill="#FFFFFF" fill-opacity="0.04"/>
+
+  <g filter="url(#softShadow)">
+    <path d="M205 92H1195C1250.23 92 1295 136.772 1295 192V408C1295 463.228 1250.23 508 1195 508H205C149.772 508 105 463.228 105 408V192C105 136.772 149.772 92 205 92Z" fill="url(#glass)"/>
+    <path d="M205 92H1195C1250.23 92 1295 136.772 1295 192V408C1295 463.228 1250.23 508 1195 508H205C149.772 508 105 463.228 105 408V192C105 136.772 149.772 92 205 92Z" fill="url(#blackVeil)"/>
+    <path d="M205 92H1195C1250.23 92 1295 136.772 1295 192V408C1295 463.228 1250.23 508 1195 508H205C149.772 508 105 463.228 105 408V192C105 136.772 149.772 92 205 92Z" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="2"/>
+    <path d="M220 507H1180" stroke="url(#strokeLight)" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+  <g>
+    <rect x="582" y="0" width="236" height="88" rx="30" fill="#020308"/>
+    <circle cx="648" cy="42" r="9" fill="#FFFFFF"/>
+    <circle cx="700" cy="42" r="9" fill="#FFFFFF" fill-opacity="0.36"/>
+    <circle cx="752" cy="42" r="9" fill="#FFFFFF" fill-opacity="0.24"/>
+  </g>
+
+  <g opacity="0.96">
+    <rect x="192" y="154" width="232" height="232" rx="34" fill="#151923"/>
+    <rect x="192" y="154" width="232" height="232" rx="34" fill="url(#bgGlow)" opacity="0.32"/>
+    <path d="M250 314C294 240 339 219 386 236" stroke="#FFFFFF" stroke-opacity="0.76" stroke-width="15" stroke-linecap="round"/>
+    <path d="M247 258C291 193 341 191 383 225" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="15" stroke-linecap="round"/>
+    <rect x="371" y="333" width="78" height="78" rx="22" fill="#FF375F"/>
+    <path d="M414 352V390C414 399 407 405 397 405C388 405 381 400 381 392C381 384 388 378 398 378C402 378 406 379 409 381V360L429 356V348L414 352Z" fill="white"/>
+  </g>
+
+  <g fill="#FFFFFF">
+    <text x="512" y="191" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', Arial, sans-serif" font-size="42" font-weight="800">QuartzNotch</text>
+    <text x="512" y="238" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', Arial, sans-serif" font-size="30" font-weight="600" opacity="0.62">Your MacBook notch, turned into a living control surface.</text>
+  </g>
+
+  <g transform="translate(512 283)">
+    <rect x="0" y="0" width="470" height="10" rx="5" fill="#FFFFFF" opacity="0.25"/>
+    <rect x="0" y="0" width="178" height="10" rx="5" fill="#FFFFFF" opacity="0.9"/>
+    <text x="0" y="48" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', Arial, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF" opacity="0.86">Live lyrics. Calendar. Timers. Media. Focus.</text>
+    <text x="0" y="86" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', Arial, sans-serif" font-size="22" font-weight="600" fill="#FFFFFF" opacity="0.58">Fast controls that stay out of the way until you need them.</text>
+  </g>
+
+  <g transform="translate(1046 160)" fill="none" stroke="#FFFFFF" stroke-linecap="round">
+    <path d="M10 95C30 30 79 6 127 17C175 28 211 74 203 126C194 188 142 223 83 210C35 200 -5 161 10 95Z" stroke-opacity="0.18" stroke-width="16"/>
+    <path d="M37 128C65 150 103 151 132 131" stroke-opacity="0.82" stroke-width="12"/>
+    <path d="M55 91H56M145 91H146" stroke-opacity="0.82" stroke-width="18"/>
+  </g>
+
+  <g opacity="0.62" filter="url(#blurBand)">
+    <path d="M180 438C322 388 438 390 576 430C739 477 910 480 1220 406" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round"/>
+  </g>
+</svg>

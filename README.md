@@ -1,81 +1,138 @@
+<p align="center">
+  <img src="docs/quartznotch-icon.png" alt="QuartzNotch app icon" width="118" />
+</p>
+
 <h1 align="center">QuartzNotch</h1>
 
 <p align="center">
-  <img src="docs/quartznotch-icon.png" alt="QuartzNotch app icon" width="160" />
+  <strong>Your MacBook notch, turned into a living control surface.</strong>
 </p>
 
 <p align="center">
-  A macOS notch companion with media controls, Live Activities, calendar events, quick tools, and Lock Screen integrations.
+  Media controls, Live Activities, lyrics, calendar events, quick tools, Lock Screen integrations, and a Liquid Glass-inspired interface for macOS.
+</p>
+
+<p align="center">
+  <a href="https://github.com/Clayton630/QuartzNotch/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Clayton630/QuartzNotch?style=for-the-badge&label=Release&color=111111"></a>
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-14%2B-111111?style=for-the-badge&logo=apple&logoColor=white">
+  <img alt="Swift" src="https://img.shields.io/badge/Swift-macOS-111111?style=for-the-badge&logo=swift&logoColor=white">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-GPLv3-111111?style=for-the-badge"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Clayton630/QuartzNotch/releases/latest"><strong>Download</strong></a>
+  ·
+  <a href="#what-it-does"><strong>Features</strong></a>
+  ·
+  <a href="#build-from-source"><strong>Build</strong></a>
+  ·
+  <a href="https://github.com/Clayton630/QuartzNotch/issues"><strong>Report a bug</strong></a>
+</p>
+
+<p align="center">
+  <img src="docs/readme-hero.svg" alt="QuartzNotch interface preview" width="100%" />
 </p>
 
 ---
 
-## About
+## The Idea
 
-QuartzNotch turns the area around your MacBook notch into a small interactive space for everyday controls and glanceable information.
+QuartzNotch turns the unused space around the MacBook notch into a compact, glanceable command center. It stays quiet when you do not need it, then expands into media controls, calendar events, quick actions, timers, lyrics, and Lock Screen experiences when you do.
 
-It includes a compact media player, customizable pages, a shelf for files, quick timers, clipboard tools, calendar events, camera preview, Live Activities, Lock Screen widgets, and a Liquid Glass-inspired visual style.
+It is built for people who want the notch to feel intentional instead of wasted.
 
-## Features
+## What It Does
 
-- Compact notch interface with multiple customizable pages
-- Music controls and Now Playing information
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Media, Without Opening an App</h3>
+      <p>Control playback, scrub through tracks, adjust volume, show synced lyrics, and keep the current song visible from the notch or the Lock Screen.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>Live Activities for macOS</h3>
+      <p>Show music, timers, Bluetooth, battery, focus, shelf, and other contextual activities directly around the notch.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Calendar at a Glance</h3>
+      <p>Swipe through days, check upcoming events, and keep your schedule accessible without opening Calendar.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>Quick Tools</h3>
+      <p>Use file shelf, quick sharing, clipboard tools, timers, camera preview, customizable toolbar actions, and reorderable pages.</p>
+    </td>
+  </tr>
+</table>
+
+## Highlights in 0.4.1
+
+<table>
+  <tr>
+    <td valign="top"><strong>Liquid Glass redesign</strong></td>
+    <td valign="top">A deeper, more dimensional visual style with refined transparency, fallback rendering, and better readability.</td>
+  </tr>
+  <tr>
+    <td valign="top"><strong>Lyrics everywhere</strong></td>
+    <td valign="top">Apple Music-style lyrics on the Lock Screen and inline lyrics in the notch player.</td>
+  </tr>
+  <tr>
+    <td valign="top"><strong>Inline volume</strong></td>
+    <td valign="top">A quick volume slider integrated into the notch and Lock Screen players.</td>
+  </tr>
+  <tr>
+    <td valign="top"><strong>Better calendar</strong></td>
+    <td valign="top">Smoother full-module day swiping, improved event layout, and better edge handling.</td>
+  </tr>
+  <tr>
+    <td valign="top"><strong>Localization</strong></td>
+    <td valign="top">Expanded translations and an in-app language selector.</td>
+  </tr>
+  <tr>
+    <td valign="top"><strong>Polish pass</strong></td>
+    <td valign="top">Cleaner symbols, refined animations, clipping fixes, large-display fixes, Sparkle update fixes, and DMG packaging improvements.</td>
+  </tr>
+</table>
+
+## Feature Map
+
+- Compact notch interface with customizable pages
+- Music controls, Now Playing state, lyrics, visualizer, and source badge controls
+- Lock Screen player with fullscreen album artwork
 - Lock Screen Live Activities for music and timers
-- Fullscreen album artwork on the Lock Screen
 - Calendar and reminder events inside the notch
-- File shelf and quick sharing tools
-- Quick timers and clipboard utilities
-- Camera preview with configurable click behavior
+- File shelf, quick sharing, clipboard utilities, quick timers, and camera preview
 - Bluetooth, battery, focus, timer, shelf, and media Live Activities
-- Liquid Glass-style appearance option
+- Liquid Glass appearance with fallback mode for unsupported or disabled environments
 - Light/Dark adaptive app icon support
 - Customizable toolbar and page order
-
-## What’s New in 0.4.1
-
-* A significantly more pronounced Liquid Glass design throughout the app
-* A new real-time synchronized audio visualizer, similar to the one used in the iPhone’s Dynamic Island
-* A complete redesign of the lyrics experience, with full-screen Apple Music-style lyrics on the Lock Screen
-* Added a quick volume control
-* Added a “Buy Me a Coffee” button in the About section for anyone who would like to support the app’s development — completely optional, of course
-* Full app localization in multiple languages
-* Reworked animations, especially for locking and unlocking the interface
-* The music source badge displayed on album artwork can now be disabled for a cleaner, more minimal look
-* Initial codebase cleanup, which should slightly improve the app’s performance and efficiency
-* Full compatibility with macOS 27
-* Fixed every bug I was able to identify — please report any issues you encounter
-* Improved the Calendar user experience
-* Much more
+- Sparkle-based updates
 
 ## Requirements
 
-- macOS 14 or later
-- Apple Silicon or Intel Mac
-- Xcode 16 or later if you want to build from source
+| Requirement | Details |
+| --- | --- |
+| macOS | macOS 14 or later |
+| Hardware | Apple Silicon or Intel Mac |
+| Build tools | Xcode 16 or later |
 
 ## Download
 
-The latest release is available from GitHub Releases:
+Download the latest DMG from GitHub Releases:
 
-https://github.com/Clayton630/QuartzNotch/releases
+<p>
+  <a href="https://github.com/Clayton630/QuartzNotch/releases/latest"><img alt="Download QuartzNotch" src="https://img.shields.io/badge/Download_latest_DMG-111111?style=for-the-badge&logo=github&logoColor=white"></a>
+</p>
 
 > [!IMPORTANT]
-> Current builds are not notarized with an Apple Developer ID.
-> On first launch, macOS may block the app as coming from an unidentified developer.
-> If you trust the build, open `System Settings > Privacy & Security` and choose `Open Anyway`.
+> Current public builds are not notarized with an Apple Developer ID. On first launch, macOS may block the app as coming from an unidentified developer. If you trust the build, open `System Settings > Privacy & Security` and choose `Open Anyway`.
 
 ## Build From Source
-
-Clone the repository:
 
 ```bash
 git clone https://github.com/Clayton630/QuartzNotch.git
 cd QuartzNotch
-```
-
-Open the project in Xcode:
-
-```bash
 open QuartzNotch.xcodeproj
 ```
 
@@ -91,7 +148,8 @@ xcodebuild \
   build
 ```
 
-## Release Packaging
+<details>
+<summary><strong>Release packaging</strong></summary>
 
 Release builds are generated with the release script:
 
@@ -103,9 +161,12 @@ bash Configuration/release/make_release.sh \
   --sparkle-account quartznotch_clayton
 ```
 
-This creates the app, packages it into a DMG, and prints the Sparkle appcast enclosure metadata.
+The script creates the app, packages it into a DMG, and prints the Sparkle appcast enclosure metadata.
 
-## Repository Structure
+</details>
+
+<details>
+<summary><strong>Repository structure</strong></summary>
 
 ```text
 QuartzNotch/              Main macOS app source
@@ -117,14 +178,12 @@ updater/                  Sparkle appcast
 .github/                  GitHub issue templates
 ```
 
+</details>
+
 ## Contributing
 
-Bug reports and feature requests are welcome through GitHub Issues.
-
-Please read `CONTRIBUTING.md` before opening an issue.
+Bug reports and feature requests are welcome through GitHub Issues. Please read `CONTRIBUTING.md` before opening an issue.
 
 ## License
 
-QuartzNotch is distributed under the GNU General Public License v3.0.
-
-See `LICENSE` for the full license text. Attribution and third-party notices are available in `NOTICE.md` and `THIRD_PARTY_LICENSES`.
+QuartzNotch is distributed under the GNU General Public License v3.0. See `LICENSE` for the full license text. Attribution and third-party notices are available in `NOTICE.md` and `THIRD_PARTY_LICENSES`.
