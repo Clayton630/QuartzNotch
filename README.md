@@ -43,13 +43,6 @@ QuartzNotch transforms the MacBook notch into a compact command center for the t
   </tr>
   <tr>
     <td align="center">
-      <h3>Lock Screen experiences</h3>
-      <p>Show a refined Lock Screen player, fullscreen album artwork, Apple Music-style lyrics, and Live Activities for music and timers directly where they make sense.</p>
-      <br><br>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
       <h3>Live Activities for macOS</h3>
       <p>Bring music, timers, Bluetooth, battery, focus, shelf, and media states into the notch with custom animations and a layout designed for quick glances.</p>
       <br><br>
