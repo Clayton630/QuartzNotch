@@ -29,7 +29,7 @@ QuartzNotch transforms the MacBook notch into a compact command center for the t
 
 <br>
 
-<p align="center"><a href="docs/media/realtime-visualizer.mp4"><img src="docs/media/realtime-visualizer-showcase.gif" alt="QuartzNotch real-time audio visualizer inside the MacBook notch" width="100%"></a></p>
+<p align="center"><a href="docs/media/realtime-visualizer.mp4"><img src="docs/media/realtime-visualizer-showcase.webp" alt="QuartzNotch real-time audio visualizer inside the MacBook notch" width="100%"></a></p>
 
 <p align="center"><a href="docs/media/lock-screen-album-lyrics.png"><img src="docs/media/lock-screen-showcase.png" alt="QuartzNotch Lock Screen with fullscreen album artwork and large Apple Music-style lyrics" width="100%"></a></p>
 
