@@ -72,6 +72,24 @@ QuartzNotch transforms the MacBook notch into a compact command center for the t
   </tr>
 </table>
 
+## Real-time audio visualizer
+
+QuartzNotch includes a live audio visualizer that reacts to the music playing on your Mac in real time, directly inside the notch interface.
+
+<video src="docs/media/realtime-visualizer.mp4" width="100%" controls></video>
+
+<p>
+  <a href="docs/media/realtime-visualizer.mp4">Open the visualizer demo video</a>
+</p>
+
+## Lock Screen artwork and lyrics
+
+On the Lock Screen, QuartzNotch can expand the current album artwork into a full-screen backdrop and display large Apple Music-style lyrics alongside the media player.
+
+<p align="center">
+  <img src="docs/media/lock-screen-album-lyrics.png" alt="QuartzNotch Lock Screen with fullscreen album artwork and large lyrics" width="100%" />
+</p>
+
 > [!IMPORTANT]
 > Current public builds are not notarized with an Apple Developer ID. On first launch, macOS may block the app as coming from an unidentified developer. If you trust the build, open `System Settings > Privacy & Security` and choose `Open Anyway`.
 
