@@ -72,6 +72,12 @@ QuartzNotch transforms the MacBook notch into a compact command center for the t
   </tr>
 </table>
 
+<br>
+
+<p align="center"><img src="docs/media/visualizer-copy-panel.png" alt="Real-time audio visualizer" width="42%"><a href="docs/media/realtime-visualizer.mp4"><img src="docs/media/realtime-visualizer-panel.gif" alt="QuartzNotch real-time audio visualizer inside the MacBook notch" width="58%"></a></p>
+
+<p align="center"><img src="docs/media/lock-screen-copy-panel.png" alt="Lock Screen artwork and lyrics" width="42%"><a href="docs/media/lock-screen-album-lyrics.png"><img src="docs/media/lock-screen-panel.png" alt="QuartzNotch Lock Screen with fullscreen album artwork and large Apple Music-style lyrics" width="58%"></a></p>
+
 ## Build From Source
 
 ```bash
@@ -91,38 +97,6 @@ xcodebuild \
   -configuration Debug \
   build
 ```
-
-<br>
-
-<table width="100%" cellpadding="0" cellspacing="0">
-  <tr>
-    <td width="42%" valign="middle">
-      <h2>Real-time audio visualizer</h2>
-      <p>A live waveform reacts to your music in real time, right inside the notch.</p>
-    </td>
-    <td width="58%" align="center" valign="middle">
-      <a href="docs/media/realtime-visualizer.mp4">
-        <img src="docs/media/realtime-visualizer-demo.gif" alt="QuartzNotch real-time audio visualizer inside the MacBook notch" width="100%" />
-      </a>
-    </td>
-  </tr>
-</table>
-
-<br>
-
-<table width="100%" cellpadding="0" cellspacing="0">
-  <tr>
-    <td width="42%" valign="middle">
-      <h2>Lock Screen artwork and lyrics</h2>
-      <p>Expand the current album artwork into a full-screen backdrop and display large Apple Music-style lyrics alongside the media player.</p>
-    </td>
-    <td width="58%" align="center" valign="middle">
-      <a href="docs/media/lock-screen-album-lyrics.png">
-        <img src="docs/media/lock-screen-album-lyrics.png" alt="QuartzNotch Lock Screen with fullscreen album artwork and large Apple Music-style lyrics" width="100%" />
-      </a>
-    </td>
-  </tr>
-</table>
 
 > [!IMPORTANT]
 > Current public builds are not notarized with an Apple Developer ID. On first launch, macOS may block the app as coming from an unidentified developer. If you trust the build, open `System Settings > Privacy & Security` and choose `Open Anyway`.
