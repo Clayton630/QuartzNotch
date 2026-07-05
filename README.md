@@ -72,14 +72,6 @@ QuartzNotch transforms the MacBook notch into a compact command center for the t
   </tr>
 </table>
 
-<p align="center">
-  <img src="docs/media/realtime-visualizer-showcase.gif" alt="QuartzNotch real-time audio visualizer inside the MacBook notch" width="100%" />
-</p>
-
-<p align="center">
-  <img src="docs/media/lock-screen-showcase.png" alt="QuartzNotch Lock Screen with fullscreen album artwork and large Apple Music-style lyrics" width="100%" />
-</p>
-
 > [!IMPORTANT]
 > Current public builds are not notarized with an Apple Developer ID. On first launch, macOS may block the app as coming from an unidentified developer. If you trust the build, open `System Settings > Privacy & Security` and choose `Open Anyway`.
 
@@ -102,3 +94,15 @@ xcodebuild \
   -configuration Debug \
   build
 ```
+
+<br>
+
+<a href="docs/media/realtime-visualizer.mp4">
+  <img src="docs/media/realtime-visualizer-showcase.gif" alt="QuartzNotch real-time audio visualizer inside the MacBook notch" width="100%" />
+</a>
+
+<br>
+
+<a href="docs/media/lock-screen-album-lyrics.png">
+  <img src="docs/media/lock-screen-showcase.png" alt="QuartzNotch Lock Screen with fullscreen album artwork and large Apple Music-style lyrics" width="100%" />
+</a>
