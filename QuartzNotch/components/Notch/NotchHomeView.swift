@@ -150,6 +150,7 @@ struct OpenNotchVolumeSection: View {
                 value: $volumeSliderValue,
                 onInteractionChanged: { active in
                     dragging = active
+                    OpenNotchPlayerAccessoryState.shared.isVolumeSliderInteracting = active
                 },
                 onValueChanged: { newValue in
                     MusicManager.shared.setVolume(to: newValue)
@@ -168,9 +169,13 @@ struct OpenNotchVolumeSection: View {
         }
         .onReceive(musicManager.$volumeControlSupported) { supported in
             guard !supported else { return }
+            OpenNotchPlayerAccessoryState.shared.isVolumeSliderInteracting = false
             withAnimation(.smooth(duration: 0.2)) {
                 OpenNotchPlayerAccessoryState.shared.isVolumeSliderExpanded = false
             }
+        }
+        .onDisappear {
+            OpenNotchPlayerAccessoryState.shared.isVolumeSliderInteracting = false
         }
     }
 

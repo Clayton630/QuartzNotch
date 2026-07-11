@@ -5923,6 +5923,9 @@
         }
       }
     },
+    "Background" : {
+
+    },
     "Background Removal Failed" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -7427,7 +7430,6 @@
       }
     },
     "Calendar" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8327,6 +8329,9 @@
           }
         }
       }
+    },
+    "Capture" : {
+
     },
     "Capture failed" : {
       "localizations" : {
@@ -10430,6 +10435,9 @@
           }
         }
       }
+    },
+    "Close Notch" : {
+
     },
     "Close preview" : {
       "extractionState" : "stale",
@@ -23398,6 +23406,9 @@
         }
       }
     },
+    "Marketing Preview" : {
+
+    },
     "Match album art" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -28220,6 +28231,9 @@
         }
       }
     },
+    "Open a dedicated preview window for clean screenshots and videos." : {
+
+    },
     "Open Calendar Settings" : {
       "localizations" : {
         "ar" : {
@@ -28319,6 +28333,9 @@
           }
         }
       }
+    },
+    "Open Marketing Preview" : {
+
     },
     "Open Notch" : {
       "localizations" : {
@@ -33243,6 +33260,9 @@
         }
       }
     },
+    "Record" : {
+
+    },
     "Red" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -36051,7 +36071,6 @@
       }
     },
     "Shelf" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {

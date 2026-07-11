@@ -56,6 +56,22 @@ private struct BottomTrailingBleedClipShape: Shape {
     }
 }
 
+private struct CalendarOverlayBleedClipShape: Shape {
+    let extraTop: CGFloat
+    let extraBottom: CGFloat
+    let extraTrailing: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let topBleed = max(0, extraTop)
+        return Path(CGRect(
+            x: rect.minX,
+            y: rect.minY - topBleed,
+            width: rect.width + max(0, extraTrailing),
+            height: rect.height + topBleed + max(0, extraBottom)
+        ))
+    }
+}
+
 private struct NotchLiquidGlassBackground<Content: View>: NSViewRepresentable {
     let variant: Int
     let cornerRadius: CGFloat
@@ -2967,7 +2983,7 @@ struct ContentView: View {
                             }
                         }
                     }
-                    .onChange(of: vm.notchState) { _, newState in
+                    .onChange(of: vm.notchState) { oldState, newState in
                         if pageUseLiquidGlassBackground {
                             liquidTransitionPerfTask?.cancel()
                             liquidTransitionPerfMode = true
@@ -4161,7 +4177,7 @@ struct ContentView: View {
                             .environmentObject(vm)
                             .frame(width: calendarOverlayTotalWidth, height: OpenNotchLayoutMetrics.contentViewportHeight)
                             .offset(x: calendarToCameraExitOffsetX)
-                            .clipShape(BottomTrailingBleedClipShape(extraBottom: getOpenContentBottomBleed(), extraTrailing: 14))
+                            .clipShape(CalendarOverlayBleedClipShape(extraTop: 44, extraBottom: getOpenContentBottomBleed(), extraTrailing: 14))
                             .transition(calendarOverlayTransition)
                             .zIndex(998)
                     }
@@ -5219,6 +5235,8 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
             }
         }
         ignoreHoverExitUntil = Date().addingTimeInterval(isNowPlayingCenterOpen ? 0.48 : 0.25)
+        suppressAutoCloseUntil = Date().addingTimeInterval(isNowPlayingCenterOpen ? 0.48 : 0.35)
+        isHovering = true
         vm.open()
     }
 
@@ -5394,6 +5412,7 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
  // MARK: - Hover Management
 
     private func handleHover(_ hovering: Bool) {
+        if isMarketingPreview { return }
         if coordinator.firstLaunch { return }
         if lockScreenState.isLocked { return }
 
@@ -5488,7 +5507,7 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
         }()
         frozenHoverZoneWidth = max(hintedWidth, frozenHoverZoneWidth)
         frozenHoverZoneActive = true
-        frozenHoverStartPointer = hostWindow?.mouseLocationOutsideOfEventStream ?? .zero
+        frozenHoverStartPointer = NSEvent.mouseLocation
         frozenHoverPointerMoved = false
         frozenHoverOutsideTicks = 0
         suppressAutoCloseUntil = Date().addingTimeInterval(0.45)
@@ -5504,16 +5523,15 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                 guard vm.notchState == .open else { return }
                 guard !vm.isBatteryPopoverActive else { continue }
 
-                if let pointer = hostWindow?.mouseLocationOutsideOfEventStream {
-                    if !frozenHoverPointerMoved {
-                        let dx = pointer.x - frozenHoverStartPointer.x
-                        let dy = pointer.y - frozenHoverStartPointer.y
-                        let dist2 = dx * dx + dy * dy
-                        if dist2 >= 1.0 {
-                            frozenHoverPointerMoved = true
-                        } else {
-                            continue
-                        }
+                let pointer = NSEvent.mouseLocation
+                if !frozenHoverPointerMoved {
+                    let dx = pointer.x - frozenHoverStartPointer.x
+                    let dy = pointer.y - frozenHoverStartPointer.y
+                    let dist2 = dx * dx + dy * dy
+                    if dist2 >= 1.0 {
+                        frozenHoverPointerMoved = true
+                    } else {
+                        continue
                     }
                 }
 
@@ -5552,10 +5570,24 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(70))
                 guard !Task.isCancelled else { return }
-                guard vm.notchState == .open else { return }
-                guard !vm.isBatteryPopoverActive else { continue }
-                guard !SharingStateManager.shared.preventNotchClose else { continue }
+                guard vm.notchState == .open else {
+                    return
+                }
+                guard !vm.isBatteryPopoverActive else {
+                    continue
+                }
+                guard !SharingStateManager.shared.preventNotchClose else {
+                    continue
+                }
                 guard !manualOpenAutoCloseSuppressed else {
+                    outsideTicks = 0
+                    continue
+                }
+                guard Date() >= suppressAutoCloseUntil else {
+                    outsideTicks = 0
+                    continue
+                }
+                guard !OpenNotchPlayerAccessoryState.shared.isVolumeSliderInteracting else {
                     outsideTicks = 0
                     continue
                 }
@@ -5564,7 +5596,9 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
                     continue
                 }
 
-                if isPointerInsideOpenHoverZone() {
+                let inside = isPointerInsideOpenHoverZone()
+
+                if inside {
                     outsideTicks = 0
                 } else {
                     outsideTicks += 1
@@ -5583,10 +5617,19 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
         guard let contentView = window.contentView else { return isHovering }
 
         let cs: CGFloat = marketingPreviewScale ?? (cinemaMode ? cinemaModeScale : 1)
-        let pointer = window.mouseLocationOutsideOfEventStream
         let width = max(vm.closedNotchSize.width, openWidthValueComputed) * cs
         let halfWidth = (width / 2) + 10
         let height = max(vm.notchSize.height, openHeightValueComputed ?? vm.notchSize.height) * cs
+
+        if !isMarketingPreview {
+            let pointer = NSEvent.mouseLocation
+            let insideX = abs(pointer.x - window.frame.midX) <= halfWidth
+            let insideY = pointer.y >= window.frame.maxY - (height + 12)
+                && pointer.y <= window.frame.maxY + 16
+            return insideX && insideY
+        }
+
+        let pointer = window.mouseLocationOutsideOfEventStream
         let measuredFrame = isMarketingPreview ? marketingPreviewFrameInWindow : nil
         let minY = (measuredFrame?.maxY ?? contentView.bounds.height) - (height + 9)
         let centerX = measuredFrame?.midX ?? contentView.bounds.midX
@@ -5603,6 +5646,15 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
         let cs: CGFloat = marketingPreviewScale ?? (cinemaMode ? cinemaModeScale : 1)
         let width = max(vm.closedNotchSize.width, frozenHoverZoneWidth) * cs
         let height = max(vm.notchSize.height, vm.effectiveClosedNotchHeight) * cs
+        if !isMarketingPreview {
+            let pointer = NSEvent.mouseLocation
+            let halfWidth = (width / 2) + 10
+            let insideX = abs(pointer.x - window.frame.midX) <= halfWidth
+            let insideY = pointer.y >= window.frame.maxY - (height + 12)
+                && pointer.y <= window.frame.maxY + 16
+            return insideX && insideY
+        }
+
         let pointer = window.mouseLocationOutsideOfEventStream
 
         let measuredFrame = isMarketingPreview ? marketingPreviewFrameInWindow : nil

@@ -14,6 +14,7 @@ final class OpenNotchPlayerAccessoryState: ObservableObject {
 
     @Published var isVolumeSliderExpanded: Bool = false
     @Published var isLockScreenVolumeSliderExpanded: Bool = false
+    @Published var isVolumeSliderInteracting: Bool = false
 
     private init() {}
 }

@@ -149,6 +149,8 @@ struct FileShareView: View {
                             Image("AirDrop")
                                 .resizable()
                                 .renderingMode(.template)
+                                .interpolation(.high)
+                                .antialiased(true)
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: 21, height: 21)
                                 .foregroundStyle(actionBlue.opacity(isDropHighlighted ? 1.0 : 0.95))

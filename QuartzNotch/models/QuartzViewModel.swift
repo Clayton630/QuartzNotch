@@ -28,6 +28,7 @@ class QuartzViewModel: NSObject, ObservableObject {
     @Published var manualOpenUntil: Date = .distantPast
     @Published var isNotchTransitioning: Bool = false
     private var notchTransitionTask: Task<Void, Never>?
+    private var isMarketingPreviewModel: Bool = false
 
     @Published var screenUUID: String?
 
@@ -71,6 +72,18 @@ class QuartzViewModel: NSObject, ObservableObject {
         setupDetectorObserver()
         setupLayoutObserver()
     }
+
+    func configureForMarketingPreview(screenUUID: String? = NSScreen.main?.displayUUID) {
+        isMarketingPreviewModel = true
+        self.screenUUID = screenUUID
+        hideOnClosed = false
+        refreshClosedNotchMetrics()
+        closedNotchSize = getClosedNotchSize(screenUUID: self.screenUUID)
+
+        if notchState == .closed {
+            notchSize = closedNotchSize
+        }
+    }
     
     private func setupDetectorObserver() {
         let enabledPublisher = Defaults
@@ -95,6 +108,13 @@ class QuartzViewModel: NSObject, ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] shouldHide in
                 guard let self else { return }
+                if self.isMarketingPreviewModel {
+                    if self.hideOnClosed {
+                        self.hideOnClosed = false
+                    }
+                    self.refreshClosedNotchMetrics()
+                    return
+                }
                 withAnimation(.smooth) {
                     self.hideOnClosed = shouldHide
                     self.refreshClosedNotchMetrics()

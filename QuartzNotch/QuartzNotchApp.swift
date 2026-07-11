@@ -697,11 +697,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        let hasRealArtwork = !MusicManager.shared.albumArt.isEqual(defaultImage)
+        let hasUsableMedia = !MusicManager.shared.isUsingIdleMetadata
+        if !hasUsableMedia {
+            lastLockScreenMediaActivityAt = .distantPast
+        }
+
+        let hasRealArtwork = hasUsableMedia && !MusicManager.shared.albumArt.isEqual(defaultImage)
         let hasRealText =
+            hasUsableMedia
+            &&
             !MusicManager.shared.songTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && MusicManager.shared.songTitle != "Not Playing"
-        let isMediaStillWarm = Date().timeIntervalSince(lastLockScreenMediaActivityAt) < 2.0
+        let isMediaStillWarm = hasUsableMedia && Date().timeIntervalSince(lastLockScreenMediaActivityAt) < 2.0
 
         let shouldShowMediaPanel =
             Defaults[.showOnLockScreen]
@@ -718,11 +724,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 try? await Task.sleep(for: .milliseconds(550))
                 guard let self else { return }
                 guard self.isScreenLocked else { return }
-                let hasRealArtwork = !MusicManager.shared.albumArt.isEqual(defaultImage)
+                let hasUsableMedia = !MusicManager.shared.isUsingIdleMetadata
+                if !hasUsableMedia {
+                    self.lastLockScreenMediaActivityAt = .distantPast
+                }
+
+                let hasRealArtwork = hasUsableMedia && !MusicManager.shared.albumArt.isEqual(defaultImage)
                 let hasRealText =
+                    hasUsableMedia
+                    &&
                     !MusicManager.shared.songTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    && MusicManager.shared.songTitle != "Not Playing"
-                let isMediaStillWarm = Date().timeIntervalSince(self.lastLockScreenMediaActivityAt) < 2.0
+                let isMediaStillWarm = hasUsableMedia && Date().timeIntervalSince(self.lastLockScreenMediaActivityAt) < 2.0
                 let shouldStillShowMedia =
                     Defaults[.showOnLockScreen]
                     && Defaults[.enableLockScreenMediaWidget]
@@ -1060,6 +1072,8 @@ private func cleanupWindows(shouldInvert: Bool = false) {
             Task { @MainActor [weak self] in
                 if !MusicManager.shared.isUsingIdleMetadata {
                     self?.lastLockScreenMediaActivityAt = Date()
+                } else {
+                    self?.lastLockScreenMediaActivityAt = .distantPast
                 }
                 self?.syncLockScreenActivityPanelVisibility()
             }
@@ -1068,6 +1082,10 @@ private func cleanupWindows(shouldInvert: Bool = false) {
         MusicManager.shared.$albumArtFlipEventID
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
+                guard !MusicManager.shared.isUsingIdleMetadata else {
+                    self?.lastLockScreenMediaActivityAt = .distantPast
+                    return
+                }
                 self?.lastLockScreenMediaActivityAt = Date()
             }
             .store(in: &appCancellables)

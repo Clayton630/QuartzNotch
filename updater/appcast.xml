@@ -7,6 +7,26 @@
         <language>en</language>
 
         <item>
+            <title>0.4.2</title>
+            <pubDate>Sat, 11 Jul 2026 18:41:06 +0200</pubDate>
+            <link>https://github.com/Clayton630/QuartzNotch/releases/tag/v0.4.2</link>
+            <sparkle:version>1037</sparkle:version>
+            <sparkle:shortVersionString>0.4.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[
+                <h2>QuartzNotch 0.4.2 Beta</h2>
+                <p>Hotfix release for Lock Screen media visibility, volume control interaction, calendar display, and marketing preview refinements.</p>
+            ]]></description>
+            <enclosure
+                url="https://github.com/Clayton630/QuartzNotch/releases/download/v0.4.2/QuartzNotch-0.4.2.1037.dmg"
+                sparkle:version="1037"
+                sparkle:shortVersionString="0.4.2"
+                length="23000262"
+                type="application/octet-stream"
+                sparkle:edSignature="RPGf9KhDIS8q0v+L4WsbmtmG1AkUDtYhqI95vkhrYHz8/d78Sf08ao5NjWqNTeHgvpLa9ZLii1eQCv2al/QGDA=="/>
+        </item>
+
+        <item>
             <title>0.4.1</title>
             <pubDate>Fri, 03 Jul 2026 16:37:13 +0200</pubDate>
             <link>https://github.com/Clayton630/QuartzNotch/releases/tag/v0.4.1</link>

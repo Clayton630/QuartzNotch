@@ -154,7 +154,10 @@ class MusicManager: ObservableObject {
     private var transitionWorkItem: DispatchWorkItem?
 
     var isUsingIdleMetadata: Bool {
-        songTitle == MusicDisplayPlaceholder.title && artistName == MusicDisplayPlaceholder.artist
+        let normalizedTitle = songTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalizedTitle.isEmpty
+            || normalizedTitle == MusicDisplayPlaceholder.title
+            || normalizedTitle == MusicDisplayPlaceholder.rawTitle
     }
 
     var hasResolvableBundleIcon: Bool {
