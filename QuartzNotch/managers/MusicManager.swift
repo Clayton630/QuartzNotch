@@ -450,14 +450,6 @@ class MusicManager: ObservableObject {
         var effective = raw
         effective.artwork = sanitizeArtworkData(effective.artwork)
 
-        if effective.artwork == nil, source != .nowPlaying,
-           let np = stateBySource[.nowPlaying], np.bundleIdentifier == effective.bundleIdentifier {
-            let npArtwork = sanitizeArtworkData(np.artwork)
-            if npArtwork != nil {
-                effective.artwork = npArtwork
-            }
-        }
-
         applyPendingPlaybackCommandIfNeeded(to: &effective)
 
         updateFromPlaybackState(effective)

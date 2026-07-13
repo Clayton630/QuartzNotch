@@ -13,7 +13,12 @@ enum PanDirection {
 }
 
 extension View {
-    func panGesture(direction: PanDirection, threshold: CGFloat = 4, action: @escaping (CGFloat, NSEvent.Phase) -> Void) -> some View {
+    func panGesture(
+        direction: PanDirection,
+        threshold: CGFloat = 4,
+        includesMomentum: Bool = true,
+        action: @escaping (CGFloat, NSEvent.Phase) -> Void
+    ) -> some View {
         self
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -24,13 +29,21 @@ extension View {
                     }
                     .onEnded { _ in action(0, .ended) }
             )
-            .background(ScrollMonitor(direction: direction, threshold: threshold, action: action))
+            .background(
+                ScrollMonitor(
+                    direction: direction,
+                    threshold: threshold,
+                    includesMomentum: includesMomentum,
+                    action: action
+                )
+            )
     }
 }
 
 private struct ScrollMonitor: NSViewRepresentable {
     let direction: PanDirection
     let threshold: CGFloat
+    let includesMomentum: Bool
     let action: (CGFloat, NSEvent.Phase) -> Void
 
     func makeNSView(context: Context) -> NSView {
@@ -42,12 +55,18 @@ private struct ScrollMonitor: NSViewRepresentable {
     static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) { coordinator.removeMonitor() }
 
     func makeCoordinator() -> Coordinator { 
-        Coordinator(direction: direction, threshold: threshold, action: action) 
+        Coordinator(
+            direction: direction,
+            threshold: threshold,
+            includesMomentum: includesMomentum,
+            action: action
+        )
     }
 
     @MainActor final class Coordinator: NSObject {
         private let direction: PanDirection
         private let threshold: CGFloat
+        private let includesMomentum: Bool
         private let action: (CGFloat, NSEvent.Phase) -> Void
         private var monitor: Any?
         private var accumulated: CGFloat = 0
@@ -55,9 +74,15 @@ private struct ScrollMonitor: NSViewRepresentable {
             private var endTask: Task<Void, Never>?
         private let noiseThreshold: CGFloat = 0.2
 
-        init(direction: PanDirection, threshold: CGFloat, action: @escaping (CGFloat, NSEvent.Phase) -> Void) {
+        init(
+            direction: PanDirection,
+            threshold: CGFloat,
+            includesMomentum: Bool,
+            action: @escaping (CGFloat, NSEvent.Phase) -> Void
+        ) {
             self.direction = direction
             self.threshold = threshold
+            self.includesMomentum = includesMomentum
             self.action = action
         }
 
@@ -97,6 +122,10 @@ private struct ScrollMonitor: NSViewRepresentable {
         }
 
         private func handleScroll(_ event: NSEvent) {
+            if !includesMomentum, event.phase.isEmpty, !event.momentumPhase.isEmpty {
+                return
+            }
+
             if event.phase == .ended || event.momentumPhase == .ended {
                 if active {
                     action(accumulated.magnitude, .ended)

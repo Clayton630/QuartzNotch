@@ -8,11 +8,9 @@ final class DragDetector {
  // MARK: - Callbacks
 
     typealias VoidCallback = () -> Void
-    typealias PositionCallback = (_ globalPoint: CGPoint) -> Void
 
     var onDragEntersNotchRegion: VoidCallback?
     var onDragExitsNotchRegion: VoidCallback?
-    var onDragMove: PositionCallback?
 
 
     private var mouseDownMonitor: Any?
@@ -76,7 +74,6 @@ final class DragDetector {
             self.lastProcessedDragTime = now
 
             let mouseLocation = NSEvent.mouseLocation
-            self.onDragMove?(mouseLocation)
 
             let containsMouse = self.notchRegion.contains(mouseLocation)
             if containsMouse && !self.hasEnteredNotchRegion {
