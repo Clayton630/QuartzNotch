@@ -814,6 +814,7 @@ struct ContentView: View {
 
     @State private var anyDropDebounceTask: Task<Void, Never>?
     @State private var gestureProgress: CGFloat = .zero
+    @State private var trackSwipeTriggered: Bool = false
     @State private var haptics: Bool = false
     @State private var suppressAutoCloseUntil: Date = .distantPast
     @State private var suppressNotchOpenUntilAfterTimerPopupClose: Date = .distantPast
@@ -2942,15 +2943,14 @@ struct ContentView: View {
                         handleHover(hovering)
                     }
                     .onTapGesture {
-                        if vm.notchState == .closed {
-                            if shouldShowTimerActivityClosed && isTimerPopupHovering { return }
-                            if isBluetoothClosedNotificationShowing && isBluetoothPopupHovering { return }
-                            if shouldShowMusicActivityClosed && (isNowPlayingLeftHovering || isNowPlayingRightHovering) {
-                                if isNowPlayingRightHovering {
-                                    performNowPlayingRightButtonAction()
-                                }
-                                return
+                        guard vm.notchState == .closed else { return }
+                        if shouldShowTimerActivityClosed && isTimerPopupHovering { return }
+                        if isBluetoothClosedNotificationShowing && isBluetoothPopupHovering { return }
+                        if shouldShowMusicActivityClosed && (isNowPlayingLeftHovering || isNowPlayingRightHovering) {
+                            if isNowPlayingRightHovering {
+                                performNowPlayingRightButtonAction()
                             }
+                            return
                         }
                         doOpen()
                     }
@@ -2962,6 +2962,16 @@ struct ContentView: View {
                     .conditionalModifier(Defaults[.closeGestureEnabled] && Defaults[.enableGestures]) { view in
                         view.panGesture(direction: .up) { translation, phase in
                             handleUpGesture(translation: translation, phase: phase)
+                        }
+                    }
+                    .conditionalModifier(Defaults[.enableGestures]) { view in
+                        view.panGesture(direction: .left, includesMomentum: false) { translation, phase in
+                            handleTrackSwipe(direction: .next, translation: translation, phase: phase)
+                        }
+                    }
+                    .conditionalModifier(Defaults[.enableGestures]) { view in
+                        view.panGesture(direction: .right, includesMomentum: false) { translation, phase in
+                            handleTrackSwipe(direction: .previous, translation: translation, phase: phase)
                         }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: .sharingDidFinish)) { _ in
@@ -5708,6 +5718,33 @@ private struct AirPodsProVideoNSView: NSViewRepresentable {
             }
 
             if Defaults[.enableHaptics] { haptics.toggle() }
+        }
+    }
+
+    private func handleTrackSwipe(
+        direction: AlbumArtFlipDirection,
+        translation: CGFloat,
+        phase: NSEvent.Phase
+    ) {
+        if phase == .ended {
+            trackSwipeTriggered = false
+            return
+        }
+
+        guard vm.notchState == .closed,
+              shouldShowMusicActivityClosed,
+              isPagerScrollEffectivelyEnabled,
+              !trackSwipeTriggered,
+              translation > 44 else { return }
+
+        trackSwipeTriggered = true
+        if Defaults[.enableHaptics] { haptics.toggle() }
+
+        switch direction {
+        case .next:
+            musicManager.nextTrack()
+        case .previous:
+            musicManager.previousTrack()
         }
     }
 

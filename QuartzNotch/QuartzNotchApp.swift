@@ -839,9 +839,9 @@ private func cleanupWindows(shouldInvert: Bool = false) {
         guard let uuid = screen.displayUUID else { return }
         
         let screenFrame = screen.frame
-        let openSize = getOpenNotchSize(screenUUID: uuid)
-        let notchHeight = openSize.height
-        let notchWidth = openSize.width
+        let closedSize = getClosedNotchSize(screenUUID: uuid)
+        let notchHeight = closedSize.height
+        let notchWidth = closedSize.width
         
         let notchRegion = CGRect(
             x: screenFrame.midX - notchWidth / 2,

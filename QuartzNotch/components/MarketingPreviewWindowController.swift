@@ -2,6 +2,7 @@ import AppKit
 import AVFoundation
 import ScreenCaptureKit
 import SwiftUI
+import VideoToolbox
 
 @MainActor
 final class MarketingPreviewWindowController {
