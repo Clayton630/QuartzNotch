@@ -1593,6 +1593,7 @@ final class LockScreenDesktopOverrideCoordinator {
         }.first?.node
     }
 
+    @MainActor
     private func makeOverrideImage(screen: NSScreen, artwork: NSImage) -> URL? {
         let canvasSize = screen.frame.size
         guard canvasSize.width > 1, canvasSize.height > 1,

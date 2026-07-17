@@ -7,6 +7,26 @@
         <language>en</language>
 
         <item>
+            <title>0.4.3</title>
+            <pubDate>Fri, 17 Jul 2026 19:00:00 +0200</pubDate>
+            <link>https://github.com/Clayton630/QuartzNotch/releases/tag/v0.4.3</link>
+            <sparkle:version>1038</sparkle:version>
+            <sparkle:shortVersionString>0.4.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[
+                <h2>QuartzNotch 0.4.3 Beta</h2>
+                <p>Hotfix release that restores system-wide Now Playing detection and Apple Music album artwork loading.</p>
+            ]]></description>
+            <enclosure
+                url="https://github.com/Clayton630/QuartzNotch/releases/download/v0.4.3/QuartzNotch-0.4.3(1038).dmg"
+                sparkle:version="1038"
+                sparkle:shortVersionString="0.4.3"
+                length="23029541"
+                type="application/octet-stream"
+                sparkle:edSignature="tRRYSP2hXclH9ZR8i4nrxOkVOQUPcEeKATTkA0VGhVLMrT2IuEsW9a+JcD6w2sKyYwDNifUuXAUGzCue+P2fAw=="/>
+        </item>
+
+        <item>
             <title>0.4.2</title>
             <pubDate>Sat, 11 Jul 2026 18:41:06 +0200</pubDate>
             <link>https://github.com/Clayton630/QuartzNotch/releases/tag/v0.4.2</link>

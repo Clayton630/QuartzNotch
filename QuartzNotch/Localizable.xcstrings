@@ -21900,7 +21900,6 @@
       }
     },
     "Liquid Glass" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -33363,6 +33362,9 @@
           }
         }
       }
+    },
+    "Refraction" : {
+
     },
     "Release name" : {
       "extractionState" : "stale",
